@@ -1,0 +1,303 @@
+:root {
+  color-scheme: light;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  background: #eef2f1;
+  color: #17201d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button {
+  min-height: 40px;
+  border: 1px solid #1e4037;
+  border-radius: 6px;
+  padding: 0 14px;
+  background: #1e4037;
+  color: #f7fbf7;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 18px;
+}
+
+.app-empty {
+  display: grid;
+  place-items: center;
+}
+
+.start-panel {
+  width: min(520px, 100%);
+  border: 1px solid #c7d4ce;
+  border-radius: 8px;
+  padding: 28px;
+  background: #ffffff;
+  box-shadow: 0 20px 50px rgb(26 45 39 / 12%);
+}
+
+.start-panel h1,
+.top-bar h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  letter-spacing: 0;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #c7d4ce;
+  padding-bottom: 14px;
+}
+
+.top-bar p {
+  margin: 6px 0 0;
+  color: #56635f;
+}
+
+.top-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.top-stats span {
+  border: 1px solid #c7d4ce;
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: #ffffff;
+  color: #24312d;
+  font-size: 0.9rem;
+}
+
+.game-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.board {
+  width: 100%;
+  min-height: min(66vh, 680px);
+  border: 1px solid #becbc5;
+  border-radius: 8px;
+  background: #dfe8df;
+}
+
+.board-background {
+  fill: #d8e1d8;
+}
+
+.board-grid line {
+  stroke: #b8c7c0;
+  stroke-width: 1;
+}
+
+.area {
+  stroke: #40544e;
+  stroke-width: 2;
+  cursor: pointer;
+  transition:
+    filter 120ms ease,
+    stroke-width 120ms ease;
+}
+
+.area:hover,
+.area:focus {
+  filter: brightness(1.04);
+  outline: none;
+  stroke-width: 4;
+}
+
+.area-selected {
+  stroke: #f0b429;
+  stroke-width: 5;
+}
+
+.area-red {
+  fill: #ba4d47;
+}
+
+.area-black {
+  fill: #38424a;
+}
+
+.area-neutral {
+  fill: #c9b37b;
+}
+
+.area-label {
+  fill: #fffaf0;
+  font-size: 24px;
+  font-weight: 750;
+  pointer-events: none;
+}
+
+.area-meta {
+  fill: #fffaf0;
+  font-size: 15px;
+  pointer-events: none;
+}
+
+.commander circle {
+  stroke: #fffaf0;
+  stroke-width: 3;
+}
+
+.commander text {
+  fill: #fffaf0;
+  font-size: 17px;
+  font-weight: 800;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.commander-red circle {
+  fill: #8f2f2d;
+}
+
+.commander-black circle {
+  fill: #1f252a;
+}
+
+.board-status {
+  fill: #24312d;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.board-hit-proxy {
+  display: none;
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  border-left: 1px solid #c7d4ce;
+  padding-left: 18px;
+}
+
+.seat-switcher {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.seat-switcher button {
+  background: #ffffff;
+  color: #1e4037;
+}
+
+.seat-switcher button.is-active {
+  background: #1e4037;
+  color: #ffffff;
+}
+
+.panel-section {
+  border: 1px solid #c7d4ce;
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.panel-section h2 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+  letter-spacing: 0;
+}
+
+.area-details {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.area-details div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.area-details dt {
+  color: #65716c;
+  font-size: 0.88rem;
+}
+
+.area-details dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.event-log {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.muted {
+  margin: 0;
+  color: #65716c;
+}
+
+.error-text {
+  margin: 10px 0 0;
+  color: #a3352f;
+  font-weight: 650;
+}
+
+.secondary-action {
+  background: #ffffff;
+  color: #1e4037;
+}
+
+@media (max-width: 900px) {
+  .top-bar,
+  .game-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .top-bar {
+    display: grid;
+  }
+
+  .top-stats {
+    justify-content: flex-start;
+  }
+
+  .side-panel {
+    border-left: 0;
+    border-top: 1px solid #c7d4ce;
+    padding-left: 0;
+    padding-top: 16px;
+  }
+}

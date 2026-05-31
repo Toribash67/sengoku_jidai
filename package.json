@@ -1,0 +1,51 @@
+{
+  "name": "sengoku-jidai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "corepack pnpm build:libs && concurrently -n server,web -c blue,green \"corepack pnpm dev:server\" \"corepack pnpm dev:web\"",
+    "build:libs": "corepack pnpm --filter @sengoku-jidai/engine --filter @sengoku-jidai/shared --sort run build",
+    "dev:web": "corepack pnpm --filter @sengoku-jidai/web dev",
+    "dev:server": "corepack pnpm --filter @sengoku-jidai/server dev",
+    "build": "corepack pnpm -r --sort run build",
+    "test": "corepack pnpm build:libs && corepack pnpm -r --sort run test",
+    "test:e2e": "playwright test",
+    "typecheck": "corepack pnpm build:libs && corepack pnpm -r --sort run typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "db:reset": "corepack pnpm --filter @sengoku-jidai/server db:reset",
+    "db:seed": "corepack pnpm --filter @sengoku-jidai/server db:seed"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.2",
+    "@fastify/static": "^8.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "better-sqlite3": "^12.10.0",
+    "concurrently": "^9.1.2",
+    "fastify": "^5.2.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@playwright/test": "^1.49.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.19.0",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@9.15.2"
+}
