@@ -10,7 +10,6 @@ services:
       HOST: 0.0.0.0
       PORT: "80"
       SQLITE_PATH: /data/sengoku.sqlite
-      SESSION_SECRET: change-me
       LOG_LEVEL: info
     ports:
       - "18081:80"

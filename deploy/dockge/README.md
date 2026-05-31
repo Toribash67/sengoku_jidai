@@ -12,9 +12,8 @@ This stack mirrors the sibling Diplomacy deployment:
 
 1. Create a new Dockge stack.
 2. Paste `deploy/dockge/compose.yml`.
-3. Replace `SESSION_SECRET` with a long random value.
-4. If the GHCR package is private, log in to GHCR on the TrueNAS host.
-5. Start the stack and open `http://<truenas-host>:18081`.
+3. If the GHCR package is private, log in to GHCR on the TrueNAS host.
+4. Start the stack and open `http://<truenas-host>:18081`.
 
 Watchtower will pull new `latest` images after pushes to `main`. The `/data` volume must be kept when replacing containers; it stores game state.
 
