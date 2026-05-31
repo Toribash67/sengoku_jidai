@@ -203,6 +203,8 @@ interface CommandActor {
 }
 ```
 
+This is an internal engine boundary used by the server and tests. `previousState` is not part of the public API and is never supplied by the client. For real requests, the server loads the current authoritative state from persistence, derives `actor` from the authenticated session, and then calls the engine.
+
 `CommandResult` should be a discriminated union:
 
 ```ts
@@ -406,7 +408,7 @@ interface SubmitCommandRequest {
 }
 ```
 
-The server derives `gameId` from the route and derives the acting seat/player from the authenticated session token. The request body must not be trusted for player identity. The server passes the derived actor to the engine separately from the client-submitted command.
+The public API accepts player intent, not game state. Clients must not send `GameState`, `nextState`, actor identity, dice outcomes, or hidden-information claims. The server derives `gameId` from the route, loads the authoritative state for that game, derives the acting seat/player from the authenticated session token, and passes that state and actor to the engine separately from the client-submitted command.
 
 If `baseRevision` is stale, the server rejects the command and returns or broadcasts the latest player view. This keeps multiple tabs, reconnects, and simultaneous clients from applying commands to different versions of the game.
 
@@ -414,12 +416,14 @@ Typical command flow:
 
 1. Client renders its player view at revision `N`.
 2. Player drafts and submits a command with `baseRevision: N`.
-3. Server validates session and revision.
-4. Server calls `resolveCommand(state, actor, command, rulesConfig)`.
-5. Server persists the accepted command attempt, events, and new state snapshot at revision `N + 1`.
-6. Server replies to the submitting client.
-7. Server broadcasts the new player view or event bundle to all connected clients.
-8. Clients replace their authoritative view and clear invalid local drafts.
+3. Server validates the session and derives the actor.
+4. Server loads the authoritative state snapshot for the game.
+5. Server checks that the stored game revision still equals `baseRevision`.
+6. Server calls `resolveCommand(state, actor, command, rulesConfig)`.
+7. Server persists the accepted command attempt, events, and new state snapshot at revision `N + 1`.
+8. Server replies to the submitting client with an updated player view or projected events.
+9. Server broadcasts the new player view or event bundle to connected clients.
+10. Clients replace their authoritative view and clear invalid local drafts.
 
 Command submission should be transactional:
 
@@ -427,11 +431,12 @@ Command submission should be transactional:
 2. Load the game row and current revision.
 3. Return the original result if `(game_id, seat, client_command_id)` was already recorded, whether accepted or rejected.
 4. Reject if `current_revision !== baseRevision`.
-5. Call the engine.
-6. Insert the command attempt, events, and state snapshot for `revision = baseRevision + 1` if accepted.
-7. Update `games.current_revision` with a compare-and-swap condition such as `WHERE current_revision = baseRevision`.
-8. Commit.
-9. Broadcast only after commit.
+5. Load or verify the authoritative state snapshot for `baseRevision`.
+6. Call the engine with `resolveCommand(state, actor, command, rulesConfig)`.
+7. Insert the command attempt, events, and state snapshot for `revision = baseRevision + 1` if accepted.
+8. Update `games.current_revision` with a compare-and-swap condition such as `WHERE current_revision = baseRevision`.
+9. Commit.
+10. Broadcast only after commit.
 
 Minimal response contracts:
 
@@ -452,6 +457,22 @@ interface PlayerGameViewEnvelope {
   seat: SeatId;
   revision: number;
   view: PlayerGameView;
+}
+```
+
+Command responses should expose the result of server-side resolution, not ask the client to compute state:
+
+```ts
+interface SubmitCommandResponse {
+  accepted: boolean;
+  revision: number;
+  view?: PlayerGameView;
+  events?: PlayerGameEvent[];
+  error?: {
+    code: string;
+    message: string;
+    requestId: string;
+  };
 }
 ```
 
