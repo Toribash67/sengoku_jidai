@@ -32,7 +32,7 @@ export async function submitCommand(
     headers: authHeaders(token),
     body: JSON.stringify({
       baseRevision,
-      clientCommandId: crypto.randomUUID(),
+      clientCommandId: createClientCommandId(),
       command
     })
   });
@@ -43,6 +43,20 @@ function authHeaders(token: string) {
     "content-type": "application/json",
     authorization: `Bearer ${token}`
   };
+}
+
+function createClientCommandId(): string {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  if (typeof globalThis.crypto?.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    return `cmd-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+  }
+
+  return `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
 async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
