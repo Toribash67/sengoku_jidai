@@ -37,7 +37,7 @@ export interface MapArea {
   hq: SeatId | null;
   /** Victory-point stars on the area (0, 1, or 2). */
   valueStars: 0 | 1 | 2;
-  /** Land area that can launch/build ships (endpoint of one or more piers). */
+  /** Land area that can launch/build ships (endpoint of one or more ports). */
   harbor: boolean;
   /** Coastal land area that can be targeted by a Shell action from the sea. */
   shellable: boolean;
