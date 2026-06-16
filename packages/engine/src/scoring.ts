@@ -2,8 +2,6 @@ import type { MapDefinition } from "./maps/riversMap.js";
 import type { SeatId } from "./types.js";
 import { suppliedAreas, type SupplyBoard } from "./supply.js";
 
-const SEATS: SeatId[] = ["red", "black"];
-
 /** Total value stars on areas the seat supplies. */
 export function victoryPoints(map: MapDefinition, board: SupplyBoard, seat: SeatId): number {
   let total = 0;
@@ -53,8 +51,8 @@ export function evaluateGameEnd(
     return { complete: false, winner: null, endReason: null };
   }
 
-  const scores = SEATS.map((seat) => ({ seat, vp: victoryPoints(map, board, seat) }));
-  const [a, b] = scores as [{ seat: SeatId; vp: number }, { seat: SeatId; vp: number }];
-  const winner = a.vp === b.vp ? ctx.initiative : a.vp > b.vp ? a.seat : b.seat;
+  const redVp = victoryPoints(map, board, "red");
+  const blackVp = victoryPoints(map, board, "black");
+  const winner: SeatId = redVp === blackVp ? ctx.initiative : redVp > blackVp ? "red" : "black";
   return { complete: true, winner, endReason: "victoryPoints" };
 }

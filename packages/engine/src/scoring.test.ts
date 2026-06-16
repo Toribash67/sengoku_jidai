@@ -49,6 +49,13 @@ describe("scoring", () => {
     expect(result).toEqual({ complete: true, winner: "black", endReason: "hqEliminated" });
   });
 
+  it("breaks a simultaneous double HQ elimination on initiative", () => {
+    const board = owners({ a: "red" }); // neither hqR nor hqB is held by its faction
+    expect(
+      evaluateGameEnd(testMap(), board, { round: 2, maxRounds: 4, initiative: "black" })
+    ).toEqual({ complete: true, winner: "black", endReason: "hqEliminated" });
+  });
+
   it("does not end mid-game when both HQs stand", () => {
     const board = owners({ hqR: "red", hqB: "black" });
     expect(
