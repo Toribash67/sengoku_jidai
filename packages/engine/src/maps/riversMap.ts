@@ -41,7 +41,7 @@ export interface MapArea {
   harbor: boolean;
   /** Coastal land area that can be targeted by a Shell action from the sea. */
   shellable: boolean;
-  /** General adjacency: every area sharing a border (land, sea, or mixed). */
+  /** General adjacency: every area sharing a border (land, sea, or mixed). INTERIM data — Plan 2 re-derives this accurately from cloned_map.svg. */
   adjacent: string[];
   /** For harbours: water areas reachable via a pier (Embark placement + navy building). */
   ports: string[];
@@ -60,7 +60,13 @@ function area(
   id: string,
   kind: AreaKind,
   adjacent: string[],
-  opts: { hq?: SeatId; valueStars?: 0 | 1 | 2; harbor?: boolean; shellable?: boolean; ports?: string[] } = {}
+  opts: {
+    hq?: SeatId;
+    valueStars?: 0 | 1 | 2;
+    harbor?: boolean;
+    shellable?: boolean;
+    ports?: string[];
+  } = {}
 ): MapArea {
   return {
     id,
@@ -82,17 +88,37 @@ const areaList: MapArea[] = [
   area("tile3", "sea", ["tile7", "tile6", "tile8"], { valueStars: 1 }),
   area("tile4", "land", ["tile8"], { valueStars: 1 }),
   area("tile5", "land", ["tile8", "tile12", "tile13"]),
-  area("tile6", "land", ["tile1", "tile2", "tile10", "tile3", "tile7"], { valueStars: 1, harbor: true, ports: ["tile3", "tile7"] }),
+  area("tile6", "land", ["tile1", "tile2", "tile10", "tile3", "tile7"], {
+    valueStars: 1,
+    harbor: true,
+    ports: ["tile3", "tile7"]
+  }),
   area("tile7", "sea", ["tile3", "tile11", "tile6", "tile8"], { valueStars: 1 }),
-  area("tile8", "land", ["tile4", "tile5", "tile12", "tile3", "tile7"], { valueStars: 1, harbor: true, ports: ["tile3", "tile7"] }),
-  area("tile9", "land", ["tile1", "tile10", "tile14", "tile15"], { hq: "red", harbor: true, ports: ["tile14", "tile15"] }),
+  area("tile8", "land", ["tile4", "tile5", "tile12", "tile3", "tile7"], {
+    valueStars: 1,
+    harbor: true,
+    ports: ["tile3", "tile7"]
+  }),
+  area("tile9", "land", ["tile1", "tile10", "tile14", "tile15"], {
+    hq: "red",
+    harbor: true,
+    ports: ["tile14", "tile15"]
+  }),
   area("tile10", "land", ["tile1", "tile6", "tile9"], { shellable: true }),
   area("tile11", "sea", ["tile7", "tile15", "tile17", "tile16"], { valueStars: 1 }),
   area("tile12", "land", ["tile5", "tile8", "tile13"], { shellable: true }),
-  area("tile13", "land", ["tile5", "tile12", "tile17", "tile18"], { hq: "black", harbor: true, ports: ["tile17", "tile18"] }),
+  area("tile13", "land", ["tile5", "tile12", "tile17", "tile18"], {
+    hq: "black",
+    harbor: true,
+    ports: ["tile17", "tile18"]
+  }),
   area("tile14", "sea", ["tile22", "tile9"]),
   area("tile15", "sea", ["tile11", "tile9", "tile16"], { valueStars: 1 }),
-  area("tile16", "land", ["tile19", "tile20", "tile21", "tile11", "tile15", "tile17"], { valueStars: 2, harbor: true, ports: ["tile11", "tile15", "tile17"] }),
+  area("tile16", "land", ["tile19", "tile20", "tile21", "tile11", "tile15", "tile17"], {
+    valueStars: 2,
+    harbor: true,
+    ports: ["tile11", "tile15", "tile17"]
+  }),
   area("tile17", "sea", ["tile11", "tile13", "tile16"], { valueStars: 1 }),
   area("tile18", "sea", ["tile22", "tile13"]),
   area("tile19", "land", ["tile16", "tile20"], { shellable: true }),

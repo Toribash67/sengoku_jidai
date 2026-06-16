@@ -46,8 +46,14 @@ describe("rivers map topology", () => {
   });
 
   it("places value stars on the expected areas", () => {
-    const oneStar = areas.filter((a) => a.valueStars === 1).map((a) => a.id).sort();
-    const twoStar = areas.filter((a) => a.valueStars === 2).map((a) => a.id).sort();
+    const oneStar = areas
+      .filter((a) => a.valueStars === 1)
+      .map((a) => a.id)
+      .sort();
+    const twoStar = areas
+      .filter((a) => a.valueStars === 2)
+      .map((a) => a.id)
+      .sort();
     expect(oneStar).toEqual(
       ["tile11", "tile15", "tile17", "tile2", "tile3", "tile4", "tile6", "tile7", "tile8"].sort()
     );
