@@ -19,47 +19,29 @@ describe("rivers map topology", () => {
   });
 
   it("references no dangling area ids", () => {
-    for (const area of areas) {
-      for (const id of [...area.landAdjacent, ...area.seaAdjacent, ...area.piers]) {
-        expect(riversMap.areas[id], `${area.id} -> ${id}`).toBeDefined();
+    for (const a of areas) {
+      for (const id of [...a.adjacent, ...a.ports]) {
+        expect(riversMap.areas[id], `${a.id} -> ${id}`).toBeDefined();
       }
     }
   });
 
-  it("keeps land and sea adjacency within their own kind", () => {
-    for (const area of areas) {
-      for (const id of area.landAdjacent) {
-        expect(riversMap.areas[id]?.kind).toBe("land");
-      }
-      for (const id of area.seaAdjacent) {
-        expect(riversMap.areas[id]?.kind).toBe("sea");
+  it("has symmetric general adjacency", () => {
+    for (const a of areas) {
+      for (const id of a.adjacent) {
+        expect(riversMap.areas[id]?.adjacent, `${a.id} <-> ${id}`).toContain(a.id);
       }
     }
   });
 
-  it("has symmetric land and sea adjacency", () => {
-    for (const area of areas) {
-      for (const id of area.landAdjacent) {
-        expect(riversMap.areas[id]?.landAdjacent).toContain(area.id);
+  it("only places ports on harbour land areas, pointing at sea areas", () => {
+    for (const a of areas) {
+      if (a.ports.length > 0) {
+        expect(a.kind).toBe("land");
+        expect(a.harbor).toBe(true);
+        for (const id of a.ports) expect(riversMap.areas[id]?.kind).toBe("sea");
       }
-      for (const id of area.seaAdjacent) {
-        expect(riversMap.areas[id]?.seaAdjacent).toContain(area.id);
-      }
-    }
-  });
-
-  it("only places piers on harbour land areas, pointing at sea areas", () => {
-    for (const area of areas) {
-      if (area.piers.length > 0) {
-        expect(area.kind).toBe("land");
-        expect(area.harbor).toBe(true);
-        for (const id of area.piers) {
-          expect(riversMap.areas[id]?.kind).toBe("sea");
-        }
-      }
-      if (area.harbor) {
-        expect(area.piers.length).toBeGreaterThan(0);
-      }
+      if (a.harbor) expect(a.ports.length).toBeGreaterThan(0);
     }
   });
 
