@@ -41,7 +41,7 @@ export interface MapArea {
   harbor: boolean;
   /** Coastal land area that can be targeted by a Shell action from the sea. */
   shellable: boolean;
-  /** General adjacency: every area sharing a border (land, sea, or mixed). INTERIM data — Plan 2 re-derives this accurately from cloned_map.svg. */
+  /** General adjacency: every area sharing a border (land, sea, or mixed). Derived from cloned_map.svg; symmetry + no-dangling enforced by riversMap.test.ts. */
   adjacent: string[];
   /** For harbours: water areas reachable via a pier (Embark placement + navy building). */
   ports: string[];
@@ -52,6 +52,12 @@ export interface MapDefinition {
   /** Human-facing name for map selection UI. */
   name: string;
   areas: Record<string, MapArea>;
+  /**
+   * The fixed areas that receive a randomly-assigned bonus at setup (3 of the 5
+   * bonus types are drawn per game). INTERIM placeholder areas until confirmed by
+   * the board author; change here only.
+   */
+  bonusSlots: string[];
 }
 
 export const riversMapId = "rivers";
@@ -80,8 +86,6 @@ function area(
   };
 }
 
-// NOTE: `adjacent` here is an INTERIM union of the old land/sea/pier data.
-// Plan 2 re-derives accurate general (shared-border) adjacency from cloned_map.svg.
 const areaList: MapArea[] = [
   area("tile1", "land", ["tile6", "tile9", "tile10"]),
   area("tile2", "land", ["tile6"], { valueStars: 1 }),
@@ -130,5 +134,6 @@ const areaList: MapArea[] = [
 export const riversMap: MapDefinition = {
   id: riversMapId,
   name: "Rivers",
-  areas: Object.fromEntries(areaList.map((area) => [area.id, area]))
+  areas: Object.fromEntries(areaList.map((area) => [area.id, area])),
+  bonusSlots: ["tile6", "tile16", "tile20"]
 };
