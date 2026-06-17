@@ -17,6 +17,7 @@ function testMap(): MapDefinition {
   return {
     id: "test",
     name: "Test",
+    bonusSlots: [],
     areas: Object.fromEntries(
       [
         A("hqR", ["a"], "red"),
