@@ -8,3 +8,4 @@ test-results/
 .git/
 .DS_Store
 *.tsbuildinfo
+source-material/
