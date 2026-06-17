@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { riversRuleset } from "./rules.js";
-import { DEFAULT_DICE_FACES } from "./rng.js";
+import { riversRuleset } from "../src/rules.js";
+import { DEFAULT_DICE_FACES } from "../src/rng.js";
 
 describe("rivers ruleset", () => {
   it("describes the Rivers variant knobs", () => {

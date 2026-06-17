@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { riversMap } from "../maps/riversMap.js";
+import { riversMap } from "../../src/maps/riversMap.js";
 
 const areas = Object.values(riversMap.areas);
 

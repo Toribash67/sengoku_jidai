@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRngState, nextFloat, rollDie, shuffle, DEFAULT_DICE_FACES } from "./rng.js";
+import { createRngState, nextFloat, rollDie, shuffle, DEFAULT_DICE_FACES } from "../src/rng.js";
 
 describe("rng", () => {
   it("derives a stable state string from a seed", () => {

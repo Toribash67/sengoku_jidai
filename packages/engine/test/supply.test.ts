@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { MapDefinition } from "./maps/riversMap.js";
-import { controls, suppliedAreas, inSupply } from "./supply.js";
+import type { MapDefinition } from "../src/maps/riversMap.js";
+import { controls, suppliedAreas, inSupply } from "../src/supply.js";
 
 // Synthetic line map: hqR - a - b - c - hqB
 function testMap(): MapDefinition {

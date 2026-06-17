@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createGame, playerView, resolveCommand, serializeState } from "../index.js";
+import { createGame, playerView, resolveCommand, serializeState } from "../src/index.js";
 
 describe("placeholder engine", () => {
   it("creates a deterministic initial state", () => {

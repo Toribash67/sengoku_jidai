@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { MapDefinition } from "./maps/riversMap.js";
-import type { SupplyBoard } from "./supply.js";
-import { victoryPoints, hqEliminated, evaluateGameEnd } from "./scoring.js";
+import type { MapDefinition } from "../src/maps/riversMap.js";
+import type { SupplyBoard } from "../src/supply.js";
+import { victoryPoints, hqEliminated, evaluateGameEnd } from "../src/scoring.js";
 
 function testMap(): MapDefinition {
   const A = (id: string, adjacent: string[], hq?: "red" | "black", stars: 0 | 1 | 2 = 0) => ({
