@@ -33,16 +33,17 @@ export function createInitialState(options: GameSetupOptions): GameState {
   const rules = options.rules ?? riversRuleset;
   const map = getMap(mapId);
 
-  if (map.bonusSlots.length !== 3) {
-    throw new Error(`Map ${mapId} must define exactly 3 bonus slots`);
-  }
-  if (rules.bonusSet.length < 3) {
-    throw new Error(`Ruleset ${rules.rulesetId} must offer at least 3 bonuses`);
+  // One bonus is drawn per slot, so the ruleset must offer at least as many
+  // bonuses as the map has slots (Rivers: 3 slots from a pool of 5).
+  if (map.bonusSlots.length > rules.bonusSet.length) {
+    throw new Error(
+      `Map ${mapId} has ${map.bonusSlots.length} bonus slots but ruleset ${rules.rulesetId} offers only ${rules.bonusSet.length} bonuses`
+    );
   }
 
   let rngState = createRngState(options.seed);
 
-  // (1) shuffle the bonus pool, take 3, assign to the fixed slots.
+  // (1) shuffle the bonus pool and assign one to each fixed slot, in slot order.
   const shuffled = shuffle(rngState, rules.bonusSet);
   rngState = shuffled.state;
   const bonuses: Record<string, BonusType> = {};

@@ -3,8 +3,12 @@ import { createInitialState } from "../src/game.js";
 import { riversMap } from "../src/maps/riversMap.js";
 import { riversRuleset } from "../src/rules.js";
 import { createRngState } from "../src/rng.js";
+import { HQ_STARTING_TROOPS, RIVERS_UNIT_POOL } from "../src/state.js";
 
 const opts = { gameId: "g1", seed: "seed-A" };
+
+const hqOf = (seat: "red" | "black") =>
+  Object.values(riversMap.areas).find((a) => a.hq === seat)!.id;
 
 describe("createInitialState", () => {
   it("is deterministic for a given seed", () => {
@@ -27,12 +31,15 @@ describe("createInitialState", () => {
     expect(s.endReason).toBeNull();
   });
 
-  it("places 3 troops in each HQ and leaves every other area empty", () => {
+  it("garrisons each HQ with the starting troops and leaves every other area empty", () => {
     const s = createInitialState(opts);
-    expect(s.areas.tile9).toEqual({ owner: "red", units: { troop: 3, ship: 0, siege: 0 } });
-    expect(s.areas.tile13).toEqual({ owner: "black", units: { troop: 3, ship: 0, siege: 0 } });
+    const redHq = hqOf("red");
+    const blackHq = hqOf("black");
+    const garrison = { troop: HQ_STARTING_TROOPS, ship: 0, siege: 0 };
+    expect(s.areas[redHq]).toEqual({ owner: "red", units: garrison });
+    expect(s.areas[blackHq]).toEqual({ owner: "black", units: garrison });
     for (const [id, a] of Object.entries(s.areas)) {
-      if (id === "tile9" || id === "tile13") continue;
+      if (id === redHq || id === blackHq) continue;
       expect(a, id).toEqual({ owner: null, units: { troop: 0, ship: 0, siege: 0 } });
     }
     expect(Object.keys(s.areas).sort()).toEqual(Object.keys(riversMap.areas).sort());
@@ -42,8 +49,14 @@ describe("createInitialState", () => {
     const s = createInitialState(opts);
     for (const seat of ["red", "black"] as const) {
       expect(s.players[seat].seat).toBe(seat);
-      expect(s.players[seat].reserve).toEqual({ troop: 22, ship: 10, siege: 0 });
-      expect(s.players[seat].commanders).toEqual({ total: 5, standby: 0 });
+      expect(s.players[seat].reserve).toEqual({
+        ...RIVERS_UNIT_POOL,
+        troop: RIVERS_UNIT_POOL.troop - HQ_STARTING_TROOPS
+      });
+      expect(s.players[seat].commanders).toEqual({
+        total: riversRuleset.commandersPerPlayer,
+        standby: 0
+      });
       expect(s.players[seat].hand).toEqual([]);
       expect(s.players[seat].passed).toBe(false);
     }
@@ -60,5 +73,17 @@ describe("createInitialState", () => {
   it("advances the rng state away from the raw seed", () => {
     const s = createInitialState(opts);
     expect(s.rngState).not.toBe(createRngState(opts.seed));
+  });
+
+  it("varies setup across seeds", () => {
+    // Across a handful of seeds the seed must actually influence setup
+    // (initiative and/or bonus assignment). Collapsing to one signature would
+    // mean the seed is ignored.
+    const signatures = new Set(
+      Array.from({ length: 8 }, (_, i) =>
+        createInitialState({ gameId: "g", seed: `seed-${i}` })
+      ).map((s) => `${s.initiative}|${JSON.stringify(s.bonuses)}`)
+    );
+    expect(signatures.size).toBeGreaterThan(1);
   });
 });
