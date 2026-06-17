@@ -10,7 +10,9 @@ import {
   zeroUnits,
   type AreaRuntime,
   type GameState,
-  type PlayerState
+  type PlayerState,
+  type UnitCounts,
+  type UnitType
 } from "./state.js";
 
 export interface GameSetupOptions {
@@ -65,13 +67,32 @@ export function createInitialState(options: GameSetupOptions): GameState {
         : { owner: null, units: zeroUnits() };
   }
 
-  const makePlayer = (seat: SeatId): PlayerState => ({
-    seat,
-    reserve: { ...RIVERS_UNIT_POOL, troop: RIVERS_UNIT_POOL.troop - HQ_STARTING_TROOPS },
-    commanders: { total: rules.commandersPerPlayer, standby: 0 },
-    hand: [],
-    passed: false
-  });
+  // Reserve = the full pool minus whatever was placed on the board for that seat.
+  // Deriving it (rather than subtracting a fixed garrison) keeps it correct for
+  // any starting deployment or HQ count a future map might use.
+  const deployed = (seat: SeatId): UnitCounts => {
+    const total = zeroUnits();
+    for (const a of Object.values(areas)) {
+      if (a.owner !== seat) continue;
+      for (const k of Object.keys(total) as UnitType[]) total[k] += a.units[k];
+    }
+    return total;
+  };
+
+  const makePlayer = (seat: SeatId): PlayerState => {
+    const placed = deployed(seat);
+    return {
+      seat,
+      reserve: {
+        troop: RIVERS_UNIT_POOL.troop - placed.troop,
+        ship: RIVERS_UNIT_POOL.ship - placed.ship,
+        siege: RIVERS_UNIT_POOL.siege - placed.siege
+      },
+      commanders: { total: rules.commandersPerPlayer, standby: 0 },
+      hand: [],
+      passed: false
+    };
+  };
 
   return {
     schemaVersion: 2,

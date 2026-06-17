@@ -10,6 +10,10 @@ export type ActionType =
   | "embark"
   | "plan";
 
+/**
+ * Every bonus kind across all maps. A ruleset's `bonusSet` is the subset in play:
+ * `"armoury"` only aids Siege, so Rivers omits it (see `riversRuleset.bonusSet`).
+ */
 export type BonusType =
   | "barracks"
   | "warRoom"

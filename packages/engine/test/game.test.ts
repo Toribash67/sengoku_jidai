@@ -75,6 +75,14 @@ describe("createInitialState", () => {
     expect(s.rngState).not.toBe(createRngState(opts.seed));
   });
 
+  it("throws when the ruleset offers fewer bonuses than the map has slots", () => {
+    // Rivers has 3 slots; a ruleset with only 2 bonuses cannot fill them.
+    const thinRules = { ...riversRuleset, bonusSet: ["barracks", "warRoom"] as const };
+    expect(() => createInitialState({ ...opts, rules: { ...thinRules, bonusSet: [...thinRules.bonusSet] } })).toThrow(
+      /bonus slots/
+    );
+  });
+
   it("varies setup across seeds", () => {
     // Across a handful of seeds the seed must actually influence setup
     // (initiative and/or bonus assignment). Collapsing to one signature would

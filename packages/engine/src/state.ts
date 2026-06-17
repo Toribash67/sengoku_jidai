@@ -36,6 +36,7 @@ export interface AreaRuntime {
 }
 
 export interface PlayerState {
+  /** Self-identifying so a `PlayerState` is meaningful without its map key. */
   seat: SeatId;
   reserve: UnitCounts;
   /** `total` commanders; `standby` are passed-out and unavailable until next round. */
