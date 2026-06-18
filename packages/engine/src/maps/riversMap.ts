@@ -53,9 +53,8 @@ export interface MapDefinition {
   name: string;
   areas: Record<string, MapArea>;
   /**
-   * The fixed areas that receive a randomly-assigned bonus at setup (3 of the 5
-   * bonus types are drawn per game). INTERIM placeholder areas until confirmed by
-   * the board author; change here only.
+   * Fixed areas that receive a randomly-assigned bonus at setup (one bonus drawn
+   * per slot). The map author defines which areas qualify.
    */
   bonusSlots: string[];
 }
@@ -135,5 +134,6 @@ export const riversMap: MapDefinition = {
   id: riversMapId,
   name: "Rivers",
   areas: Object.fromEntries(areaList.map((area) => [area.id, area])),
+  // INTERIM placeholder slots until confirmed by the board author; change here only.
   bonusSlots: ["tile6", "tile16", "tile20"]
 };

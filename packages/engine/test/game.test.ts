@@ -15,6 +15,15 @@ describe("createInitialState", () => {
     expect(createInitialState(opts)).toEqual(createInitialState(opts));
   });
 
+  it("produces a fixed output for a known seed (replay anchor)", () => {
+    // Pins the RNG algorithm AND the draw order (bonuses -> initiative). A change
+    // to either would shift these values and break replay of saved games.
+    const s = createInitialState(opts);
+    expect(s.initiative).toBe("red");
+    expect(s.rngState).toBe("676040671");
+    expect(s.bonuses).toEqual({ tile6: "pirateHaven", tile16: "hiddenBase", tile20: "warRoom" });
+  });
+
   it("opens at round 1, deploy phase, active, activeSeat = initiative", () => {
     const s = createInitialState(opts);
     expect(s.schemaVersion).toBe(2);
@@ -77,10 +86,8 @@ describe("createInitialState", () => {
 
   it("throws when the ruleset offers fewer bonuses than the map has slots", () => {
     // Rivers has 3 slots; a ruleset with only 2 bonuses cannot fill them.
-    const thinRules = { ...riversRuleset, bonusSet: ["barracks", "warRoom"] as const };
-    expect(() => createInitialState({ ...opts, rules: { ...thinRules, bonusSet: [...thinRules.bonusSet] } })).toThrow(
-      /bonus slots/
-    );
+    const rules: typeof riversRuleset = { ...riversRuleset, bonusSet: ["barracks", "warRoom"] };
+    expect(() => createInitialState({ ...opts, rules })).toThrow(/bonus slots/);
   });
 
   it("varies setup across seeds", () => {

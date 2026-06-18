@@ -14,8 +14,8 @@ export type EndReason = "hqEliminated" | "victoryPoints";
 /** Operation card — no effects ship until the cards phase. */
 export type OperationCard = never;
 
-/** Full per-player unit pools in Rivers (siege unused). */
-export const RIVERS_UNIT_POOL: UnitCounts = { troop: 25, ship: 10, siege: 0 };
+/** Full per-player unit pools in Rivers (siege unused). Frozen: it's a shared singleton. */
+export const RIVERS_UNIT_POOL: Readonly<UnitCounts> = Object.freeze({ troop: 25, ship: 10, siege: 0 });
 
 /** Interim starting garrison: troops placed in each player's HQ at setup. */
 export const HQ_STARTING_TROOPS = 3;
@@ -49,6 +49,12 @@ export interface PlayerState {
 /**
  * The full dynamic game state (schemaVersion 2). Static facts (adjacency, HQs,
  * stars, bonus slots) live in the MapDefinition; only what changes lives here.
+ *
+ * Deliberately omitted until later plans (tracked so they aren't lost):
+ * - `pendingDecision` (spec §4/§6): added in Plan 3 with the command pipeline.
+ * - `revision` (on the placeholder `types.ts` GameState; read by the server
+ *   persistence layer): Plan 3 must add it here or update the server when it
+ *   retires the placeholder.
  */
 export interface GameState {
   schemaVersion: 2;

@@ -45,6 +45,10 @@ export function createInitialState(options: GameSetupOptions): GameState {
 
   let rngState = createRngState(options.seed);
 
+  // TODO (Plan 3): thread a GameEvent[] collector through here and emit a labeled
+  // `randomDraw` event (purpose, before/after rngState, outcome) for each draw
+  // below, per spec §5 RNG discipline. Deferred until the event pipeline exists.
+
   // (1) shuffle the bonus pool and assign one to each fixed slot, in slot order.
   const shuffled = shuffle(rngState, rules.bonusSet);
   rngState = shuffled.state;
