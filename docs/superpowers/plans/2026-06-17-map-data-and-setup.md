@@ -9,6 +9,7 @@
 **Tech Stack:** TypeScript (NodeNext ESM, `.js` import specifiers), Vitest. Tests live in `packages/engine/test/` mirroring `src/` (never alongside source).
 
 **Scope notes / deferred to later plans:**
+
 - Action-space layout (Plan 3): `actionSpaces` is initialized to `{}`. Plan 3 defines the spaces and the deploy pipeline.
 - `randomDraw` audit events (§5): deferred to Plan 3 with the event/pipeline system.
 - Bonus-slot areas are an **interim placeholder** (`tile6`, `tile16`, `tile20`) until the board author confirms real slots; trivially editable in one place.
@@ -34,6 +35,7 @@ All test commands run from `packages/engine` (`cd packages/engine` first).
 ### Task 1: Map bonus slots
 
 **Files:**
+
 - Modify: `packages/engine/src/maps/riversMap.ts`
 - Test: `packages/engine/test/maps/riversMap.test.ts`
 
@@ -42,14 +44,14 @@ All test commands run from `packages/engine` (`cd packages/engine` first).
 Append this block inside the `describe("rivers map topology", ...)` body in `packages/engine/test/maps/riversMap.test.ts` (before the closing `});`):
 
 ```ts
-  it("defines exactly 3 distinct bonus-slot areas that exist on the map", () => {
-    const slots = riversMap.bonusSlots;
-    expect(slots).toHaveLength(3);
-    expect(new Set(slots).size).toBe(3);
-    for (const id of slots) {
-      expect(riversMap.areas[id], `bonus slot ${id}`).toBeDefined();
-    }
-  });
+it("defines exactly 3 distinct bonus-slot areas that exist on the map", () => {
+  const slots = riversMap.bonusSlots;
+  expect(slots).toHaveLength(3);
+  expect(new Set(slots).size).toBe(3);
+  for (const id of slots) {
+    expect(riversMap.areas[id], `bonus slot ${id}`).toBeDefined();
+  }
+});
 ```
 
 - [ ] **Step 2: Run the test, verify it fails**
@@ -128,6 +130,7 @@ git commit -m "feat(engine): add map bonus-slot data; finalize Rivers adjacency"
 ### Task 2: Dynamic state model (`state.ts`)
 
 **Files:**
+
 - Create: `packages/engine/src/state.ts`
 - Test: `packages/engine/test/state.test.ts`
 
@@ -262,6 +265,7 @@ git commit -m "feat(engine): add schemaVersion-2 dynamic state model"
 ### Task 3: `createInitialState` (`game.ts`)
 
 **Files:**
+
 - Create: `packages/engine/src/game.ts`
 - Test: `packages/engine/test/game.test.ts`
 
@@ -464,6 +468,7 @@ git commit -m "feat(engine): seeded createInitialState builds opening Rivers pos
 ### Task 4: Wire exports
 
 **Files:**
+
 - Modify: `packages/engine/src/index.ts`
 - Test: `packages/engine/test/index.test.ts`
 

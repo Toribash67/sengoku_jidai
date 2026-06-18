@@ -15,7 +15,11 @@ export type EndReason = "hqEliminated" | "victoryPoints";
 export type OperationCard = never;
 
 /** Full per-player unit pools in Rivers (siege unused). Frozen: it's a shared singleton. */
-export const RIVERS_UNIT_POOL: Readonly<UnitCounts> = Object.freeze({ troop: 25, ship: 10, siege: 0 });
+export const RIVERS_UNIT_POOL: Readonly<UnitCounts> = Object.freeze({
+  troop: 25,
+  ship: 10,
+  siege: 0
+});
 
 /** Interim starting garrison: troops placed in each player's HQ at setup. */
 export const HQ_STARTING_TROOPS = 3;
