@@ -59,4 +59,13 @@ describe("rivers map topology", () => {
     );
     expect(twoStar).toEqual(["tile16", "tile20"].sort());
   });
+
+  it("defines exactly 3 distinct bonus-slot areas that exist on the map", () => {
+    const slots = riversMap.bonusSlots;
+    expect(slots).toHaveLength(3);
+    expect(new Set(slots).size).toBe(3);
+    for (const id of slots) {
+      expect(riversMap.areas[id], `bonus slot ${id}`).toBeDefined();
+    }
+  });
 });

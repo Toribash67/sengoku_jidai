@@ -1,5 +1,6 @@
 import type { MapDefinition } from "./maps/riversMap.js";
 import type { SeatId } from "./types.js";
+import type { EndReason } from "./state.js";
 import { suppliedAreas, type SupplyBoard } from "./supply.js";
 
 /** Total value stars on areas the seat supplies. */
@@ -26,7 +27,7 @@ export interface GameEndContext {
 export interface GameEndResult {
   complete: boolean;
   winner: SeatId | null;
-  endReason: "hqEliminated" | "victoryPoints" | null;
+  endReason: EndReason | null;
 }
 
 /**
