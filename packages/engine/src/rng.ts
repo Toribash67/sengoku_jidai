@@ -21,7 +21,7 @@ export function createRngState(seed: string): string {
  * State is the 32-bit counter, serialized as a decimal string for JSON safety.
  */
 export function nextFloat(state: string): { value: number; state: string } {
-  let a = (Number(state) + 0x6d2b79f5) | 0;
+  const a = (Number(state) + 0x6d2b79f5) | 0;
   const advanced = a >>> 0;
   let t = Math.imul(a ^ (a >>> 15), 1 | a);
   t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
@@ -30,10 +30,7 @@ export function nextFloat(state: string): { value: number; state: string } {
 }
 
 /** Roll a die from the given faces. */
-export function rollDie(
-  state: string,
-  faces: readonly number[]
-): { value: number; state: string } {
+export function rollDie(state: string, faces: readonly number[]): { value: number; state: string } {
   const r = nextFloat(state);
   const index = Math.floor(r.value * faces.length);
   return { value: faces[index]!, state: r.state };

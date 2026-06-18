@@ -84,24 +84,24 @@ type BonusType = "barracks" | "warRoom" | "pirateHaven" | "shipyard" | "hiddenBa
 interface GameState {
   schemaVersion: 2;
   gameId: string;
-  mapId: string;            // "rivers"
+  mapId: string; // "rivers"
   rules: RulesConfig;
   mode: GameMode;
   status: "setup" | "active" | "complete" | "abandoned";
 
-  round: number;            // 1..rules.maxRounds
+  round: number; // 1..rules.maxRounds
   phase: "deploy" | "recall";
-  initiative: SeatId;       // deploys first this round; VP tiebreak
-  activeSeat: SeatId;       // whose turn within deploy
+  initiative: SeatId; // deploys first this round; VP tiebreak
+  activeSeat: SeatId; // whose turn within deploy
 
-  rngState: string;         // seedable PRNG state (dice + setup)
+  rngState: string; // seedable PRNG state (dice + setup)
 
   players: Record<SeatId, PlayerState>;
-  areas: Record<string, AreaRuntime>;            // dynamic per area
-  actionSpaces: Record<string, SeatId | null>;   // spaceId -> occupying seat
-  bonuses: Record<string, BonusType>;            // bonus-slot areaId -> assigned bonus (3 entries)
+  areas: Record<string, AreaRuntime>; // dynamic per area
+  actionSpaces: Record<string, SeatId | null>; // spaceId -> occupying seat
+  bonuses: Record<string, BonusType>; // bonus-slot areaId -> assigned bonus (3 entries)
 
-  pendingDecision: PendingDecision | null;       // retained; unused by actions in v1
+  pendingDecision: PendingDecision | null; // retained; unused by actions in v1
   winner: SeatId | null;
   endReason: "hqEliminated" | "victoryPoints" | null;
 }
@@ -110,14 +110,14 @@ interface PlayerState {
   seat: SeatId;
   reserve: UnitCounts;
   commanders: { total: number; standby: number }; // deployed = number of spaces this seat occupies
-  hand: OperationCard[];                           // empty until cards phase
-  passed: boolean;                                 // passed this round
+  hand: OperationCard[]; // empty until cards phase
+  passed: boolean; // passed this round
 }
 
 // At rest, an area is single-owner: moving into an enemy area triggers a conflict
 // that empties one side. Transient both-sides states exist only inside resolveCommand.
 interface AreaRuntime {
-  owner: SeatId | null;  // null = empty; this IS "control"
+  owner: SeatId | null; // null = empty; this IS "control"
   units: UnitCounts;
 }
 ```
@@ -140,13 +140,13 @@ interface AreaRuntime {
 
 ```ts
 type Command =
-  | { type: "advance";   spaceId: string; moves: { from: string; count: number }[] }
-  | { type: "sail";      spaceId: string; moves: { from: string; count: number }[] }
-  | { type: "bombard";   spaceId: string; targetAreaId: string }
-  | { type: "shell";     spaceId: string; targetAreaId: string }
+  | { type: "advance"; spaceId: string; moves: { from: string; count: number }[] }
+  | { type: "sail"; spaceId: string; moves: { from: string; count: number }[] }
+  | { type: "bombard"; spaceId: string; targetAreaId: string }
+  | { type: "shell"; spaceId: string; targetAreaId: string }
   | { type: "reinforce"; spaceId: string; placements: { area: string; count: number }[] }
-  | { type: "embark";    spaceId: string; placements: { area: string; count: number }[] }
-  | { type: "plan";      spaceId: string }
+  | { type: "embark"; spaceId: string; placements: { area: string; count: number }[] }
+  | { type: "plan"; spaceId: string }
   | { type: "pass" }
   | { type: "choosePendingDecision"; pendingId: string; choice: PendingChoice }; // future cards
 ```

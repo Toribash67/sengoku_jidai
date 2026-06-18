@@ -33,6 +33,7 @@ The `SeatId` type already exists in `packages/engine/src/types.ts` (`"red" | "bl
 ## Task 1: Deterministic PRNG (`rng.ts`)
 
 **Files:**
+
 - Create: `packages/engine/src/rng.ts`
 - Test: `packages/engine/src/rng.test.ts`
 
@@ -131,10 +132,7 @@ export function nextFloat(state: string): { value: number; state: string } {
 }
 
 /** Roll a die from the given faces. */
-export function rollDie(
-  state: string,
-  faces: readonly number[]
-): { value: number; state: string } {
+export function rollDie(state: string, faces: readonly number[]): { value: number; state: string } {
   const r = nextFloat(state);
   const index = Math.floor(r.value * faces.length);
   return { value: faces[index]!, state: r.state };
@@ -171,6 +169,7 @@ git commit -m "feat(engine): deterministic seedable PRNG"
 ## Task 2: Rivers ruleset (`rules.ts`)
 
 **Files:**
+
 - Create: `packages/engine/src/rules.ts`
 - Test: `packages/engine/src/rules.test.ts`
 
@@ -287,6 +286,7 @@ git commit -m "feat(engine): rivers ruleset config and action/bonus types"
 Replace the kind-split adjacency with one general adjacency graph, and rename `piers` → `ports`. The new `adjacent` is, **for this plan only**, the mechanical union of the existing `landAdjacent`, `seaAdjacent`, and pier links — an interim value. Plan 2 re-derives accurate general adjacency from the SVG and confirms it by eye.
 
 **Files:**
+
 - Modify: `packages/engine/src/maps/riversMap.ts`
 - Modify: `packages/engine/src/test/riversMap.test.ts`
 
@@ -312,7 +312,13 @@ function area(
   id: string,
   kind: AreaKind,
   adjacent: string[],
-  opts: { hq?: SeatId; valueStars?: 0 | 1 | 2; harbor?: boolean; shellable?: boolean; ports?: string[] } = {}
+  opts: {
+    hq?: SeatId;
+    valueStars?: 0 | 1 | 2;
+    harbor?: boolean;
+    shellable?: boolean;
+    ports?: string[];
+  } = {}
 ): MapArea {
   return {
     id,
@@ -332,17 +338,37 @@ const areaList: MapArea[] = [
   area("tile3", "sea", ["tile7", "tile6", "tile8"], { valueStars: 1 }),
   area("tile4", "land", ["tile8"], { valueStars: 1 }),
   area("tile5", "land", ["tile8", "tile12", "tile13"]),
-  area("tile6", "land", ["tile1", "tile2", "tile10", "tile3", "tile7"], { valueStars: 1, harbor: true, ports: ["tile3", "tile7"] }),
+  area("tile6", "land", ["tile1", "tile2", "tile10", "tile3", "tile7"], {
+    valueStars: 1,
+    harbor: true,
+    ports: ["tile3", "tile7"]
+  }),
   area("tile7", "sea", ["tile3", "tile11", "tile6", "tile8"], { valueStars: 1 }),
-  area("tile8", "land", ["tile4", "tile5", "tile12", "tile3", "tile7"], { valueStars: 1, harbor: true, ports: ["tile3", "tile7"] }),
-  area("tile9", "land", ["tile1", "tile10", "tile14", "tile15"], { hq: "red", harbor: true, ports: ["tile14", "tile15"] }),
+  area("tile8", "land", ["tile4", "tile5", "tile12", "tile3", "tile7"], {
+    valueStars: 1,
+    harbor: true,
+    ports: ["tile3", "tile7"]
+  }),
+  area("tile9", "land", ["tile1", "tile10", "tile14", "tile15"], {
+    hq: "red",
+    harbor: true,
+    ports: ["tile14", "tile15"]
+  }),
   area("tile10", "land", ["tile1", "tile6", "tile9"], { shellable: true }),
   area("tile11", "sea", ["tile7", "tile15", "tile17", "tile16"], { valueStars: 1 }),
   area("tile12", "land", ["tile5", "tile8", "tile13"], { shellable: true }),
-  area("tile13", "land", ["tile5", "tile12", "tile17", "tile18"], { hq: "black", harbor: true, ports: ["tile17", "tile18"] }),
+  area("tile13", "land", ["tile5", "tile12", "tile17", "tile18"], {
+    hq: "black",
+    harbor: true,
+    ports: ["tile17", "tile18"]
+  }),
   area("tile14", "sea", ["tile22", "tile9"]),
   area("tile15", "sea", ["tile11", "tile9", "tile16"], { valueStars: 1 }),
-  area("tile16", "land", ["tile19", "tile20", "tile21", "tile11", "tile15", "tile17"], { valueStars: 2, harbor: true, ports: ["tile11", "tile15", "tile17"] }),
+  area("tile16", "land", ["tile19", "tile20", "tile21", "tile11", "tile15", "tile17"], {
+    valueStars: 2,
+    harbor: true,
+    ports: ["tile11", "tile15", "tile17"]
+  }),
   area("tile17", "sea", ["tile11", "tile13", "tile16"], { valueStars: 1 }),
   area("tile18", "sea", ["tile22", "tile13"]),
   area("tile19", "land", ["tile16", "tile20"], { shellable: true }),
@@ -366,32 +392,32 @@ Update the doc comment block's bullet describing connectivity to say `adjacent` 
 In `test/riversMap.test.ts`, replace the "keeps land and sea adjacency within their own kind", "has symmetric land and sea adjacency", and pier tests with:
 
 ```ts
-  it("references no dangling area ids", () => {
-    for (const a of areas) {
-      for (const id of [...a.adjacent, ...a.ports]) {
-        expect(riversMap.areas[id], `${a.id} -> ${id}`).toBeDefined();
-      }
+it("references no dangling area ids", () => {
+  for (const a of areas) {
+    for (const id of [...a.adjacent, ...a.ports]) {
+      expect(riversMap.areas[id], `${a.id} -> ${id}`).toBeDefined();
     }
-  });
+  }
+});
 
-  it("has symmetric general adjacency", () => {
-    for (const a of areas) {
-      for (const id of a.adjacent) {
-        expect(riversMap.areas[id]?.adjacent, `${a.id} <-> ${id}`).toContain(a.id);
-      }
+it("has symmetric general adjacency", () => {
+  for (const a of areas) {
+    for (const id of a.adjacent) {
+      expect(riversMap.areas[id]?.adjacent, `${a.id} <-> ${id}`).toContain(a.id);
     }
-  });
+  }
+});
 
-  it("only places ports on harbour land areas, pointing at sea areas", () => {
-    for (const a of areas) {
-      if (a.ports.length > 0) {
-        expect(a.kind).toBe("land");
-        expect(a.harbor).toBe(true);
-        for (const id of a.ports) expect(riversMap.areas[id]?.kind).toBe("sea");
-      }
-      if (a.harbor) expect(a.ports.length).toBeGreaterThan(0);
+it("only places ports on harbour land areas, pointing at sea areas", () => {
+  for (const a of areas) {
+    if (a.ports.length > 0) {
+      expect(a.kind).toBe("land");
+      expect(a.harbor).toBe(true);
+      for (const id of a.ports) expect(riversMap.areas[id]?.kind).toBe("sea");
     }
-  });
+    if (a.harbor) expect(a.ports.length).toBeGreaterThan(0);
+  }
+});
 ```
 
 Keep the existing "22 areas / 14 land / 8 sea", "one red + one black HQ", and "value stars" tests unchanged.
@@ -415,6 +441,7 @@ git commit -m "refactor(engine): single general adjacency + ports on rivers map 
 ## Task 4: Control & supply derivation (`supply.ts`)
 
 **Files:**
+
 - Create: `packages/engine/src/supply.ts`
 - Test: `packages/engine/src/supply.test.ts`
 
@@ -429,7 +456,14 @@ import { controls, suppliedAreas, inSupply } from "./supply.js";
 // Synthetic line map: hqR - a - b ... gap ... c - hqB
 function testMap(): MapDefinition {
   const A = (id: string, adjacent: string[], hq?: "red" | "black", stars: 0 | 1 | 2 = 0) => ({
-    id, kind: "land" as const, hq: hq ?? null, valueStars: stars, harbor: false, shellable: false, adjacent, ports: []
+    id,
+    kind: "land" as const,
+    hq: hq ?? null,
+    valueStars: stars,
+    harbor: false,
+    shellable: false,
+    adjacent,
+    ports: []
   });
   return {
     id: "test",
@@ -446,7 +480,9 @@ function testMap(): MapDefinition {
   };
 }
 
-const owners = (m: Record<string, "red" | "black" | null>) => ({ ownerOf: (id: string) => m[id] ?? null });
+const owners = (m: Record<string, "red" | "black" | null>) => ({
+  ownerOf: (id: string) => m[id] ?? null
+});
 
 describe("supply", () => {
   it("control is unit presence", () => {
@@ -552,6 +588,7 @@ git commit -m "feat(engine): control and supply derivation"
 ## Task 5: Victory points & game-end evaluation (`scoring.ts`)
 
 **Files:**
+
 - Create: `packages/engine/src/scoring.ts`
 - Test: `packages/engine/src/scoring.test.ts`
 
@@ -566,7 +603,14 @@ import { victoryPoints, hqEliminated, evaluateGameEnd } from "./scoring.js";
 
 function testMap(): MapDefinition {
   const A = (id: string, adjacent: string[], hq?: "red" | "black", stars: 0 | 1 | 2 = 0) => ({
-    id, kind: "land" as const, hq: hq ?? null, valueStars: stars, harbor: false, shellable: false, adjacent, ports: []
+    id,
+    kind: "land" as const,
+    hq: hq ?? null,
+    valueStars: stars,
+    harbor: false,
+    shellable: false,
+    adjacent,
+    ports: []
   });
   return {
     id: "test",
@@ -581,7 +625,9 @@ function testMap(): MapDefinition {
     )
   };
 }
-const owners = (m: Record<string, "red" | "black" | null>): SupplyBoard => ({ ownerOf: (id) => m[id] ?? null });
+const owners = (m: Record<string, "red" | "black" | null>): SupplyBoard => ({
+  ownerOf: (id) => m[id] ?? null
+});
 
 describe("scoring", () => {
   it("sums value stars over supplied areas only", () => {
@@ -603,7 +649,9 @@ describe("scoring", () => {
 
   it("does not end mid-game when both HQs stand", () => {
     const board = owners({ hqR: "red", hqB: "black" });
-    expect(evaluateGameEnd(testMap(), board, { round: 2, maxRounds: 4, initiative: "red" })).toEqual({
+    expect(
+      evaluateGameEnd(testMap(), board, { round: 2, maxRounds: 4, initiative: "red" })
+    ).toEqual({
       complete: false,
       winner: null,
       endReason: null
@@ -613,7 +661,9 @@ describe("scoring", () => {
   it("scores by supplied VP after the final round, breaking ties on initiative", () => {
     // After round 4, both HQs stand. red supplies a(2); black supplies b(1) -> red wins.
     const board = owners({ hqR: "red", a: "red", b: "black", hqB: "black" });
-    expect(evaluateGameEnd(testMap(), board, { round: 4, maxRounds: 4, initiative: "black" })).toEqual({
+    expect(
+      evaluateGameEnd(testMap(), board, { round: 4, maxRounds: 4, initiative: "black" })
+    ).toEqual({
       complete: true,
       winner: "red",
       endReason: "victoryPoints"
@@ -621,7 +671,9 @@ describe("scoring", () => {
 
     // Tie -> initiative holder wins.
     const tied = owners({ hqR: "red", hqB: "black" }); // both supply only their 0-star HQ
-    expect(evaluateGameEnd(testMap(), tied, { round: 4, maxRounds: 4, initiative: "black" })).toEqual({
+    expect(
+      evaluateGameEnd(testMap(), tied, { round: 4, maxRounds: 4, initiative: "black" })
+    ).toEqual({
       complete: true,
       winner: "black",
       endReason: "victoryPoints"
@@ -718,6 +770,7 @@ git commit -m "feat(engine): victory points and game-end evaluation"
 ## Task 6: Export the new modules + full verification
 
 **Files:**
+
 - Modify: `packages/engine/src/index.ts`
 
 - [ ] **Step 1: Add exports**
