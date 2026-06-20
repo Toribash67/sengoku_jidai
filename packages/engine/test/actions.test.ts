@@ -98,3 +98,56 @@ describe("embark", () => {
     expect(r.nextState.areas["tile14"]!.units.ship).toBe(2);
   });
 });
+
+describe("advance", () => {
+  it("moves troops into an empty adjacent land and takes control", () => {
+    const s = game();
+    const hq = hqOf("red"); // tile9, 3 troops; tile1 empty land adjacent.
+    const r = resolveCommand(s, { seat: "red" }, {
+      type: "advance",
+      spaceId: "advance-tile1",
+      moves: [{ from: hq, count: 2 }]
+    });
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    expect(r.nextState.areas["tile1"]!.owner).toBe("red");
+    expect(r.nextState.areas["tile1"]!.units.troop).toBe(2);
+    expect(r.nextState.areas[hq]!.units.troop).toBe(1); // 3 - 2
+  });
+
+  it("resolves conflict when advancing into an enemy land", () => {
+    const s = game();
+    const hq = hqOf("red");
+    s.rules = { ...s.rules, diceFaces: [1, 1, 1, 1, 1, 1] }; // defence roll = 1
+    s.areas["tile1"] = { owner: "black", units: { troop: 1, ship: 0, siege: 0 } };
+    s.areas[hq] = { owner: "red", units: { troop: 5, ship: 0, siege: 0 } };
+    const r = resolveCommand(s, { seat: "red" }, {
+      type: "advance",
+      spaceId: "advance-tile1",
+      moves: [{ from: hq, count: 3 }]
+    });
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    // defence removes 1 -> 2 attackers vs 1 defender; attrition -> 1 vs 0. red wins.
+    expect(r.nextState.areas["tile1"]!.owner).toBe("red");
+    expect(r.nextState.areas["tile1"]!.units.troop).toBe(1);
+  });
+
+  it("Hidden Base adds +1 troop at move-in before conflict", () => {
+    const s = game();
+    const hq = hqOf("red");
+    s.rules = { ...s.rules, diceFaces: [1, 1, 1, 1, 1, 1] };
+    s.bonuses = { [hq]: "hiddenBase" }; // red supplies its HQ -> bonus active
+    s.areas["tile1"] = { owner: "black", units: { troop: 2, ship: 0, siege: 0 } };
+    s.areas[hq] = { owner: "red", units: { troop: 5, ship: 0, siege: 0 } };
+    const r = resolveCommand(s, { seat: "red" }, {
+      type: "advance",
+      spaceId: "advance-tile1",
+      moves: [{ from: hq, count: 2 }] // 2 + 1 hidden base = 3 attackers
+    });
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    // 3 attackers, defence -1 -> 2 vs 2 defenders -> tie -> area emptied.
+    expect(r.nextState.areas["tile1"]!.owner).toBeNull();
+  });
+});

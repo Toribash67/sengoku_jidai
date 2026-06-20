@@ -4,6 +4,7 @@ import type { SeatId } from "./types.js";
 import { getMap } from "./maps/registry.js";
 import { actionSpaceMap } from "./actionSpaces.js";
 import { suppliesBonus } from "./validate.js";
+import { resolveConflict } from "./conflict.js";
 
 /** Pass: deploy a commander to standby (unavailable until next round). */
 export function applyPass(state: GameState, seat: SeatId): GameEvent[] {
@@ -72,4 +73,85 @@ export function applyEmbark(
 /** Area id currently holding a given bonus, if any. */
 function bonusArea(state: GameState, bonus: string): string | undefined {
   return Object.entries(state.bonuses).find(([, b]) => b === bonus)?.[0];
+}
+
+/**
+ * Advance: move troops into the linked land (validated upstream), apply Hidden Base,
+ * then resolve conflict if the target is enemy-controlled. Returns the events.
+ */
+export function applyAdvance(
+  state: GameState,
+  seat: SeatId,
+  spaceId: string,
+  moves: { from: string; count: number }[]
+): GameEvent[] {
+  const map = getMap(state.mapId);
+  const target = actionSpaceMap(map)[spaceId]!.areaId!;
+  const events: GameEvent[] = [];
+
+  let attackers = 0;
+  for (const m of moves) {
+    state.areas[m.from]!.units.troop -= m.count;
+    attackers += m.count;
+    events.push({ type: "unitsMoved", seat, from: m.from, to: target, unit: "troop", count: m.count });
+  }
+
+  // Hidden Base: +1 troop from reserve at move-in (before conflict), if supplied and
+  // reserve has a troop. Cannot apply on the advance that first gains the bonus area,
+  // which is impossible here because you cannot advance into an area you supply.
+  if (suppliesBonus(state, seat, "hiddenBase") && state.players[seat].reserve.troop > 0) {
+    state.players[seat].reserve.troop -= 1;
+    attackers += 1;
+    events.push({ type: "bonusApplied", seat, bonus: "hiddenBase", area: bonusArea(state, "hiddenBase")! });
+  }
+
+  events.push(...resolveMoveIn(state, seat, target, "troop", attackers));
+  return events;
+}
+
+/**
+ * Shared move-in + conflict for Advance/Sail. `attackers` units of `unit` arrive in
+ * `target`; resolve against any enemy garrison and set ownership.
+ */
+export function resolveMoveIn(
+  state: GameState,
+  seat: SeatId,
+  target: string,
+  unit: "troop" | "ship",
+  attackers: number
+): GameEvent[] {
+  const rt = state.areas[target]!;
+  const enemy: SeatId = seat === "red" ? "black" : "red";
+  const events: GameEvent[] = [];
+
+  if (rt.owner == null || rt.owner === seat) {
+    rt.units[unit] += attackers;
+    const previousOwner = rt.owner;
+    rt.owner = seat;
+    if (previousOwner !== seat) events.push({ type: "areaCaptured", seat, area: target, previousOwner });
+    return events;
+  }
+
+  // Enemy-controlled: conflict.
+  const defenders = rt.units[unit];
+  const outcome = resolveConflict(state.rngState, state.rules.diceFaces, attackers, defenders);
+  state.rngState = outcome.rngState;
+  events.push({ type: "diceRolled", seat, purpose: "defence", rolls: [outcome.defenceRoll], total: outcome.defenceRoll });
+
+  state.players[seat].reserve[unit] += outcome.attackerLosses;
+  state.players[enemy].reserve[unit] += outcome.defenderLosses;
+  if (outcome.attackerLosses > 0) events.push({ type: "unitsRemoved", seat, area: target, unit, count: outcome.attackerLosses });
+  if (outcome.defenderLosses > 0) events.push({ type: "unitsRemoved", seat: enemy, area: target, unit, count: outcome.defenderLosses });
+
+  if (outcome.attackersLeft > 0) {
+    rt.owner = seat;
+    rt.units[unit] = outcome.attackersLeft;
+    events.push({ type: "areaCaptured", seat, area: target, previousOwner: enemy });
+  } else if (outcome.defendersLeft > 0) {
+    rt.units[unit] = outcome.defendersLeft; // defender holds
+  } else {
+    rt.owner = null; // mutual annihilation
+    rt.units[unit] = 0;
+  }
+  return events;
 }
