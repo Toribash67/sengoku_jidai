@@ -101,4 +101,10 @@ describe("createInitialState", () => {
     );
     expect(signatures.size).toBeGreaterThan(1);
   });
+
+  it("opens with revision 0 and no pending decision", () => {
+    const s = createInitialState(opts);
+    expect(s.revision).toBe(0);
+    expect(s.pendingDecision).toBeNull();
+  });
 });

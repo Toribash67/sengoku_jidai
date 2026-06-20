@@ -114,6 +114,8 @@ export function createInitialState(options: GameSetupOptions): GameState {
     areas,
     actionSpaces: {},
     bonuses,
+    revision: 0,
+    pendingDecision: null,
     winner: null,
     endReason: null
   };
