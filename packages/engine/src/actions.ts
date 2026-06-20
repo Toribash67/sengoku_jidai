@@ -5,6 +5,7 @@ import { getMap } from "./maps/registry.js";
 import { actionSpaceMap } from "./actionSpaces.js";
 import { suppliesBonus } from "./validate.js";
 import { resolveConflict } from "./conflict.js";
+import { rollDie } from "./rng.js";
 
 /** Pass: deploy a commander to standby (unavailable until next round). */
 export function applyPass(state: GameState, seat: SeatId): GameEvent[] {
@@ -134,6 +135,73 @@ export function applySail(
   }
 
   events.push(...resolveMoveIn(state, seat, target, "ship", attackers));
+  return events;
+}
+
+/** Bombard: roll one die per ship in the linked water (+1 for Pirate Haven); remove that
+ *  many enemy land units from the target (-> owner reserve). */
+export function applyBombard(
+  state: GameState,
+  seat: SeatId,
+  spaceId: string,
+  targetAreaId: string
+): GameEvent[] {
+  const map = getMap(state.mapId);
+  const water = actionSpaceMap(map)[spaceId]!.areaId!;
+  const events: GameEvent[] = [];
+  let dice = state.areas[water]!.units.ship;
+  if (suppliesBonus(state, seat, "pirateHaven")) {
+    dice += 1;
+    events.push({ type: "bonusApplied", seat, bonus: "pirateHaven", area: bonusArea(state, "pirateHaven")! });
+  }
+  const rolls: number[] = [];
+  let total = 0;
+  for (let i = 0; i < dice; i++) {
+    const roll = rollDie(state.rngState, state.rules.diceFaces);
+    state.rngState = roll.state;
+    rolls.push(roll.value);
+    total += roll.value;
+  }
+  events.push({ type: "diceRolled", seat, purpose: "bombard", rolls, total });
+  events.push(...removeUnits(state, targetAreaId, "troop", total));
+  return events;
+}
+
+/** Shell: roll two dice; remove that many enemy ships from the target water (-> owner reserve). */
+export function applyShell(
+  state: GameState,
+  seat: SeatId,
+  _spaceId: string,
+  targetAreaId: string
+): GameEvent[] {
+  const events: GameEvent[] = [];
+  const rolls: number[] = [];
+  let total = 0;
+  for (let i = 0; i < 2; i++) {
+    const roll = rollDie(state.rngState, state.rules.diceFaces);
+    state.rngState = roll.state;
+    rolls.push(roll.value);
+    total += roll.value;
+  }
+  events.push({ type: "diceRolled", seat, purpose: "shell", rolls, total });
+  events.push(...removeUnits(state, targetAreaId, "ship", total));
+  return events;
+}
+
+/** Remove up to `count` units of `unit` from `area`, returning them to the owner's reserve. */
+function removeUnits(
+  state: GameState,
+  area: string,
+  unit: "troop" | "ship",
+  count: number
+): GameEvent[] {
+  const rt = state.areas[area]!;
+  if (rt.owner == null || count <= 0) return [];
+  const removed = Math.min(count, rt.units[unit]);
+  rt.units[unit] -= removed;
+  state.players[rt.owner].reserve[unit] += removed;
+  const events: GameEvent[] = [{ type: "unitsRemoved", seat: rt.owner, area, unit, count: removed }];
+  if (rt.units.troop === 0 && rt.units.ship === 0) rt.owner = null;
   return events;
 }
 

@@ -186,3 +186,60 @@ describe("sail", () => {
     expect(r.nextState.areas["tile11"]!.owner).toBeNull();
   });
 });
+
+describe("bombard", () => {
+  it("rolls one die per ship and removes that many enemy land units", () => {
+    const s = game();
+    s.rules = { ...s.rules, diceFaces: [1, 1, 1, 1, 1, 1] }; // each die = 1
+    s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 2, siege: 0 } };
+    s.areas["tile16"] = { owner: "black", units: { troop: 3, ship: 0, siege: 0 } };
+    const r = resolveCommand(s, { seat: "red" }, {
+      type: "bombard",
+      spaceId: "bombard-tile15",
+      targetAreaId: "tile16"
+    });
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    // 2 ships -> 2 dice -> 2 pips -> remove 2 troops; 1 remains.
+    expect(r.nextState.areas["tile16"]!.units.troop).toBe(1);
+    expect(r.nextState.players.black.reserve.troop).toBeGreaterThan(0);
+  });
+
+  it("Pirate Haven adds +1 die", () => {
+    const s = game();
+    s.rules = { ...s.rules, diceFaces: [1, 1, 1, 1, 1, 1] };
+    s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 1, siege: 0 } };
+    s.bonuses = { tile15: "pirateHaven" }; // red supplies tile15
+    s.areas["tile16"] = { owner: "black", units: { troop: 3, ship: 0, siege: 0 } };
+    const r = resolveCommand(s, { seat: "red" }, {
+      type: "bombard",
+      spaceId: "bombard-tile15",
+      targetAreaId: "tile16"
+    });
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    // 1 ship + 1 pirate haven = 2 dice -> remove 2; 1 remains.
+    expect(r.nextState.areas["tile16"]!.units.troop).toBe(1);
+  });
+});
+
+describe("shell", () => {
+  it("rolls two dice and removes that many enemy ships from the target water", () => {
+    const s = game();
+    s.rules = { ...s.rules, diceFaces: [1, 1, 1, 1, 1, 1] }; // each die = 1 -> total 2
+    // red supplies shellable land tile10 (HQ tile9 is adjacent to tile10).
+    s.areas["tile10"] = { owner: "red", units: { troop: 1, ship: 0, siege: 0 } };
+    // black ships sit in adjacent sea tile11.
+    s.areas["tile11"] = { owner: "black", units: { troop: 0, ship: 3, siege: 0 } };
+    const r = resolveCommand(s, { seat: "red" }, {
+      type: "shell",
+      spaceId: "shell-tile10",
+      targetAreaId: "tile11"
+    });
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    // two dice of 1 -> remove 2 ships; 1 remains.
+    expect(r.nextState.areas["tile11"]!.units.ship).toBe(1);
+    expect(r.nextState.players.black.reserve.ship).toBeGreaterThan(0);
+  });
+});

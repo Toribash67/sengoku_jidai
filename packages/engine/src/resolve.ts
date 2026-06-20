@@ -6,7 +6,7 @@ import { validateCommand } from "./validate.js";
 import { gameBoard } from "./board.js";
 import { hqEliminated, victoryPoints } from "./scoring.js";
 import { available } from "./legality.js";
-import { applyPass, applyReinforce, applyPlan, applyEmbark, applyAdvance, applySail } from "./actions.js";
+import { applyPass, applyReinforce, applyPlan, applyEmbark, applyAdvance, applySail, applyBombard, applyShell } from "./actions.js";
 
 const other = (seat: SeatId): SeatId => (seat === "red" ? "black" : "red");
 
@@ -69,6 +69,10 @@ function dispatchAction(state: GameState, seat: SeatId, command: Command): GameE
       return applyAdvance(state, seat, command.spaceId, command.moves);
     case "sail":
       return applySail(state, seat, command.spaceId, command.moves);
+    case "bombard":
+      return applyBombard(state, seat, command.spaceId, command.targetAreaId);
+    case "shell":
+      return applyShell(state, seat, command.spaceId, command.targetAreaId);
     default:
       throw new Error(`No resolver for action ${command.type}`);
   }
