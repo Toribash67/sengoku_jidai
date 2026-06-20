@@ -1,3 +1,4 @@
+import { emptyActionSpaceOccupancy } from "./actionSpaces.js";
 import { getMap } from "./maps/registry.js";
 import { riversMapId } from "./maps/riversMap.js";
 import { createRngState, nextFloat, shuffle } from "./rng.js";
@@ -112,7 +113,7 @@ export function createInitialState(options: GameSetupOptions): GameState {
     rngState,
     players: { red: makePlayer("red"), black: makePlayer("black") },
     areas,
-    actionSpaces: {},
+    actionSpaces: emptyActionSpaceOccupancy(map),
     bonuses,
     revision: 0,
     pendingDecision: null,

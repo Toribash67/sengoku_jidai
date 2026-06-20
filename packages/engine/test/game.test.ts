@@ -35,7 +35,8 @@ describe("createInitialState", () => {
     expect(s.status).toBe("active");
     expect(["red", "black"]).toContain(s.initiative);
     expect(s.activeSeat).toBe(s.initiative);
-    expect(s.actionSpaces).toEqual({});
+    expect(Object.keys(s.actionSpaces).length).toBeGreaterThan(0);
+    expect(Object.values(s.actionSpaces).every((v) => v === null)).toBe(true);
     expect(s.winner).toBeNull();
     expect(s.endReason).toBeNull();
   });
