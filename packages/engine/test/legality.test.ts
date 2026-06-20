@@ -16,7 +16,9 @@ import {
 const hqOf = (seat: "red" | "black") =>
   Object.values(riversMap.areas).find((a) => a.hq === seat)!.id;
 
-function stateWith(units: Record<string, { owner: "red" | "black" | null; troop?: number; ship?: number }>) {
+function stateWith(
+  units: Record<string, { owner: "red" | "black" | null; troop?: number; ship?: number }>
+) {
   const s = createInitialState({ gameId: "g", seed: "seed-A" });
   for (const [id, u] of Object.entries(units)) {
     s.areas[id] = {

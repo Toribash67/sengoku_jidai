@@ -20,11 +20,15 @@ describe("reinforce", () => {
     const s = game();
     const hq = hqOf("red");
     const before = s.players.red.reserve.troop;
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "reinforce",
-      spaceId: "reinforce-b", // N=5
-      placements: [{ area: hq, count: 2 }]
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "reinforce",
+        spaceId: "reinforce-b", // N=5
+        placements: [{ area: hq, count: 2 }]
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     expect(r.nextState.areas[hq]!.units.troop).toBe(5); // 3 + 2
@@ -37,11 +41,18 @@ describe("reinforce", () => {
     const hq = hqOf("red");
     s.bonuses = { [hq]: "barracks" };
     s.areas["tile10"] = { owner: "red", units: { troop: 1, ship: 0, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "reinforce",
-      spaceId: "reinforce-b", // N=5, +2 barracks = 7
-      placements: [{ area: hq, count: 2 }, { area: "tile10", count: 4 }] // total 6 <= 7
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "reinforce",
+        spaceId: "reinforce-b", // N=5, +2 barracks = 7
+        placements: [
+          { area: hq, count: 2 },
+          { area: "tile10", count: 4 }
+        ] // total 6 <= 7
+      }
+    );
     expect(r.status).toBe("accepted");
   });
 });
@@ -73,11 +84,15 @@ describe("embark", () => {
     const s = game();
     s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 1, siege: 0 } };
     const before = s.players.red.reserve.ship;
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "embark",
-      spaceId: "embark-a", // N=3
-      placements: [{ area: "tile15", count: 2 }]
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "embark",
+        spaceId: "embark-a", // N=3
+        placements: [{ area: "tile15", count: 2 }]
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     expect(r.nextState.areas["tile15"]!.units.ship).toBe(3); // 1 + 2, cap 3
@@ -87,11 +102,15 @@ describe("embark", () => {
   it("can place into an empty water adjacent to a supplied port", () => {
     const s = game();
     // Red supplies its HQ harbor tile9 (ports include tile14/tile15). tile14 empty.
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "embark",
-      spaceId: "embark-b", // N=2
-      placements: [{ area: "tile14", count: 2 }]
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "embark",
+        spaceId: "embark-b", // N=2
+        placements: [{ area: "tile14", count: 2 }]
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     expect(r.nextState.areas["tile14"]!.owner).toBe("red");
@@ -103,11 +122,15 @@ describe("advance", () => {
   it("moves troops into an empty adjacent land and takes control", () => {
     const s = game();
     const hq = hqOf("red"); // tile9, 3 troops; tile1 empty land adjacent.
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "advance",
-      spaceId: "advance-tile1",
-      moves: [{ from: hq, count: 2 }]
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "advance",
+        spaceId: "advance-tile1",
+        moves: [{ from: hq, count: 2 }]
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     expect(r.nextState.areas["tile1"]!.owner).toBe("red");
@@ -121,11 +144,15 @@ describe("advance", () => {
     s.rules = { ...s.rules, diceFaces: [1, 1, 1, 1, 1, 1] }; // defence roll = 1
     s.areas["tile1"] = { owner: "black", units: { troop: 1, ship: 0, siege: 0 } };
     s.areas[hq] = { owner: "red", units: { troop: 5, ship: 0, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "advance",
-      spaceId: "advance-tile1",
-      moves: [{ from: hq, count: 3 }]
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "advance",
+        spaceId: "advance-tile1",
+        moves: [{ from: hq, count: 3 }]
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // defence removes 1 -> 2 attackers vs 1 defender; attrition -> 1 vs 0. red wins.
@@ -140,11 +167,15 @@ describe("advance", () => {
     s.bonuses = { [hq]: "hiddenBase" }; // red supplies its HQ -> bonus active
     s.areas["tile1"] = { owner: "black", units: { troop: 2, ship: 0, siege: 0 } };
     s.areas[hq] = { owner: "red", units: { troop: 5, ship: 0, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "advance",
-      spaceId: "advance-tile1",
-      moves: [{ from: hq, count: 2 }] // 2 + 1 hidden base = 3 attackers
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "advance",
+        spaceId: "advance-tile1",
+        moves: [{ from: hq, count: 2 }] // 2 + 1 hidden base = 3 attackers
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // 3 attackers, defence -1 -> 2 vs 2 defenders -> tie -> area emptied.
@@ -157,11 +188,15 @@ describe("sail", () => {
     const s = game();
     // red supplies HQ tile9 (land) -> tile15 (sea, 2 ships). Sail into tile11 (adj tile15).
     s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 2, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "sail",
-      spaceId: "sail-tile11",
-      moves: [{ from: "tile15", count: 1 }]
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "sail",
+        spaceId: "sail-tile11",
+        moves: [{ from: "tile15", count: 1 }]
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     expect(r.nextState.areas["tile11"]!.owner).toBe("red");
@@ -175,11 +210,15 @@ describe("sail", () => {
     s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 3, siege: 0 } };
     s.bonuses = { tile15: "shipyard" }; // red supplies tile15
     s.areas["tile11"] = { owner: "black", units: { troop: 0, ship: 2, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "sail",
-      spaceId: "sail-tile11",
-      moves: [{ from: "tile15", count: 2 }] // 2 + 1 shipyard = 3 attackers
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "sail",
+        spaceId: "sail-tile11",
+        moves: [{ from: "tile15", count: 2 }] // 2 + 1 shipyard = 3 attackers
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // 3 attackers, defence -1 -> 2 vs 2 -> tie -> emptied.
@@ -193,11 +232,15 @@ describe("bombard", () => {
     s.rules = { ...s.rules, diceFaces: [1, 1, 1, 1, 1, 1] }; // each die = 1
     s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 2, siege: 0 } };
     s.areas["tile16"] = { owner: "black", units: { troop: 3, ship: 0, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "bombard",
-      spaceId: "bombard-tile15",
-      targetAreaId: "tile16"
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "bombard",
+        spaceId: "bombard-tile15",
+        targetAreaId: "tile16"
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // 2 ships -> 2 dice -> 2 pips -> remove 2 troops; 1 remains.
@@ -211,11 +254,15 @@ describe("bombard", () => {
     s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 1, siege: 0 } };
     s.bonuses = { tile15: "pirateHaven" }; // red supplies tile15
     s.areas["tile16"] = { owner: "black", units: { troop: 3, ship: 0, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "bombard",
-      spaceId: "bombard-tile15",
-      targetAreaId: "tile16"
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "bombard",
+        spaceId: "bombard-tile15",
+        targetAreaId: "tile16"
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // 1 ship + 1 pirate haven = 2 dice -> remove 2; 1 remains.
@@ -231,11 +278,15 @@ describe("shell", () => {
     s.areas["tile10"] = { owner: "red", units: { troop: 1, ship: 0, siege: 0 } };
     // black ships sit in adjacent sea tile11.
     s.areas["tile11"] = { owner: "black", units: { troop: 0, ship: 3, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "shell",
-      spaceId: "shell-tile10",
-      targetAreaId: "tile11"
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "shell",
+        spaceId: "shell-tile10",
+        targetAreaId: "tile11"
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // two dice of 1 -> remove 2 ships; 1 remains.

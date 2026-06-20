@@ -45,7 +45,8 @@ export function validateCommand(
 
   if (state.status !== "active") return reject("gameNotActive", "The game is not active.");
   if (state.phase !== "deploy") return reject("wrongPhase", "Not the deploy phase.");
-  if (state.activeSeat !== actor.seat) return reject("notActiveSeat", "It is not this seat's turn.");
+  if (state.activeSeat !== actor.seat)
+    return reject("notActiveSeat", "It is not this seat's turn.");
 
   const map = getMap(state.mapId);
   const rules = state.rules;
@@ -77,7 +78,7 @@ export function validateCommand(
     case "shell":
       return validateShell(state, seat, space, command.targetAreaId, supplied);
     case "reinforce":
-      return validateReinforce(state, seat, space, command.placements, supplied);
+      return validateReinforce(state, seat, space, command.placements);
     case "embark":
       return validateEmbark(state, seat, space, command.placements);
     case "plan":
@@ -175,8 +176,7 @@ function validateReinforce(
   state: GameState,
   seat: SeatId,
   space: ActionSpace,
-  placements: Placement[],
-  supplied: Set<string>
+  placements: Placement[]
 ): RejectionReason | null {
   const map = getMap(state.mapId);
   if (supportTypeOccupied(map, state, seat, "reinforce")) {
@@ -226,11 +226,7 @@ function validatePlacements(
 }
 
 /** Whether the seat currently supplies the area holding the given bonus. */
-export function suppliesBonus(
-  state: GameState,
-  seat: SeatId,
-  bonus: BonusType
-): boolean {
+export function suppliesBonus(state: GameState, seat: SeatId, bonus: BonusType): boolean {
   const map = getMap(state.mapId);
   const board = gameBoard(state);
   const supplied = suppliedAreas(map, board, seat);

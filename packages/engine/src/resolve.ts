@@ -6,7 +6,16 @@ import { validateCommand } from "./validate.js";
 import { gameBoard } from "./board.js";
 import { hqEliminated, victoryPoints } from "./scoring.js";
 import { available } from "./legality.js";
-import { applyPass, applyReinforce, applyPlan, applyEmbark, applyAdvance, applySail, applyBombard, applyShell } from "./actions.js";
+import {
+  applyPass,
+  applyReinforce,
+  applyPlan,
+  applyEmbark,
+  applyAdvance,
+  applySail,
+  applyBombard,
+  applyShell
+} from "./actions.js";
 
 const other = (seat: SeatId): SeatId => (seat === "red" ? "black" : "red");
 

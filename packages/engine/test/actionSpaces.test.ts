@@ -26,7 +26,10 @@ describe("buildActionSpaces (rivers)", () => {
   });
 
   it("has a shell space exactly for shellable lands {10,12,19,21}", () => {
-    const shellIds = spaces.filter((s) => s.type === "shell").map((s) => s.areaId).sort();
+    const shellIds = spaces
+      .filter((s) => s.type === "shell")
+      .map((s) => s.areaId)
+      .sort();
     expect(shellIds).toEqual(["tile10", "tile12", "tile19", "tile21"]);
   });
 

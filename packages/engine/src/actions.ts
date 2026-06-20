@@ -34,7 +34,12 @@ export function applyReinforce(
     events.push({ type: "unitsPlaced", seat, area: p.area, unit: "troop", count: p.count });
   }
   if (suppliesBonus(state, seat, "barracks")) {
-    events.push({ type: "bonusApplied", seat, bonus: "barracks", area: bonusArea(state, "barracks")! });
+    events.push({
+      type: "bonusApplied",
+      seat,
+      bonus: "barracks",
+      area: bonusArea(state, "barracks")!
+    });
   }
   return events;
 }
@@ -49,7 +54,12 @@ export function applyPlan(state: GameState, seat: SeatId, spaceId: string): Game
     events.push({ type: "initiativeSeized", seat });
   }
   if (suppliesBonus(state, seat, "warRoom")) {
-    events.push({ type: "bonusApplied", seat, bonus: "warRoom", area: bonusArea(state, "warRoom")! });
+    events.push({
+      type: "bonusApplied",
+      seat,
+      bonus: "warRoom",
+      area: bonusArea(state, "warRoom")!
+    });
   }
   return events;
 }
@@ -94,7 +104,14 @@ export function applyAdvance(
   for (const m of moves) {
     state.areas[m.from]!.units.troop -= m.count;
     attackers += m.count;
-    events.push({ type: "unitsMoved", seat, from: m.from, to: target, unit: "troop", count: m.count });
+    events.push({
+      type: "unitsMoved",
+      seat,
+      from: m.from,
+      to: target,
+      unit: "troop",
+      count: m.count
+    });
   }
 
   // Hidden Base: +1 troop from reserve at move-in (before conflict), if supplied and
@@ -103,7 +120,12 @@ export function applyAdvance(
   if (suppliesBonus(state, seat, "hiddenBase") && state.players[seat].reserve.troop > 0) {
     state.players[seat].reserve.troop -= 1;
     attackers += 1;
-    events.push({ type: "bonusApplied", seat, bonus: "hiddenBase", area: bonusArea(state, "hiddenBase")! });
+    events.push({
+      type: "bonusApplied",
+      seat,
+      bonus: "hiddenBase",
+      area: bonusArea(state, "hiddenBase")!
+    });
   }
 
   events.push(...resolveMoveIn(state, seat, target, "troop", attackers));
@@ -125,13 +147,25 @@ export function applySail(
   for (const m of moves) {
     state.areas[m.from]!.units.ship -= m.count;
     attackers += m.count;
-    events.push({ type: "unitsMoved", seat, from: m.from, to: target, unit: "ship", count: m.count });
+    events.push({
+      type: "unitsMoved",
+      seat,
+      from: m.from,
+      to: target,
+      unit: "ship",
+      count: m.count
+    });
   }
 
   if (suppliesBonus(state, seat, "shipyard") && state.players[seat].reserve.ship > 0) {
     state.players[seat].reserve.ship -= 1;
     attackers += 1;
-    events.push({ type: "bonusApplied", seat, bonus: "shipyard", area: bonusArea(state, "shipyard")! });
+    events.push({
+      type: "bonusApplied",
+      seat,
+      bonus: "shipyard",
+      area: bonusArea(state, "shipyard")!
+    });
   }
 
   events.push(...resolveMoveIn(state, seat, target, "ship", attackers));
@@ -152,7 +186,12 @@ export function applyBombard(
   let dice = state.areas[water]!.units.ship;
   if (suppliesBonus(state, seat, "pirateHaven")) {
     dice += 1;
-    events.push({ type: "bonusApplied", seat, bonus: "pirateHaven", area: bonusArea(state, "pirateHaven")! });
+    events.push({
+      type: "bonusApplied",
+      seat,
+      bonus: "pirateHaven",
+      area: bonusArea(state, "pirateHaven")!
+    });
   }
   const rolls: number[] = [];
   let total = 0;
@@ -200,7 +239,9 @@ function removeUnits(
   const removed = Math.min(count, rt.units[unit]);
   rt.units[unit] -= removed;
   state.players[rt.owner].reserve[unit] += removed;
-  const events: GameEvent[] = [{ type: "unitsRemoved", seat: rt.owner, area, unit, count: removed }];
+  const events: GameEvent[] = [
+    { type: "unitsRemoved", seat: rt.owner, area, unit, count: removed }
+  ];
   if (rt.units.troop === 0 && rt.units.ship === 0) rt.owner = null;
   return events;
 }
@@ -224,7 +265,8 @@ export function resolveMoveIn(
     rt.units[unit] += attackers;
     const previousOwner = rt.owner;
     rt.owner = seat;
-    if (previousOwner !== seat) events.push({ type: "areaCaptured", seat, area: target, previousOwner });
+    if (previousOwner !== seat)
+      events.push({ type: "areaCaptured", seat, area: target, previousOwner });
     return events;
   }
 
@@ -232,12 +274,26 @@ export function resolveMoveIn(
   const defenders = rt.units[unit];
   const outcome = resolveConflict(state.rngState, state.rules.diceFaces, attackers, defenders);
   state.rngState = outcome.rngState;
-  events.push({ type: "diceRolled", seat, purpose: "defence", rolls: [outcome.defenceRoll], total: outcome.defenceRoll });
+  events.push({
+    type: "diceRolled",
+    seat,
+    purpose: "defence",
+    rolls: [outcome.defenceRoll],
+    total: outcome.defenceRoll
+  });
 
   state.players[seat].reserve[unit] += outcome.attackerLosses;
   state.players[enemy].reserve[unit] += outcome.defenderLosses;
-  if (outcome.attackerLosses > 0) events.push({ type: "unitsRemoved", seat, area: target, unit, count: outcome.attackerLosses });
-  if (outcome.defenderLosses > 0) events.push({ type: "unitsRemoved", seat: enemy, area: target, unit, count: outcome.defenderLosses });
+  if (outcome.attackerLosses > 0)
+    events.push({ type: "unitsRemoved", seat, area: target, unit, count: outcome.attackerLosses });
+  if (outcome.defenderLosses > 0)
+    events.push({
+      type: "unitsRemoved",
+      seat: enemy,
+      area: target,
+      unit,
+      count: outcome.defenderLosses
+    });
 
   if (outcome.attackersLeft > 0) {
     rt.owner = seat;

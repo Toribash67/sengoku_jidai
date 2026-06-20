@@ -47,7 +47,11 @@ describe("validateCommand common criteria", () => {
   it("rejects an occupied space", () => {
     const s = base();
     s.actionSpaces["advance-tile1"] = "black";
-    const cmd: Command = { type: "advance", spaceId: "advance-tile1", moves: [{ from: hqOf("red"), count: 1 }] };
+    const cmd: Command = {
+      type: "advance",
+      spaceId: "advance-tile1",
+      moves: [{ from: hqOf("red"), count: 1 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("spaceOccupied");
   });
 });
@@ -55,39 +59,63 @@ describe("validateCommand common criteria", () => {
 describe("validateCommand per-action criteria", () => {
   it("advance: rejects taking the last unit from a source", () => {
     const s = base();
-    const cmd: Command = { type: "advance", spaceId: "advance-tile1", moves: [{ from: hqOf("red"), count: 3 }] };
+    const cmd: Command = {
+      type: "advance",
+      spaceId: "advance-tile1",
+      moves: [{ from: hqOf("red"), count: 3 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("illegalMove");
   });
 
   it("advance: rejects advancing into an area you already control", () => {
     const s = base();
-    const cmd: Command = { type: "advance", spaceId: `advance-${hqOf("red")}`, moves: [{ from: hqOf("red"), count: 1 }] };
+    const cmd: Command = {
+      type: "advance",
+      spaceId: `advance-${hqOf("red")}`,
+      moves: [{ from: hqOf("red"), count: 1 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("criteriaNotMet");
   });
 
   it("advance: accepts a legal single-troop move into an adjacent empty land", () => {
     const s = base();
-    const cmd: Command = { type: "advance", spaceId: "advance-tile1", moves: [{ from: hqOf("red"), count: 2 }] };
+    const cmd: Command = {
+      type: "advance",
+      spaceId: "advance-tile1",
+      moves: [{ from: hqOf("red"), count: 2 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)).toBeNull();
   });
 
   it("reinforce: rejects placing more than N (+ barracks) troops", () => {
     const s = base();
-    const cmd: Command = { type: "reinforce", spaceId: "reinforce-b", placements: [{ area: hqOf("red"), count: 6 }] };
+    const cmd: Command = {
+      type: "reinforce",
+      spaceId: "reinforce-b",
+      placements: [{ area: hqOf("red"), count: 6 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("illegalPlacement");
   });
 
   it("reinforce: rejects when reserve is insufficient", () => {
     const s = base();
     s.players.red.reserve.troop = 1;
-    const cmd: Command = { type: "reinforce", spaceId: "reinforce-a", placements: [{ area: hqOf("red"), count: 2 }] };
+    const cmd: Command = {
+      type: "reinforce",
+      spaceId: "reinforce-a",
+      placements: [{ area: hqOf("red"), count: 2 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("insufficientReserve");
   });
 
   it("reinforce: rejects a second reinforce space the same round", () => {
     const s = base();
     s.actionSpaces["reinforce-a"] = "red";
-    const cmd: Command = { type: "reinforce", spaceId: "reinforce-b", placements: [{ area: hqOf("red"), count: 1 }] };
+    const cmd: Command = {
+      type: "reinforce",
+      spaceId: "reinforce-b",
+      placements: [{ area: hqOf("red"), count: 1 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("supportTypeUsed");
   });
 
@@ -100,7 +128,11 @@ describe("validateCommand per-action criteria", () => {
 
   it("choosePendingDecision: rejects when there is no pending decision", () => {
     const s = base();
-    const cmd: Command = { type: "choosePendingDecision", pendingId: "x", choice: { id: "a", label: "A" } };
+    const cmd: Command = {
+      type: "choosePendingDecision",
+      pendingId: "x",
+      choice: { id: "a", label: "A" }
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("pendingDecisionNotFound");
   });
 });

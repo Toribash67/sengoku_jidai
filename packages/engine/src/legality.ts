@@ -69,7 +69,11 @@ export function sailReachable(
 }
 
 /** Land areas the seat supplies (Reinforce placement targets). */
-export function reinforceTargets(map: MapDefinition, board: SupplyBoard, seat: SeatId): Set<string> {
+export function reinforceTargets(
+  map: MapDefinition,
+  board: SupplyBoard,
+  seat: SeatId
+): Set<string> {
   const out = new Set<string>();
   for (const id of suppliedAreas(map, board, seat)) {
     if (map.areas[id]!.kind === "land") out.add(id);
