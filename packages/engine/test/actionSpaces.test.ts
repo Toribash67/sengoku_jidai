@@ -36,7 +36,7 @@ describe("buildActionSpaces (rivers)", () => {
     expect(byId["embark-a"]).toMatchObject({ type: "embark", areaId: null, amount: 3 });
     expect(byId["embark-b"]).toMatchObject({ type: "embark", areaId: null, amount: 2 });
     expect(byId["plan-a"]).toMatchObject({ type: "plan", areaId: null, initiative: true });
-    expect(byId["plan-b"].initiative).toBeUndefined();
+    expect(byId["plan-b"]!.initiative).toBeUndefined();
   });
 
   it("emptyActionSpaceOccupancy maps every space id to null", () => {
