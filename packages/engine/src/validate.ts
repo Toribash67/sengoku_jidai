@@ -12,7 +12,8 @@ import {
   embarkTargets,
   bombardTargets,
   shellTargets,
-  supportTypeOccupied
+  supportTypeOccupied,
+  available
 } from "./legality.js";
 import type { BonusType } from "./rules.js";
 
@@ -47,6 +48,10 @@ export function validateCommand(
   if (state.phase !== "deploy") return reject("wrongPhase", "Not the deploy phase.");
   if (state.activeSeat !== actor.seat)
     return reject("notActiveSeat", "It is not this seat's turn.");
+
+  if (available(state, actor.seat) <= 0) {
+    return reject("noCommanders", "No commanders available to deploy this round.");
+  }
 
   const map = getMap(state.mapId);
   const rules = state.rules;
@@ -102,13 +107,17 @@ function validateAdvance(
   }
   if (moves.length === 0) return reject("illegalMove", "Advance must move at least one troop.");
   const legalSources = advanceSources(map, board, seat, target);
-  let total = 0;
+  const perSource = new Map<string, number>();
   for (const m of moves) {
     if (!legalSources.has(m.from)) return reject("illegalMove", `Illegal source ${m.from}.`);
     if (m.count < 1) return reject("illegalMove", "Move count must be >= 1.");
-    const have = state.areas[m.from]?.units.troop ?? 0;
-    if (m.count > have - 1) return reject("illegalMove", "Cannot take the last unit.");
-    total += m.count;
+    perSource.set(m.from, (perSource.get(m.from) ?? 0) + m.count);
+  }
+  let total = 0;
+  for (const [from, count] of perSource) {
+    const have = state.areas[from]?.units.troop ?? 0;
+    if (count > have - 1) return reject("illegalMove", "Cannot take the last unit.");
+    total += count;
   }
   if (total < 1) return reject("illegalMove", "Advance must move at least one troop.");
   return null;
@@ -128,13 +137,17 @@ function validateSail(
   }
   if (moves.length === 0) return reject("illegalMove", "Sail must move at least one ship.");
   const reachable = sailReachable(map, board, seat, target);
-  let total = 0;
+  const perSource = new Map<string, number>();
   for (const m of moves) {
     if (!reachable.has(m.from)) return reject("illegalMove", `Unreachable source ${m.from}.`);
     if (m.count < 1) return reject("illegalMove", "Move count must be >= 1.");
-    const have = state.areas[m.from]?.units.ship ?? 0;
-    if (m.count > have - 1) return reject("illegalMove", "Cannot take the last unit.");
-    total += m.count;
+    perSource.set(m.from, (perSource.get(m.from) ?? 0) + m.count);
+  }
+  let total = 0;
+  for (const [from, count] of perSource) {
+    const have = state.areas[from]?.units.ship ?? 0;
+    if (count > have - 1) return reject("illegalMove", "Cannot take the last unit.");
+    total += count;
   }
   if (total < 1) return reject("illegalMove", "Sail must move at least one ship.");
   return null;
@@ -153,6 +166,10 @@ function validateBombard(
   if (!bombardTargets(map, water).includes(targetAreaId)) {
     return reject("illegalTarget", "Target is not land adjacent to the linked water.");
   }
+  const enemy: SeatId = seat === "red" ? "black" : "red";
+  if (state.areas[targetAreaId]?.owner !== enemy) {
+    return reject("illegalTarget", "Target has no enemy units.");
+  }
   return null;
 }
 
@@ -168,6 +185,10 @@ function validateShell(
   if (!supplied.has(land)) return reject("criteriaNotMet", "You do not supply the linked land.");
   if (!shellTargets(map, land).includes(targetAreaId)) {
     return reject("illegalTarget", "Target is not water adjacent to the linked land.");
+  }
+  const enemy: SeatId = seat === "red" ? "black" : "red";
+  if (state.areas[targetAreaId]?.owner !== enemy) {
+    return reject("illegalTarget", "Target has no enemy units.");
   }
   return null;
 }

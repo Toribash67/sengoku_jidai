@@ -135,4 +135,40 @@ describe("validateCommand per-action criteria", () => {
     };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("pendingDecisionNotFound");
   });
+
+  it("advance: rejects duplicate-source moves that together take the last unit", () => {
+    const s = base();
+    // HQ tile9 has 3 troops; two moves of 2 from the same source sum to 4 > 3-1.
+    const cmd: Command = {
+      type: "advance",
+      spaceId: "advance-tile1",
+      moves: [
+        { from: hqOf("red"), count: 2 },
+        { from: hqOf("red"), count: 2 }
+      ]
+    };
+    expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("illegalMove");
+  });
+
+  it("rejects deploying when the seat has no commanders available", () => {
+    const s = base();
+    s.players.red.commanders.standby = 5; // total 5, occupied 0 -> available 0
+    expect(validateCommand(s, { seat: "red" }, { type: "pass" })?.code).toBe("noCommanders");
+  });
+
+  it("bombard: rejects a target with no enemy units", () => {
+    const s = base();
+    s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 1, siege: 0 } };
+    // tile16 is adjacent land to tile15 but empty (no enemy) -> illegal.
+    const cmd: Command = { type: "bombard", spaceId: "bombard-tile15", targetAreaId: "tile16" };
+    expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("illegalTarget");
+  });
+
+  it("shell: rejects a target with no enemy units", () => {
+    const s = base();
+    s.areas["tile10"] = { owner: "red", units: { troop: 1, ship: 0, siege: 0 } };
+    // tile11 is adjacent sea to shellable tile10 but empty (no enemy) -> illegal.
+    const cmd: Command = { type: "shell", spaceId: "shell-tile10", targetAreaId: "tile11" };
+    expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("illegalTarget");
+  });
 });

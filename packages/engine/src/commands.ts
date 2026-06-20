@@ -37,7 +37,8 @@ export type RejectionReason =
   | { code: "insufficientReserve"; message: string }
   | { code: "illegalChoice"; message: string }
   | { code: "pendingDecisionRequired"; message: string }
-  | { code: "pendingDecisionNotFound"; message: string };
+  | { code: "pendingDecisionNotFound"; message: string }
+  | { code: "noCommanders"; message: string };
 
 export type GameEvent =
   | { type: "commanderDeployed"; seat: SeatId; spaceId: string }
