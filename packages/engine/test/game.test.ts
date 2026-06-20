@@ -35,7 +35,8 @@ describe("createInitialState", () => {
     expect(s.status).toBe("active");
     expect(["red", "black"]).toContain(s.initiative);
     expect(s.activeSeat).toBe(s.initiative);
-    expect(s.actionSpaces).toEqual({});
+    expect(Object.keys(s.actionSpaces).length).toBeGreaterThan(0);
+    expect(Object.values(s.actionSpaces).every((v) => v === null)).toBe(true);
     expect(s.winner).toBeNull();
     expect(s.endReason).toBeNull();
   });
@@ -100,5 +101,11 @@ describe("createInitialState", () => {
       ).map((s) => `${s.initiative}|${JSON.stringify(s.bonuses)}`)
     );
     expect(signatures.size).toBeGreaterThan(1);
+  });
+
+  it("opens with revision 0 and no pending decision", () => {
+    const s = createInitialState(opts);
+    expect(s.revision).toBe(0);
+    expect(s.pendingDecision).toBeNull();
   });
 });

@@ -34,6 +34,22 @@ describe("rivers map topology", () => {
     }
   });
 
+  it("gives every shellable land at least one adjacent sea (Shell needs a target)", () => {
+    for (const a of areas) {
+      if (!a.shellable) continue;
+      const seaNeighbours = a.adjacent.filter((id) => riversMap.areas[id]?.kind === "sea");
+      expect(seaNeighbours.length, `${a.id} shellable but borders no sea`).toBeGreaterThan(0);
+    }
+  });
+
+  it("gives every sea area at least one adjacent land (Bombard needs a target)", () => {
+    for (const a of areas) {
+      if (a.kind !== "sea") continue;
+      const landNeighbours = a.adjacent.filter((id) => riversMap.areas[id]?.kind === "land");
+      expect(landNeighbours.length, `${a.id} sea but borders no land`).toBeGreaterThan(0);
+    }
+  });
+
   it("only places ports on harbour land areas, pointing at sea areas", () => {
     for (const a of areas) {
       if (a.ports.length > 0) {

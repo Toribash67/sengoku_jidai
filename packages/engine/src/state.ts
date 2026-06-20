@@ -14,6 +14,20 @@ export type EndReason = "hqEliminated" | "victoryPoints";
 /** Operation card — no effects ship until the cards phase. */
 export type OperationCard = never;
 
+/** A choice offered by a pending decision (future cards seam). */
+export interface PendingChoice {
+  id: string;
+  label: string;
+}
+
+/** A decision the engine is waiting on before any other command (future cards). */
+export interface PendingDecision {
+  id: string;
+  seat: SeatId;
+  prompt: string;
+  choices: PendingChoice[];
+}
+
 /** Full per-player unit pools in Rivers (siege unused). Frozen: it's a shared singleton. */
 export const RIVERS_UNIT_POOL: Readonly<UnitCounts> = Object.freeze({
   troop: 25,
@@ -53,12 +67,6 @@ export interface PlayerState {
 /**
  * The full dynamic game state (schemaVersion 2). Static facts (adjacency, HQs,
  * stars, bonus slots) live in the MapDefinition; only what changes lives here.
- *
- * Deliberately omitted until later plans (tracked so they aren't lost):
- * - `pendingDecision` (spec §4/§6): added in Plan 3 with the command pipeline.
- * - `revision` (on the placeholder `types.ts` GameState; read by the server
- *   persistence layer): Plan 3 must add it here or update the server when it
- *   retires the placeholder.
  */
 export interface GameState {
   schemaVersion: 2;
@@ -80,6 +88,10 @@ export interface GameState {
   actionSpaces: Record<string, SeatId | null>; // populated in Plan 3
   bonuses: Record<string, BonusType>; // bonus-slot areaId -> assigned bonus (3 entries)
 
+  /** Monotonic version; bumped once per accepted command. Read by server persistence. */
+  revision: number;
+
+  pendingDecision: PendingDecision | null; // unused by actions in v1; populated only by future cards
   winner: SeatId | null;
   endReason: EndReason | null;
 }
