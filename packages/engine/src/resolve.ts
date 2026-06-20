@@ -6,7 +6,7 @@ import { validateCommand } from "./validate.js";
 import { gameBoard } from "./board.js";
 import { hqEliminated, victoryPoints } from "./scoring.js";
 import { available } from "./legality.js";
-import { applyPass } from "./actions.js";
+import { applyPass, applyReinforce, applyPlan } from "./actions.js";
 
 const other = (seat: SeatId): SeatId => (seat === "red" ? "black" : "red");
 
@@ -59,7 +59,10 @@ export function resolveCommand(
 
 function dispatchAction(state: GameState, seat: SeatId, command: Command): GameEvent[] {
   switch (command.type) {
-    // Filled in by later tasks. Throw loudly if an un-wired action slips past validation.
+    case "reinforce":
+      return applyReinforce(state, seat, command.placements);
+    case "plan":
+      return applyPlan(state, seat, command.spaceId);
     default:
       throw new Error(`No resolver for action ${command.type}`);
   }
