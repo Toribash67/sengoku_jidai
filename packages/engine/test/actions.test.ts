@@ -67,3 +67,34 @@ describe("plan", () => {
     expect(r2.nextState.initiative).toBe("red");
   });
 });
+
+describe("embark", () => {
+  it("places ships from reserve into a supplied water area", () => {
+    const s = game();
+    s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 1, siege: 0 } };
+    const before = s.players.red.reserve.ship;
+    const r = resolveCommand(s, { seat: "red" }, {
+      type: "embark",
+      spaceId: "embark-a", // N=3
+      placements: [{ area: "tile15", count: 2 }]
+    });
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    expect(r.nextState.areas["tile15"]!.units.ship).toBe(3); // 1 + 2, cap 3
+    expect(r.nextState.players.red.reserve.ship).toBe(before - 2);
+  });
+
+  it("can place into an empty water adjacent to a supplied port", () => {
+    const s = game();
+    // Red supplies its HQ harbor tile9 (ports include tile14/tile15). tile14 empty.
+    const r = resolveCommand(s, { seat: "red" }, {
+      type: "embark",
+      spaceId: "embark-b", // N=2
+      placements: [{ area: "tile14", count: 2 }]
+    });
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    expect(r.nextState.areas["tile14"]!.owner).toBe("red");
+    expect(r.nextState.areas["tile14"]!.units.ship).toBe(2);
+  });
+});

@@ -52,6 +52,23 @@ export function applyPlan(state: GameState, seat: SeatId, spaceId: string): Game
   return events;
 }
 
+/** Embark: place ships from reserve into supplied/port-adjacent water (validated upstream). */
+export function applyEmbark(
+  state: GameState,
+  seat: SeatId,
+  placements: { area: string; count: number }[]
+): GameEvent[] {
+  const events: GameEvent[] = [];
+  for (const p of placements) {
+    const rt = state.areas[p.area]!;
+    rt.units.ship += p.count;
+    rt.owner = seat;
+    state.players[seat].reserve.ship -= p.count;
+    events.push({ type: "unitsPlaced", seat, area: p.area, unit: "ship", count: p.count });
+  }
+  return events;
+}
+
 /** Area id currently holding a given bonus, if any. */
 function bonusArea(state: GameState, bonus: string): string | undefined {
   return Object.entries(state.bonuses).find(([, b]) => b === bonus)?.[0];
