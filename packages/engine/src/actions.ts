@@ -109,6 +109,34 @@ export function applyAdvance(
   return events;
 }
 
+/** Sail: move ships into the linked water (validated upstream), apply Shipyard, resolve conflict. */
+export function applySail(
+  state: GameState,
+  seat: SeatId,
+  spaceId: string,
+  moves: { from: string; count: number }[]
+): GameEvent[] {
+  const map = getMap(state.mapId);
+  const target = actionSpaceMap(map)[spaceId]!.areaId!;
+  const events: GameEvent[] = [];
+
+  let attackers = 0;
+  for (const m of moves) {
+    state.areas[m.from]!.units.ship -= m.count;
+    attackers += m.count;
+    events.push({ type: "unitsMoved", seat, from: m.from, to: target, unit: "ship", count: m.count });
+  }
+
+  if (suppliesBonus(state, seat, "shipyard") && state.players[seat].reserve.ship > 0) {
+    state.players[seat].reserve.ship -= 1;
+    attackers += 1;
+    events.push({ type: "bonusApplied", seat, bonus: "shipyard", area: bonusArea(state, "shipyard")! });
+  }
+
+  events.push(...resolveMoveIn(state, seat, target, "ship", attackers));
+  return events;
+}
+
 /**
  * Shared move-in + conflict for Advance/Sail. `attackers` units of `unit` arrive in
  * `target`; resolve against any enemy garrison and set ownership.

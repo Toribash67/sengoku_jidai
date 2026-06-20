@@ -151,3 +151,38 @@ describe("advance", () => {
     expect(r.nextState.areas["tile1"]!.owner).toBeNull();
   });
 });
+
+describe("sail", () => {
+  it("moves ships through a supplied water chain into an empty water", () => {
+    const s = game();
+    // red supplies HQ tile9 (land) -> tile15 (sea, 2 ships). Sail into tile11 (adj tile15).
+    s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 2, siege: 0 } };
+    const r = resolveCommand(s, { seat: "red" }, {
+      type: "sail",
+      spaceId: "sail-tile11",
+      moves: [{ from: "tile15", count: 1 }]
+    });
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    expect(r.nextState.areas["tile11"]!.owner).toBe("red");
+    expect(r.nextState.areas["tile11"]!.units.ship).toBe(1);
+    expect(r.nextState.areas["tile15"]!.units.ship).toBe(1);
+  });
+
+  it("Shipyard adds +1 ship at move-in before conflict", () => {
+    const s = game();
+    s.rules = { ...s.rules, diceFaces: [1, 1, 1, 1, 1, 1] };
+    s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 3, siege: 0 } };
+    s.bonuses = { tile15: "shipyard" }; // red supplies tile15
+    s.areas["tile11"] = { owner: "black", units: { troop: 0, ship: 2, siege: 0 } };
+    const r = resolveCommand(s, { seat: "red" }, {
+      type: "sail",
+      spaceId: "sail-tile11",
+      moves: [{ from: "tile15", count: 2 }] // 2 + 1 shipyard = 3 attackers
+    });
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    // 3 attackers, defence -1 -> 2 vs 2 -> tie -> emptied.
+    expect(r.nextState.areas["tile11"]!.owner).toBeNull();
+  });
+});
