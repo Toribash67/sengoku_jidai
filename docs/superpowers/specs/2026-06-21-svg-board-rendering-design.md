@@ -37,6 +37,14 @@ No engine, server, or shared-package changes. This consumes the existing LEAN
 - Dynamic state is drawn *inside the same SVG coordinate space* — tile fills, unit-count
   `<text>`, occupancy `<circle>`, selection outline — so everything scales together with
   no HTML/SVG alignment drift.
+
+> **SVG internals (verified):** Each visible tile is a `<use>` that references one of five
+> shared geometry `<path>` defs (`path9`, `path9-2`, `path9-2-2`, `path9-5`, `path9-5-0`).
+> Those defs are declared inside `<g id="layer1" style="display:none">` — i.e. `layer1` is
+> the de-facto `<defs>` store and **must NOT be removed**. The defs carry inline `fill`/
+> `stroke`, which by SVG cascade rules win over a `fill` set on the `<use>`. So recoloring
+> requires neutralizing the def styling first (see SVG preparation). There is also an empty
+> real `<defs id="defs1"/>` where the stripe `<pattern>` is injected.
 - An `<img src>` embed was rejected: it cannot recolor individual tiles or attach per-tile
   click handlers, both of which this design requires.
 
@@ -57,21 +65,35 @@ The `data-testid="board"` contract is preserved; tiles remain individually addre
 
 ## Overlay rendering
 
-On mount `MapBoard` injects the raw SVG into the DOM, then for each `tile1…tile22`:
+On mount `MapBoard` injects the raw SVG into the DOM and runs the one-time preparation
+(below), then on every render decorates each `tile1…tile22`:
 
-1. **Owner/supply tint** — set the tile `<use>` `fill`:
+1. **Owner/supply tint** — set the tile `<use>` element's `style.fill` (inline style wins
+   over the def, which prep has set to `inherit`):
    - `owner === seat` **and** `suppliedBy === seat` → solid seat colour.
-   - `owner === seat` **and** not supplied → striped seat colour via an SVG `<pattern>`
-     injected into `<defs>` (`#stripe-red`, `#stripe-black`).
-   - `owner === null` → leave the artwork's default fill untouched.
+   - `owner === seat` **and** not supplied → striped seat colour via `url(#stripe-red)` /
+     `url(#stripe-black)` (SVG `<pattern>` injected into `<defs>` during prep).
+   - `owner === null` → the kind-based default colour (land vs sea), since prep neutralized
+     the def's own fill. The pure `tileFill(kind, owner, suppliedBy)` helper returns the
+     exact fill string for all cases.
    - Sea and land tiles tint identically by owner (ships can own sea areas).
-2. **Click** — attach a handler → `onSelectArea(id)`.
-3. **Selection highlight** — apply an outline class/stroke when `selectedAreaId === id`.
-4. **Unit count** — draw a small `<text>` `Nt·Ms` (troops·ships) at the tile's `getBBox()`
-   center; omit when the tile has zero units.
-5. **Action-space occupancy** — when `actionSpaces` shows a commander on a slot linked to
-   this area, draw an occupancy `<circle>` near the tile center. Mapping from action-space
-   id to area id uses the existing `order-*`/`*-tileN` slot id convention.
+2. **Click** — attach a click handler on each tile `<use>` → `onSelectArea(id)`.
+3. **Selection highlight** — set the tile `<use>` `style.stroke`/`style.strokeWidth`
+   (default black/5; selected gold/8). Prep set the def stroke to `inherit` so this wins.
+4. **Unit count** — draw a small `<text>` `Nt·Ms` (troops·ships) in a top-level overlay
+   `<g>`, positioned at the tile center mapped to root coordinates via
+   `useEl.getBBox()` + `useEl.getCTM()` (avoids the rotated tile-group flipping the text);
+   omit when the tile has zero units.
+5. **Action-space occupancy** — for each occupied on-map action space, draw an occupancy
+   `<circle>` (seat-coloured) in the overlay `<g>` at the corresponding order-slot's center
+   (same getBBox+getCTM mapping). The engine space id maps to the SVG slot id by type:
+   `advance-tileN → #move-tileN`, `sail-tileN → #sail-tileN`, `bombard-tileN →
+   #bombard-tileN`, `shell-tileN → #shell-tileN`. Support spaces
+   (reinforce/embark/plan) have no board slot and are skipped. A pure `slotIdForSpace`
+   helper performs this mapping.
+
+The overlay `<g>` is fully rebuilt on each decorate pass (cleared then repopulated), so it
+stays in sync with view/selection changes without leaking stale nodes.
 
 **Left entirely to the existing artwork** (no duplicate overlay): stars (`valueStars`),
 HQ flags, harbors, bases, order-track labels. `valueStars`, `kind`, and `suppliedBy`
@@ -79,14 +101,30 @@ continue to appear in the side panel on select.
 
 ## SVG preparation
 
-Used essentially verbatim. A light, one-time preparation:
+The file is used verbatim from disk; preparation is done **at runtime** on the injected
+DOM (no second checked-in copy, no build transform). On mount, after injecting the raw SVG:
 
-- Strip the hidden Inkscape `layer1` group (`style="display:none"` cruft at the top) to
-  reduce noise.
-- Ensure the stripe `<pattern>` defs exist (added in `<defs>`).
+- **Keep `layer1`.** It is `display:none` but holds the shared geometry `<path>` defs that
+  every tile `<use>` references — removing it breaks the map.
+- **Neutralize tile-def styling so per-tile colour works.** For each of the five tile
+  geometry defs (`path9`, `path9-2`, `path9-2-2`, `path9-5`, `path9-5-0`), set
+  `style.fill`, `style.stroke`, and `style.strokeWidth` to `inherit`. Each tile `<use>`
+  then supplies its own fill/stroke via inline style. (The `-3`/`-3-6` variants belong to
+  HQ/base features and are left alone.)
+- **Inject stripe patterns** `#stripe-red` and `#stripe-black` into the existing empty
+  `<defs id="defs1">`.
 
 The `tile1…tile22` ids remain the single source of truth and are not renamed. No
 re-derivation of topology (the engine's `maps/riversMap.ts` already encodes it).
+
+## Asset import
+
+`cloned_map.svg` lives at the repo root and is the single canonical copy. The web imports
+it as a raw string: `import rawMapSvg from "<path>/cloned_map.svg?raw"`. Because the file
+sits above the web package, `packages/web/vite.config.ts` sets
+`server.fs.allow = [searchForWorkspaceRoot(process.cwd())]` (Vite helper) so the dev server
+can serve it. `vite/client` types (already in `packages/web/tsconfig.json`) provide the
+`?raw` module typing — no extra `.d.ts` needed.
 
 ## Scope boundaries
 
@@ -111,7 +149,8 @@ Out of scope (deferred to later phases):
   loud in dev: log/throw a clear message rather than silently mis-tinting. The id sets are
   expected to match exactly.
 - Zero-unit tiles draw no unit text.
-- Unowned tiles keep their drawn fill (no tint applied).
+- Unowned tiles render the kind-based default colour (land vs sea), matching the original
+  artwork's palette.
 
 ## Testing
 
