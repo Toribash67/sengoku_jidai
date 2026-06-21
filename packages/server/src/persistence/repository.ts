@@ -1,5 +1,5 @@
 import {
-  createGame,
+  createInitialState,
   deserializeState,
   playerEvents,
   playerView,
@@ -73,7 +73,7 @@ export class GameRepository {
   createGame(mode: GameMode, seed?: string): CreatedGame {
     const gameId = randomUUID();
     const now = new Date().toISOString();
-    const state = createGame({ gameId, mode, seed });
+    const state = createInitialState({ gameId, mode, seed: seed ?? randomUUID() });
     const seatTokens: SeatTokenRecord[] = [];
 
     const create = this.db.transaction(() => {
@@ -201,12 +201,7 @@ export class GameRepository {
       }
 
       const state = this.loadSnapshot(gameId, baseRevision);
-      const result = resolveCommand(
-        state,
-        { seat: session.seat, playerId: session.seat },
-        command,
-        state.rules
-      );
+      const result = resolveCommand(state, { seat: session.seat }, command);
       const now = new Date().toISOString();
 
       if (result.status === "rejected") {
