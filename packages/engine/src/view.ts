@@ -2,9 +2,10 @@ import { getMap } from "./maps/registry.js";
 import { gameBoard } from "./board.js";
 import { suppliedAreas } from "./supply.js";
 import { victoryPoints } from "./scoring.js";
-import { available } from "./legality.js";
+import { advanceSources, available, sailReachable } from "./legality.js";
 import { buildActionSpaces } from "./actionSpaces.js";
-import type { AreaKind } from "./maps/riversMap.js";
+import type { ActionSpace } from "./actionSpaces.js";
+import type { AreaKind, MapDefinition } from "./maps/riversMap.js";
 import type { EndReason, GameState, PendingDecision, Phase, UnitCounts } from "./state.js";
 import type { GameMode, GameStatus, SeatId } from "./types.js";
 import type { ActionType, BonusType } from "./rules.js";
@@ -24,6 +25,16 @@ export interface PlayerAreaView {
   suppliedBy: SeatId | null;
 }
 
+export interface LegalMove {
+  /** Linked action space to deploy into: "advance-<land>" | "sail-<sea>". */
+  spaceId: string;
+  type: "advance" | "sail";
+  /** Linked land (advance) or sea (sail) the units move INTO. */
+  targetAreaId: string;
+  /** Legal source areas; `max` is the units there minus one (a source keeps one unit). */
+  sources: { areaId: string; max: number }[];
+}
+
 export interface LegalSpace {
   spaceId: string;
   type: ActionType;
@@ -40,6 +51,7 @@ export interface LegalCommandSummary {
   activeSeat: SeatId;
   spaces: LegalSpace[];
   canPass: boolean;
+  moves: LegalMove[];
 }
 
 export interface PlayerGameView {
@@ -122,6 +134,7 @@ export function playerView(state: GameState, viewerSeat: SeatId): PlayerGameView
 
 export function legalCommandsForState(state: GameState, seat: SeatId): LegalCommandSummary {
   const map = getMap(state.mapId);
+  const catalog = buildActionSpaces(map);
   // Shared deployability gate for every space and for pass.
   const canDeploy =
     state.status === "active" &&
@@ -130,14 +143,50 @@ export function legalCommandsForState(state: GameState, seat: SeatId): LegalComm
     state.pendingDecision === null &&
     available(state, seat) > 0;
 
-  const spaces: LegalSpace[] = buildActionSpaces(map).map((space) => ({
+  const spaces: LegalSpace[] = catalog.map((space) => ({
     spaceId: space.id,
     type: space.type,
     areaId: space.areaId,
     legal: canDeploy && state.actionSpaces[space.id] === null
   }));
 
-  return { activeSeat: state.activeSeat, spaces, canPass: canDeploy };
+  return {
+    activeSeat: state.activeSeat,
+    spaces,
+    canPass: canDeploy,
+    moves: canDeploy ? enumerateMoves(state, seat, map, catalog) : []
+  };
+}
+
+/** Movement targets the seat can deploy into now, each with its legal sources and the
+ *  max units each source can spare (units there - 1; a source must keep one unit). */
+function enumerateMoves(
+  state: GameState,
+  seat: SeatId,
+  map: MapDefinition,
+  catalog: ActionSpace[]
+): LegalMove[] {
+  const board = gameBoard(state);
+  const moves: LegalMove[] = [];
+  for (const space of catalog) {
+    if (space.type !== "advance" && space.type !== "sail") continue;
+    if (state.actionSpaces[space.id] !== null) continue;
+    if (!state.rules.enabledActions.includes(space.type)) continue;
+    const target = space.areaId!;
+    if (state.areas[target]?.owner === seat) continue;
+    const unit = space.type === "advance" ? "troop" : "ship";
+    const reachable =
+      space.type === "advance"
+        ? advanceSources(map, board, seat, target)
+        : sailReachable(map, board, seat, target);
+    const sources = [...reachable]
+      .map((areaId) => ({ areaId, max: (state.areas[areaId]?.units[unit] ?? 0) - 1 }))
+      .filter((s) => s.max >= 1);
+    if (sources.length > 0) {
+      moves.push({ spaceId: space.id, type: space.type, targetAreaId: target, sources });
+    }
+  }
+  return moves;
 }
 
 export function playerEvents(events: GameEvent[]): PlayerGameEvent[] {
