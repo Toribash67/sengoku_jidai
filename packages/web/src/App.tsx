@@ -1,4 +1,4 @@
-import type { PlayerAreaView, PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
+import type { PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
 import { useEffect, useMemo, useState } from "react";
 import { Board } from "./components/board/Board.js";
 import { ApiError, createHotseatGame, fetchGameView, submitCommand } from "./client/api.js";
