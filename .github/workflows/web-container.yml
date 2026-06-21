@@ -145,8 +145,7 @@ jobs:
   build-and-push:
     name: Build and Push Image
     runs-on: ubuntu-latest
-    # Validation jobs above run on every PR; only publish the image on pushes to main.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Build the image on every PR to validate the Dockerfile; only publish on pushes to main.
     needs:
       - typecheck
       - unit-tests
@@ -168,6 +167,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -178,7 +178,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
