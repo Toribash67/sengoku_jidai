@@ -98,14 +98,26 @@ button:disabled {
 
 .game-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 10px var(--panel-width, 340px);
+  gap: 8px;
   align-items: stretch;
+}
+
+.layout-divider {
+  align-self: stretch;
+  width: 10px;
+  border-radius: 5px;
+  background: #c7d4ce;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.layout-divider:hover {
+  background: #9fb3aa;
 }
 
 .board {
   width: 100%;
-  min-height: min(66vh, 680px);
   border: 1px solid #becbc5;
   border-radius: 8px;
   background: #dfe8df;
@@ -263,6 +275,10 @@ button:disabled {
   .top-bar,
   .game-layout {
     grid-template-columns: 1fr;
+  }
+
+  .layout-divider {
+    display: none;
   }
 
   .top-bar {
