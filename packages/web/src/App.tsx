@@ -1,5 +1,7 @@
 import type { PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
+import { getMap } from "@sengoku-jidai/engine";
 import { useEffect, useMemo, useState } from "react";
+import { AreaDetails } from "./components/board/AreaDetails.js";
 import { MapBoard } from "./components/board/MapBoard.js";
 import { ApiError, createHotseatGame, fetchGameView, submitCommand } from "./client/api.js";
 import {
@@ -45,6 +47,11 @@ export function App() {
   const selectedArea = useMemo(
     () => game?.view.areas.find((area) => area.id === selectedAreaId) ?? null,
     [game?.view.areas, selectedAreaId]
+  );
+
+  const selectedMapArea = useMemo(
+    () => (game && selectedAreaId ? (getMap(game.view.mapId).areas[selectedAreaId] ?? null) : null),
+    [game, selectedAreaId]
   );
 
   async function handleCreateGame() {
@@ -176,29 +183,10 @@ export function App() {
 
           <section className="panel-section">
             <h2>{selectedArea ? selectedArea.id : "Select an area"}</h2>
-            {selectedArea ? (
-              <dl className="area-details">
-                <div>
-                  <dt>Owner</dt>
-                  <dd>{selectedArea.owner ?? "none"}</dd>
-                </div>
-                <div>
-                  <dt>Units</dt>
-                  <dd>
-                    {selectedArea.units.troop} troops, {selectedArea.units.ship} ships
-                  </dd>
-                </div>
-                <div>
-                  <dt>Value</dt>
-                  <dd>{selectedArea.valueStars} stars</dd>
-                </div>
-                <div>
-                  <dt>Supplied by</dt>
-                  <dd>{selectedArea.suppliedBy ?? "none"}</dd>
-                </div>
-              </dl>
+            {selectedArea && selectedMapArea ? (
+              <AreaDetails area={selectedArea} mapArea={selectedMapArea} view={game.view} />
             ) : (
-              <p className="muted">Area details appear here. Interactive commands come later.</p>
+              <p className="muted">Select an area to see its details.</p>
             )}
             <button
               type="button"

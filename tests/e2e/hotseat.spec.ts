@@ -12,6 +12,11 @@ test("creates a hotseat game, renders the SVG board, and selects a tile", async 
   await page.locator("#tile9").click();
   await expect(page.getByRole("heading", { name: "tile9" })).toBeVisible();
 
+  // Selecting a tile shows its traits and the actions linked to it.
+  await expect(page.getByRole("heading", { name: "Traits" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Actions" })).toBeVisible();
+  await expect(page.getByText("Advance")).toBeVisible();
+
   await page.reload();
   await expect(page.getByTestId("board")).toBeVisible();
   await expect(page.locator("#tile9")).toBeVisible();

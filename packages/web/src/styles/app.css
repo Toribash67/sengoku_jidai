@@ -187,6 +187,55 @@ button:disabled {
   min-width: 0;
 }
 
+.detail-subhead {
+  margin: 14px 0 6px;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #65716c;
+}
+
+.trait-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.action-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.action-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.action-name {
+  font-weight: 600;
+}
+
+.action-open {
+  color: #65716c;
+}
+
+.action-used {
+  font-weight: 600;
+}
+
+.action-red {
+  color: #b03a32;
+}
+
+.action-black {
+  color: #2f343c;
+}
+
 .event-log {
   display: grid;
   gap: 8px;
