@@ -40,6 +40,7 @@
 ## Task 1: State fields — `pendingDecision` + `revision`
 
 **Files:**
+
 - Modify: `packages/engine/src/state.ts`
 - Modify: `packages/engine/src/game.ts:101-119`
 - Modify: `packages/engine/test/game.test.ts`
@@ -47,11 +48,11 @@
 - [ ] **Step 1: Write the failing test** — append to `test/game.test.ts` inside the `describe("createInitialState", ...)` block:
 
 ```ts
-  it("opens with revision 0 and no pending decision", () => {
-    const s = createInitialState(opts);
-    expect(s.revision).toBe(0);
-    expect(s.pendingDecision).toBeNull();
-  });
+it("opens with revision 0 and no pending decision", () => {
+  const s = createInitialState(opts);
+  expect(s.revision).toBe(0);
+  expect(s.pendingDecision).toBeNull();
+});
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -134,6 +135,7 @@ git commit -m "feat(engine): add revision and pendingDecision to v2 GameState"
 ## Task 2: Action-space catalog
 
 **Files:**
+
 - Create: `packages/engine/src/actionSpaces.ts`
 - Create: `packages/engine/test/actionSpaces.test.ts`
 - Modify: `packages/engine/src/game.ts`
@@ -170,7 +172,10 @@ describe("buildActionSpaces (rivers)", () => {
   });
 
   it("has a shell space exactly for shellable lands {10,12,19,21}", () => {
-    const shellIds = spaces.filter((s) => s.type === "shell").map((s) => s.areaId).sort();
+    const shellIds = spaces
+      .filter((s) => s.type === "shell")
+      .map((s) => s.areaId)
+      .sort();
     expect(shellIds).toEqual(["tile10", "tile12", "tile19", "tile21"]);
   });
 
@@ -279,8 +284,8 @@ and change `actionSpaces: {},` in the returned object to:
 Replace line 38 `expect(s.actionSpaces).toEqual({});` with:
 
 ```ts
-    expect(Object.keys(s.actionSpaces).length).toBeGreaterThan(0);
-    expect(Object.values(s.actionSpaces).every((v) => v === null)).toBe(true);
+expect(Object.keys(s.actionSpaces).length).toBeGreaterThan(0);
+expect(Object.values(s.actionSpaces).every((v) => v === null)).toBe(true);
 ```
 
 - [ ] **Step 7: Run the full engine suite**
@@ -300,6 +305,7 @@ git commit -m "feat(engine): derive action-space catalog and seed occupancy at s
 ## Task 3: SupplyBoard bridge
 
 **Files:**
+
 - Create: `packages/engine/src/board.ts`
 - Create: `packages/engine/test/board.test.ts`
 
@@ -376,6 +382,7 @@ git commit -m "feat(engine): add SupplyBoard bridge over live GameState"
 ## Task 4: Command types + legality predicates
 
 **Files:**
+
 - Create: `packages/engine/src/commands.ts`
 - Create: `packages/engine/src/legality.ts`
 - Create: `packages/engine/test/legality.test.ts`
@@ -464,7 +471,9 @@ import {
 const hqOf = (seat: "red" | "black") =>
   Object.values(riversMap.areas).find((a) => a.hq === seat)!.id;
 
-function stateWith(units: Record<string, { owner: "red" | "black" | null; troop?: number; ship?: number }>) {
+function stateWith(
+  units: Record<string, { owner: "red" | "black" | null; troop?: number; ship?: number }>
+) {
   const s = createInitialState({ gameId: "g", seed: "seed-A" });
   for (const [id, u] of Object.entries(units)) {
     s.areas[id] = {
@@ -629,7 +638,11 @@ export function sailReachable(
 }
 
 /** Land areas the seat supplies (Reinforce placement targets). */
-export function reinforceTargets(map: MapDefinition, board: SupplyBoard, seat: SeatId): Set<string> {
+export function reinforceTargets(
+  map: MapDefinition,
+  board: SupplyBoard,
+  seat: SeatId
+): Set<string> {
   const out = new Set<string>();
   for (const id of suppliedAreas(map, board, seat)) {
     if (map.areas[id]!.kind === "land") out.add(id);
@@ -642,11 +655,7 @@ export function reinforceTargets(map: MapDefinition, board: SupplyBoard, seat: S
  * reachable via a supplied port (harbor land the seat supplies) that contain no
  * enemy ships.
  */
-export function embarkTargets(
-  map: MapDefinition,
-  state: GameState,
-  seat: SeatId
-): Set<string> {
+export function embarkTargets(map: MapDefinition, state: GameState, seat: SeatId): Set<string> {
   const board: SupplyBoard = { ownerOf: (id) => state.areas[id]?.owner ?? null };
   const supplied = suppliedAreas(map, board, seat);
   const out = new Set<string>();
@@ -714,6 +723,7 @@ git commit -m "feat(engine): add v2 command types and legality predicates"
 ## Task 5: Conflict resolver
 
 **Files:**
+
 - Create: `packages/engine/src/conflict.ts`
 - Create: `packages/engine/test/conflict.test.ts`
 
@@ -836,6 +846,7 @@ git commit -m "feat(engine): add pure conflict resolver"
 ## Task 6: Validation
 
 **Files:**
+
 - Create: `packages/engine/src/validate.ts`
 - Create: `packages/engine/test/validate.test.ts`
 
@@ -893,7 +904,11 @@ describe("validateCommand common criteria", () => {
   it("rejects an occupied space", () => {
     const s = base();
     s.actionSpaces["advance-tile1"] = "black";
-    const cmd: Command = { type: "advance", spaceId: "advance-tile1", moves: [{ from: hqOf("red"), count: 1 }] };
+    const cmd: Command = {
+      type: "advance",
+      spaceId: "advance-tile1",
+      moves: [{ from: hqOf("red"), count: 1 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("spaceOccupied");
   });
 });
@@ -902,40 +917,64 @@ describe("validateCommand per-action criteria", () => {
   it("advance: rejects taking the last unit from a source", () => {
     const s = base();
     // red HQ tile9 has 3 troops; tile1 is empty land adjacent to tile9.
-    const cmd: Command = { type: "advance", spaceId: "advance-tile1", moves: [{ from: hqOf("red"), count: 3 }] };
+    const cmd: Command = {
+      type: "advance",
+      spaceId: "advance-tile1",
+      moves: [{ from: hqOf("red"), count: 3 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("illegalMove");
   });
 
   it("advance: rejects advancing into an area you already control", () => {
     const s = base();
-    const cmd: Command = { type: "advance", spaceId: `advance-${hqOf("red")}`, moves: [{ from: hqOf("red"), count: 1 }] };
+    const cmd: Command = {
+      type: "advance",
+      spaceId: `advance-${hqOf("red")}`,
+      moves: [{ from: hqOf("red"), count: 1 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("criteriaNotMet");
   });
 
   it("advance: accepts a legal single-troop move into an adjacent empty land", () => {
     const s = base();
-    const cmd: Command = { type: "advance", spaceId: "advance-tile1", moves: [{ from: hqOf("red"), count: 2 }] };
+    const cmd: Command = {
+      type: "advance",
+      spaceId: "advance-tile1",
+      moves: [{ from: hqOf("red"), count: 2 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)).toBeNull();
   });
 
   it("reinforce: rejects placing more than N (+ barracks) troops", () => {
     const s = base();
     // reinforce-b: N=5. Place 6 into HQ (supplied) -> exceeds N.
-    const cmd: Command = { type: "reinforce", spaceId: "reinforce-b", placements: [{ area: hqOf("red"), count: 6 }] };
+    const cmd: Command = {
+      type: "reinforce",
+      spaceId: "reinforce-b",
+      placements: [{ area: hqOf("red"), count: 6 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("illegalPlacement");
   });
 
   it("reinforce: rejects when reserve is insufficient", () => {
     const s = base();
     s.players.red.reserve.troop = 1;
-    const cmd: Command = { type: "reinforce", spaceId: "reinforce-a", placements: [{ area: hqOf("red"), count: 2 }] };
+    const cmd: Command = {
+      type: "reinforce",
+      spaceId: "reinforce-a",
+      placements: [{ area: hqOf("red"), count: 2 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("insufficientReserve");
   });
 
   it("reinforce: rejects a second reinforce space the same round", () => {
     const s = base();
     s.actionSpaces["reinforce-a"] = "red";
-    const cmd: Command = { type: "reinforce", spaceId: "reinforce-b", placements: [{ area: hqOf("red"), count: 1 }] };
+    const cmd: Command = {
+      type: "reinforce",
+      spaceId: "reinforce-b",
+      placements: [{ area: hqOf("red"), count: 1 }]
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("supportTypeUsed");
   });
 
@@ -949,7 +988,11 @@ describe("validateCommand per-action criteria", () => {
 
   it("choosePendingDecision: rejects when there is no pending decision", () => {
     const s = base();
-    const cmd: Command = { type: "choosePendingDecision", pendingId: "x", choice: { id: "a", label: "A" } };
+    const cmd: Command = {
+      type: "choosePendingDecision",
+      pendingId: "x",
+      choice: { id: "a", label: "A" }
+    };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("pendingDecisionNotFound");
   });
 });
@@ -1012,7 +1055,8 @@ export function validateCommand(
 
   if (state.status !== "active") return reject("gameNotActive", "The game is not active.");
   if (state.phase !== "deploy") return reject("wrongPhase", "Not the deploy phase.");
-  if (state.activeSeat !== actor.seat) return reject("notActiveSeat", "It is not this seat's turn.");
+  if (state.activeSeat !== actor.seat)
+    return reject("notActiveSeat", "It is not this seat's turn.");
 
   const map = getMap(state.mapId);
   const rules = state.rules;
@@ -1231,6 +1275,7 @@ git commit -m "feat(engine): add command validation for all Rivers actions"
 This task builds `resolve.ts` and the `applyPass` action, and wires the post-action steps: `enforceCaps`, HQ-elimination check, `advanceTurn` with automatic recall and round-4 VP scoring, and `revision` bump. Later tasks add the remaining action mutators to `actions.ts` and dispatch to them.
 
 **Files:**
+
 - Create: `packages/engine/src/actions.ts`
 - Create: `packages/engine/src/resolve.ts`
 - Create: `packages/engine/test/resolve.test.ts`
@@ -1493,6 +1538,7 @@ git commit -m "feat(engine): add resolveCommand pipeline backbone, pass, turn fl
 ## Task 8: Reinforce + Plan actions
 
 **Files:**
+
 - Modify: `packages/engine/src/actions.ts`
 - Modify: `packages/engine/src/resolve.ts` (dispatch)
 - Create: `packages/engine/test/actions.test.ts`
@@ -1522,11 +1568,15 @@ describe("reinforce", () => {
     const s = game();
     const hq = hqOf("red");
     const before = s.players.red.reserve.troop;
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "reinforce",
-      spaceId: "reinforce-b", // N=5
-      placements: [{ area: hq, count: 2 }]
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "reinforce",
+        spaceId: "reinforce-b", // N=5
+        placements: [{ area: hq, count: 2 }]
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // HQ had 3 troops; +2 = 5 (within the cap).
@@ -1542,11 +1592,18 @@ describe("reinforce", () => {
     s.bonuses = { [hq]: "barracks" };
     // reinforce-b N=5, +2 barracks = 7; place 7 across HQ + an adjacent supplied land.
     s.areas["tile10"] = { owner: "red", units: { troop: 1, ship: 0, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "reinforce",
-      spaceId: "reinforce-b",
-      placements: [{ area: hq, count: 2 }, { area: "tile10", count: 4 }] // total 6 <= 7
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "reinforce",
+        spaceId: "reinforce-b",
+        placements: [
+          { area: hq, count: 2 },
+          { area: "tile10", count: 4 }
+        ] // total 6 <= 7
+      }
+    );
     expect(r.status).toBe("accepted");
   });
 });
@@ -1617,7 +1674,12 @@ export function applyReinforce(
   }
   if (suppliesBonus(state, seat, "barracks")) {
     // Barracks affected the limit (handled in validation); record it for the log.
-    events.push({ type: "bonusApplied", seat, bonus: "barracks", area: bonusArea(state, "barracks")! });
+    events.push({
+      type: "bonusApplied",
+      seat,
+      bonus: "barracks",
+      area: bonusArea(state, "barracks")!
+    });
   }
   return events;
 }
@@ -1632,7 +1694,12 @@ export function applyPlan(state: GameState, seat: SeatId, spaceId: string): Game
     events.push({ type: "initiativeSeized", seat });
   }
   if (suppliesBonus(state, seat, "warRoom")) {
-    events.push({ type: "bonusApplied", seat, bonus: "warRoom", area: bonusArea(state, "warRoom")! });
+    events.push({
+      type: "bonusApplied",
+      seat,
+      bonus: "warRoom",
+      area: bonusArea(state, "warRoom")!
+    });
   }
   return events;
 }
@@ -1685,6 +1752,7 @@ git commit -m "feat(engine): implement Reinforce and Plan actions"
 ## Task 9: Embark action
 
 **Files:**
+
 - Modify: `packages/engine/src/actions.ts`
 - Modify: `packages/engine/src/resolve.ts` (dispatch)
 - Modify: `packages/engine/test/actions.test.ts`
@@ -1698,11 +1766,15 @@ describe("embark", () => {
     // Give red a supplied water: HQ tile9 (land) supplies adjacent sea tile15 if red controls it.
     s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 1, siege: 0 } };
     const before = s.players.red.reserve.ship;
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "embark",
-      spaceId: "embark-a", // N=3
-      placements: [{ area: "tile15", count: 2 }]
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "embark",
+        spaceId: "embark-a", // N=3
+        placements: [{ area: "tile15", count: 2 }]
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     expect(r.nextState.areas["tile15"]!.units.ship).toBe(3); // 1 + 2, cap 3
@@ -1712,11 +1784,15 @@ describe("embark", () => {
   it("can place into an empty water adjacent to a supplied port", () => {
     const s = game();
     // Red supplies its HQ harbor tile9 (ports include tile14/tile15). tile14 empty.
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "embark",
-      spaceId: "embark-b", // N=2
-      placements: [{ area: "tile14", count: 2 }]
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "embark",
+        spaceId: "embark-b", // N=2
+        placements: [{ area: "tile14", count: 2 }]
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     expect(r.nextState.areas["tile14"]!.owner).toBe("red");
@@ -1783,6 +1859,7 @@ git commit -m "feat(engine): implement Embark action"
 ## Task 10: Advance action (move-in, Hidden Base, conflict)
 
 **Files:**
+
 - Modify: `packages/engine/src/actions.ts`
 - Modify: `packages/engine/src/resolve.ts` (dispatch)
 - Modify: `packages/engine/test/actions.test.ts`
@@ -1794,11 +1871,15 @@ describe("advance", () => {
   it("moves troops into an empty adjacent land and takes control", () => {
     const s = game();
     const hq = hqOf("red"); // tile9, 3 troops; tile1 empty land adjacent.
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "advance",
-      spaceId: "advance-tile1",
-      moves: [{ from: hq, count: 2 }]
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "advance",
+        spaceId: "advance-tile1",
+        moves: [{ from: hq, count: 2 }]
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     expect(r.nextState.areas["tile1"]!.owner).toBe("red");
@@ -1814,11 +1895,15 @@ describe("advance", () => {
     s.areas["tile1"] = { owner: "black", units: { troop: 1, ship: 0, siege: 0 } };
     // Move 3 attackers from HQ (needs >=4 there): top up HQ.
     s.areas[hq] = { owner: "red", units: { troop: 5, ship: 0, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "advance",
-      spaceId: "advance-tile1",
-      moves: [{ from: hq, count: 3 }]
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "advance",
+        spaceId: "advance-tile1",
+        moves: [{ from: hq, count: 3 }]
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // defence removes 1 -> 2 attackers vs 1 defender; attrition -> 1 vs 0. red wins.
@@ -1833,11 +1918,15 @@ describe("advance", () => {
     s.bonuses = { [hq]: "hiddenBase" }; // red supplies its HQ -> bonus active
     s.areas["tile1"] = { owner: "black", units: { troop: 2, ship: 0, siege: 0 } };
     s.areas[hq] = { owner: "red", units: { troop: 5, ship: 0, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "advance",
-      spaceId: "advance-tile1",
-      moves: [{ from: hq, count: 2 }] // 2 + 1 hidden base = 3 attackers
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "advance",
+        spaceId: "advance-tile1",
+        moves: [{ from: hq, count: 2 }] // 2 + 1 hidden base = 3 attackers
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // 3 attackers, defence -1 -> 2 vs 2 defenders -> tie -> area emptied.
@@ -1880,7 +1969,14 @@ export function applyAdvance(
   for (const m of moves) {
     state.areas[m.from]!.units.troop -= m.count;
     attackers += m.count;
-    events.push({ type: "unitsMoved", seat, from: m.from, to: target, unit: "troop", count: m.count });
+    events.push({
+      type: "unitsMoved",
+      seat,
+      from: m.from,
+      to: target,
+      unit: "troop",
+      count: m.count
+    });
   }
 
   // Hidden Base: +1 troop from reserve at move-in (before conflict), if supplied
@@ -1889,7 +1985,12 @@ export function applyAdvance(
   if (suppliesBonus(state, seat, "hiddenBase") && state.players[seat].reserve.troop > 0) {
     state.players[seat].reserve.troop -= 1;
     attackers += 1;
-    events.push({ type: "bonusApplied", seat, bonus: "hiddenBase", area: bonusArea(state, "hiddenBase")! });
+    events.push({
+      type: "bonusApplied",
+      seat,
+      bonus: "hiddenBase",
+      area: bonusArea(state, "hiddenBase")!
+    });
   }
 
   events.push(...resolveMoveIn(state, seat, target, "troop", attackers));
@@ -1915,7 +2016,8 @@ export function resolveMoveIn(
     rt.units[unit] += attackers;
     const previousOwner = rt.owner;
     rt.owner = seat;
-    if (previousOwner !== seat) events.push({ type: "areaCaptured", seat, area: target, previousOwner });
+    if (previousOwner !== seat)
+      events.push({ type: "areaCaptured", seat, area: target, previousOwner });
     return events;
   }
 
@@ -1923,13 +2025,27 @@ export function resolveMoveIn(
   const defenders = rt.units[unit];
   const outcome = resolveConflict(state.rngState, state.rules.diceFaces, attackers, defenders);
   state.rngState = outcome.rngState;
-  events.push({ type: "diceRolled", seat, purpose: "defence", rolls: [outcome.defenceRoll], total: outcome.defenceRoll });
+  events.push({
+    type: "diceRolled",
+    seat,
+    purpose: "defence",
+    rolls: [outcome.defenceRoll],
+    total: outcome.defenceRoll
+  });
 
   // Return losses to reserves.
   state.players[seat].reserve[unit] += outcome.attackerLosses;
   state.players[enemy].reserve[unit] += outcome.defenderLosses;
-  if (outcome.attackerLosses > 0) events.push({ type: "unitsRemoved", seat, area: target, unit, count: outcome.attackerLosses });
-  if (outcome.defenderLosses > 0) events.push({ type: "unitsRemoved", seat: enemy, area: target, unit, count: outcome.defenderLosses });
+  if (outcome.attackerLosses > 0)
+    events.push({ type: "unitsRemoved", seat, area: target, unit, count: outcome.attackerLosses });
+  if (outcome.defenderLosses > 0)
+    events.push({
+      type: "unitsRemoved",
+      seat: enemy,
+      area: target,
+      unit,
+      count: outcome.defenderLosses
+    });
 
   if (outcome.attackersLeft > 0) {
     rt.owner = seat;
@@ -1973,6 +2089,7 @@ git commit -m "feat(engine): implement Advance action with Hidden Base and confl
 ## Task 11: Sail action (Shipyard, conflict via shared move-in)
 
 **Files:**
+
 - Modify: `packages/engine/src/actions.ts`
 - Modify: `packages/engine/src/resolve.ts` (dispatch)
 - Modify: `packages/engine/test/actions.test.ts`
@@ -1985,11 +2102,15 @@ describe("sail", () => {
     const s = game();
     // red supplies HQ tile9 (land) -> tile15 (sea, 2 ships). Sail into tile11 (adj tile15).
     s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 2, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "sail",
-      spaceId: "sail-tile11",
-      moves: [{ from: "tile15", count: 1 }]
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "sail",
+        spaceId: "sail-tile11",
+        moves: [{ from: "tile15", count: 1 }]
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     expect(r.nextState.areas["tile11"]!.owner).toBe("red");
@@ -2003,11 +2124,15 @@ describe("sail", () => {
     s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 3, siege: 0 } };
     s.bonuses = { tile15: "shipyard" }; // red supplies tile15
     s.areas["tile11"] = { owner: "black", units: { troop: 0, ship: 2, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "sail",
-      spaceId: "sail-tile11",
-      moves: [{ from: "tile15", count: 2 }] // 2 + 1 shipyard = 3 attackers
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "sail",
+        spaceId: "sail-tile11",
+        moves: [{ from: "tile15", count: 2 }] // 2 + 1 shipyard = 3 attackers
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // 3 attackers, defence -1 -> 2 vs 2 -> tie -> emptied.
@@ -2041,13 +2166,25 @@ export function applySail(
   for (const m of moves) {
     state.areas[m.from]!.units.ship -= m.count;
     attackers += m.count;
-    events.push({ type: "unitsMoved", seat, from: m.from, to: target, unit: "ship", count: m.count });
+    events.push({
+      type: "unitsMoved",
+      seat,
+      from: m.from,
+      to: target,
+      unit: "ship",
+      count: m.count
+    });
   }
 
   if (suppliesBonus(state, seat, "shipyard") && state.players[seat].reserve.ship > 0) {
     state.players[seat].reserve.ship -= 1;
     attackers += 1;
-    events.push({ type: "bonusApplied", seat, bonus: "shipyard", area: bonusArea(state, "shipyard")! });
+    events.push({
+      type: "bonusApplied",
+      seat,
+      bonus: "shipyard",
+      area: bonusArea(state, "shipyard")!
+    });
   }
 
   events.push(...resolveMoveIn(state, seat, target, "ship", attackers));
@@ -2058,7 +2195,14 @@ export function applySail(
 - [ ] **Step 4: Wire dispatch in `resolve.ts`**
 
 ```ts
-import { applyPass, applyReinforce, applyPlan, applyEmbark, applyAdvance, applySail } from "./actions.js";
+import {
+  applyPass,
+  applyReinforce,
+  applyPlan,
+  applyEmbark,
+  applyAdvance,
+  applySail
+} from "./actions.js";
 ```
 
 ```ts
@@ -2083,6 +2227,7 @@ git commit -m "feat(engine): implement Sail action with Shipyard and shared conf
 ## Task 12: Bombard + Shell actions
 
 **Files:**
+
 - Modify: `packages/engine/src/actions.ts`
 - Modify: `packages/engine/src/resolve.ts` (dispatch)
 - Modify: `packages/engine/test/actions.test.ts`
@@ -2098,11 +2243,15 @@ describe("bombard", () => {
     s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 2, siege: 0 } };
     // tile16 is land adjacent to tile15, held by black with 3 troops.
     s.areas["tile16"] = { owner: "black", units: { troop: 3, ship: 0, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "bombard",
-      spaceId: "bombard-tile15",
-      targetAreaId: "tile16"
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "bombard",
+        spaceId: "bombard-tile15",
+        targetAreaId: "tile16"
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // 2 ships -> 2 dice -> 2 pips -> remove 2 troops; 1 remains.
@@ -2116,11 +2265,15 @@ describe("bombard", () => {
     s.areas["tile15"] = { owner: "red", units: { troop: 0, ship: 1, siege: 0 } };
     s.bonuses = { tile15: "pirateHaven" }; // red supplies tile15
     s.areas["tile16"] = { owner: "black", units: { troop: 3, ship: 0, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "bombard",
-      spaceId: "bombard-tile15",
-      targetAreaId: "tile16"
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "bombard",
+        spaceId: "bombard-tile15",
+        targetAreaId: "tile16"
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // 1 ship + 1 pirate haven = 2 dice -> remove 2; 1 remains.
@@ -2155,11 +2308,15 @@ describe("shell", () => {
     s.areas["tile10"] = { owner: "red", units: { troop: 1, ship: 0, siege: 0 } };
     // black ships sit in adjacent sea tile11.
     s.areas["tile11"] = { owner: "black", units: { troop: 0, ship: 3, siege: 0 } };
-    const r = resolveCommand(s, { seat: "red" }, {
-      type: "shell",
-      spaceId: "shell-tile10",
-      targetAreaId: "tile11"
-    });
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "shell",
+        spaceId: "shell-tile10",
+        targetAreaId: "tile11"
+      }
+    );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     // two dice of 1 -> remove 2 ships; 1 remains.
@@ -2199,7 +2356,12 @@ export function applyBombard(
   let dice = state.areas[water]!.units.ship;
   if (suppliesBonus(state, seat, "pirateHaven")) {
     dice += 1;
-    events.push({ type: "bonusApplied", seat, bonus: "pirateHaven", area: bonusArea(state, "pirateHaven")! });
+    events.push({
+      type: "bonusApplied",
+      seat,
+      bonus: "pirateHaven",
+      area: bonusArea(state, "pirateHaven")!
+    });
   }
   const rolls: number[] = [];
   let total = 0;
@@ -2247,7 +2409,9 @@ function removeUnits(
   const removed = Math.min(count, rt.units[unit]);
   rt.units[unit] -= removed;
   state.players[rt.owner].reserve[unit] += removed;
-  const events: GameEvent[] = [{ type: "unitsRemoved", seat: rt.owner, area, unit, count: removed }];
+  const events: GameEvent[] = [
+    { type: "unitsRemoved", seat: rt.owner, area, unit, count: removed }
+  ];
   if (rt.units.troop === 0 && rt.units.ship === 0) rt.owner = null;
   return events;
 }
@@ -2257,8 +2421,14 @@ function removeUnits(
 
 ```ts
 import {
-  applyPass, applyReinforce, applyPlan, applyEmbark,
-  applyAdvance, applySail, applyBombard, applyShell
+  applyPass,
+  applyReinforce,
+  applyPlan,
+  applyEmbark,
+  applyAdvance,
+  applySail,
+  applyBombard,
+  applyShell
 } from "./actions.js";
 ```
 
@@ -2286,6 +2456,7 @@ git commit -m "feat(engine): implement Bombard and Shell actions"
 ## Task 13: Determinism & replay equivalence
 
 **Files:**
+
 - Create: `packages/engine/test/replay.test.ts`
 
 - [ ] **Step 1: Write the failing test** — create `test/replay.test.ts`:
@@ -2350,6 +2521,7 @@ git commit -m "test(engine): pin determinism and replay equivalence"
 ## Task 14: Golden test — rulebook "Example Turn"
 
 **Files:**
+
 - Create: `packages/engine/test/goldenExampleTurn.test.ts`
 
 The spec (§12) calls for golden tests encoding the rulebook's worked examples. The exact figures live in the rulebook PDF (see the `rulebook-and-svg-tooling` memory for its location and poppler tooling).
@@ -2388,17 +2560,20 @@ git commit -m "test(engine): add golden test for a rulebook worked example"
 ## Task 15: Full-suite gate + roadmap update
 
 **Files:**
+
 - Modify: `/Users/martin/.claude/projects/-Users-martin-repos-sengoku-jidai/memory/engine-rebuild-roadmap.md`
 
 - [ ] **Step 1: Run the whole engine suite + typecheck + lint**
 
 Run:
+
 ```bash
 pnpm --filter @sengoku-jidai/engine test
 pnpm --filter @sengoku-jidai/engine exec tsc -p tsconfig.json --noEmit
 pnpm -w lint
 pnpm -w format
 ```
+
 Expected: all green. The `server`/`shared`/`web` packages are untouched and must still build (additive scope), so also run `pnpm -w build` to confirm no cascade.
 
 - [ ] **Step 2: Verify the placeholder is still intact and `index.ts` unchanged**
@@ -2425,4 +2600,7 @@ git commit -m "docs(engine): add Plan 3 (commands + pipeline) implementation pla
 2. **`index.ts` / placeholder retirement is Plan 4.** When Plan 4 deletes `types.ts`/`resolveCommand.ts`/`validateCommand.ts`/`view.ts`/`serialization.ts`/`setup.ts`/`maps/placeholderMap.ts`, it should rename/promote the new v2 symbols onto the public surface and migrate `server` (persistence reads `state.revision` — already added here), `shared` (Zod `commandSchema`), and `web` (`App.tsx`).
 3. **`randomDraw` audit events (spec §5)** remain deferred; this plan emits `diceRolled` events instead. Revisit if exact RNG audit/replay tooling is needed.
 4. **`pendingDecision` / `choosePendingDecision`** are wired as inert seams (always null in v1) for the future cards phase.
+
+```
+
 ```
