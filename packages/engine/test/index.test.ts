@@ -13,4 +13,20 @@ describe("engine package exports", () => {
     const s = engine.createInitialState({ gameId: "g", seed: "s" });
     expect(s.schemaVersion).toBe(2);
   });
+
+  it("exposes the v2 view, command, and serialization surface", () => {
+    expect(typeof engine.playerView).toBe("function");
+    expect(typeof engine.legalCommandsForState).toBe("function");
+    expect(typeof engine.playerEvents).toBe("function");
+    expect(typeof engine.resolveCommand).toBe("function");
+    expect(typeof engine.serializeState).toBe("function");
+    expect(typeof engine.deserializeState).toBe("function");
+  });
+
+  it("no longer exposes placeholder symbols", () => {
+    const surface = engine as Record<string, unknown>;
+    expect(surface.createGame).toBeUndefined();
+    expect(surface.spectatorView).toBeUndefined();
+    expect(surface.legalCommandsForView).toBeUndefined();
+  });
 });
