@@ -31,8 +31,29 @@ const STRIPE_PATTERNS = `
   <rect width="13" height="26" fill="#2f343c"/>
 </pattern>`;
 
-/** One-time prep on the injected SVG: neutralize tile-def styling and inject stripe patterns. */
+/** Record each tile's authored fill (its inline override, else its geometry def's fill)
+ *  on a data attribute, so unowned tiles can keep the colours from the SVG after the
+ *  shared defs are neutralized. Must run BEFORE neutralizeTileDefs. */
+function captureAuthoredFills(svg: SVGSVGElement): void {
+  for (const tile of svg.querySelectorAll<SVGUseElement>('use[id^="tile"]')) {
+    if (!/^tile\d+$/.test(tile.id)) {
+      continue;
+    }
+    let authored = tile.style.fill;
+    if (!authored) {
+      const def = tile.href.baseVal ? svg.querySelector<SVGElement>(tile.href.baseVal) : null;
+      authored = def ? getComputedStyle(def).fill : "";
+    }
+    if (authored) {
+      tile.dataset.authoredFill = authored;
+    }
+  }
+}
+
+/** One-time prep on the injected SVG: capture authored fills, neutralize tile-def styling
+ *  (so per-tile fill/stroke wins), and inject stripe patterns. */
 function prepareSvg(svg: SVGSVGElement): void {
+  captureAuthoredFills(svg);
   for (const id of TILE_GEOMETRY_DEFS) {
     const def = svg.querySelector<SVGElement>(`#${CSS.escape(id)}`);
     if (def) {
@@ -153,7 +174,9 @@ function decorate(
     if (!tile) {
       throw new Error(`cloned_map.svg has no element for area "${area.id}"`);
     }
-    tile.style.fill = tileFill(area);
+    // Owned tiles get the seat tint/stripe; unowned tiles keep their authored colour.
+    tile.style.fill =
+      area.owner === null ? (tile.dataset.authoredFill ?? tileFill(area)) : tileFill(area);
     tile.style.stroke = "#000000";
     tile.style.strokeWidth = "5";
     tile.style.cursor = "pointer";
