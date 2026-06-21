@@ -91,6 +91,28 @@ function makeOccupancy(at: Point, color: string): SVGCircleElement {
   return circle;
 }
 
+/** Selection outline for a tile, drawn in the overlay so it paints above every
+ *  other tile and decoration (SVG paints in document order, and the source tile
+ *  sits beneath the later order/feature groups). Clones the tile geometry and pins
+ *  it to the tile's position via its CTM, since the overlay is in root space. */
+function makeSelectionOutline(tile: SVGGraphicsElement): SVGElement | null {
+  const ctm = tile.getCTM();
+  if (!ctm) {
+    return null;
+  }
+  const outline = tile.cloneNode(false) as SVGElement;
+  outline.removeAttribute("id");
+  outline.setAttribute("class", "tile-selected");
+  outline.setAttribute(
+    "transform",
+    `matrix(${ctm.a} ${ctm.b} ${ctm.c} ${ctm.d} ${ctm.e} ${ctm.f})`
+  );
+  outline.style.fill = "none";
+  outline.style.stroke = "#f0b429";
+  outline.style.strokeWidth = "8";
+  return outline;
+}
+
 /** Get (creating if needed) the top-level overlay group, emptied for a fresh pass. */
 function resetOverlay(svg: SVGSVGElement): SVGGElement {
   let overlay = svg.querySelector<SVGGElement>(`#${OVERLAY_ID}`);
@@ -124,11 +146,17 @@ function decorate(
       throw new Error(`cloned_map.svg has no element for area "${area.id}"`);
     }
     tile.style.fill = tileFill(area);
-    const selected = area.id === selectedAreaId;
-    tile.style.stroke = selected ? "#f0b429" : "#000000";
-    tile.style.strokeWidth = selected ? "8" : "5";
+    tile.style.stroke = "#000000";
+    tile.style.strokeWidth = "5";
     tile.style.cursor = "pointer";
     tile.onclick = () => onSelectArea(area.id);
+
+    if (area.id === selectedAreaId) {
+      const outline = makeSelectionOutline(tile);
+      if (outline) {
+        overlay.appendChild(outline);
+      }
+    }
 
     if (area.units.troop + area.units.ship > 0) {
       const center = centerInRoot(svg, tile);
