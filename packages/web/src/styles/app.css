@@ -121,90 +121,10 @@ button:disabled {
   height: auto;
 }
 
-.board-background {
-  fill: #d8e1d8;
-}
-
-.board-grid line {
-  stroke: #b8c7c0;
-  stroke-width: 1;
-}
-
-.area {
-  stroke: #40544e;
-  stroke-width: 2;
-  cursor: pointer;
-  transition:
-    filter 120ms ease,
-    stroke-width 120ms ease;
-}
-
-.area:hover,
-.area:focus {
-  filter: brightness(1.04);
-  outline: none;
-  stroke-width: 4;
-}
-
-.area-selected {
-  stroke: #f0b429;
-  stroke-width: 5;
-}
-
-.area-red {
-  fill: #ba4d47;
-}
-
-.area-black {
-  fill: #38424a;
-}
-
-.area-neutral {
-  fill: #c9b37b;
-}
-
-.area-label {
-  fill: #fffaf0;
-  font-size: 24px;
-  font-weight: 750;
-  pointer-events: none;
-}
-
-.area-meta {
-  fill: #fffaf0;
-  font-size: 15px;
-  pointer-events: none;
-}
-
-.commander circle {
-  stroke: #fffaf0;
-  stroke-width: 3;
-}
-
-.commander text {
-  fill: #fffaf0;
-  font-size: 17px;
-  font-weight: 800;
-  text-anchor: middle;
-  pointer-events: none;
-}
-
-.commander-red circle {
-  fill: #8f2f2d;
-}
-
-.commander-black circle {
-  fill: #1f252a;
-}
-
 .board-status {
   fill: #24312d;
   font-size: 20px;
   font-weight: 700;
-}
-
-.board-hit-proxy {
-  display: none;
 }
 
 .side-panel {
