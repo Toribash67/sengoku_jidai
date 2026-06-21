@@ -2,6 +2,7 @@ import type { PlayerAreaView, SeatId } from "@sengoku-jidai/engine";
 import { useEffect, useRef } from "react";
 import rawMapSvg from "../../../../../cloned_map.svg?raw";
 import { tileFill } from "./tileFill.js";
+import { slotIdForSpace } from "./slotMapping.js";
 
 export interface MapBoardProps {
   areas: PlayerAreaView[];
@@ -12,6 +13,9 @@ export interface MapBoardProps {
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+
+const OVERLAY_ID = "map-overlay";
+const SEAT_MARK: Record<SeatId, string> = { red: "#7b1f1a", black: "#15181d" };
 
 /** Shared tile geometry defs whose inline fill/stroke must be neutralized so each
  *  tile <use> can drive its own appearance. */
@@ -49,14 +53,71 @@ function prepareSvg(svg: SVGSVGElement): void {
   }
 }
 
+interface Point {
+  x: number;
+  y: number;
+}
+
+/** Centre of an element mapped into the root SVG (viewBox) coordinate space. */
+function centerInRoot(svg: SVGSVGElement, el: SVGGraphicsElement): Point | null {
+  const ctm = el.getCTM();
+  if (!ctm) {
+    return null;
+  }
+  const box = el.getBBox();
+  const pt = svg.createSVGPoint();
+  pt.x = box.x + box.width / 2;
+  pt.y = box.y + box.height / 2;
+  const mapped = pt.matrixTransform(ctm);
+  return { x: mapped.x, y: mapped.y };
+}
+
+function makeText(label: string, at: Point): SVGTextElement {
+  const text = document.createElementNS(SVG_NS, "text");
+  text.setAttribute("x", String(at.x));
+  text.setAttribute("y", String(at.y));
+  text.setAttribute("class", "tile-units");
+  text.textContent = label;
+  return text;
+}
+
+function makeOccupancy(at: Point, color: string): SVGCircleElement {
+  const circle = document.createElementNS(SVG_NS, "circle");
+  circle.setAttribute("cx", String(at.x));
+  circle.setAttribute("cy", String(at.y));
+  circle.setAttribute("r", "16");
+  circle.setAttribute("fill", color);
+  circle.setAttribute("class", "slot-occupancy");
+  return circle;
+}
+
+/** Get (creating if needed) the top-level overlay group, emptied for a fresh pass. */
+function resetOverlay(svg: SVGSVGElement): SVGGElement {
+  let overlay = svg.querySelector<SVGGElement>(`#${OVERLAY_ID}`);
+  if (!overlay) {
+    overlay = document.createElementNS(SVG_NS, "g");
+    overlay.setAttribute("id", OVERLAY_ID);
+    overlay.setAttribute("pointer-events", "none");
+    svg.appendChild(overlay);
+  }
+  overlay.replaceChildren();
+  return overlay;
+}
+
 interface DecorateInput {
   areas: PlayerAreaView[];
   selectedAreaId: string | null;
+  actionSpaces: Record<string, SeatId | null>;
   onSelectArea: (areaId: string) => void;
 }
 
 /** Apply per-tile fill, selection stroke, and click handler. */
-function decorate(svg: SVGSVGElement, { areas, selectedAreaId, onSelectArea }: DecorateInput): void {
+function decorate(
+  svg: SVGSVGElement,
+  { areas, selectedAreaId, actionSpaces, onSelectArea }: DecorateInput
+): void {
+  const overlay = resetOverlay(svg);
+
   for (const area of areas) {
     const tile = svg.querySelector<SVGGraphicsElement>(`#${CSS.escape(area.id)}`);
     if (!tile) {
@@ -68,10 +129,35 @@ function decorate(svg: SVGSVGElement, { areas, selectedAreaId, onSelectArea }: D
     tile.style.strokeWidth = selected ? "8" : "5";
     tile.style.cursor = "pointer";
     tile.onclick = () => onSelectArea(area.id);
+
+    if (area.units.troop + area.units.ship > 0) {
+      const center = centerInRoot(svg, tile);
+      if (center) {
+        overlay.appendChild(makeText(`${area.units.troop}t·${area.units.ship}s`, center));
+      }
+    }
+  }
+
+  for (const [spaceId, occupant] of Object.entries(actionSpaces)) {
+    if (!occupant) {
+      continue;
+    }
+    const slotId = slotIdForSpace(spaceId);
+    if (!slotId) {
+      continue;
+    }
+    const slot = svg.querySelector<SVGGraphicsElement>(`#${CSS.escape(slotId)}`);
+    if (!slot) {
+      continue;
+    }
+    const center = centerInRoot(svg, slot);
+    if (center) {
+      overlay.appendChild(makeOccupancy(center, SEAT_MARK[occupant]));
+    }
   }
 }
 
-export function MapBoard({ areas, activeSeat, selectedAreaId, onSelectArea }: MapBoardProps) {
+export function MapBoard({ areas, activeSeat, selectedAreaId, actionSpaces, onSelectArea }: MapBoardProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   // Inject + prep once.
@@ -91,9 +177,9 @@ export function MapBoard({ areas, activeSeat, selectedAreaId, onSelectArea }: Ma
   useEffect(() => {
     const svg = hostRef.current?.querySelector("svg");
     if (svg) {
-      decorate(svg, { areas, selectedAreaId, onSelectArea });
+      decorate(svg, { areas, selectedAreaId, actionSpaces, onSelectArea });
     }
-  }, [areas, selectedAreaId, onSelectArea]);
+  }, [areas, selectedAreaId, actionSpaces, onSelectArea]);
 
   return (
     <section className="board" data-testid="board" aria-label="Sengoku Jidai battlefield">
