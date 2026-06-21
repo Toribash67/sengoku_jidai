@@ -10,6 +10,9 @@ export interface MapBoardProps {
   selectedAreaId: string | null;
   actionSpaces: Record<string, SeatId | null>;
   onSelectArea: (areaId: string) => void;
+  legalTargetIds?: ReadonlySet<string>;
+  sourceIds?: ReadonlySet<string>;
+  onSourceClick?: (areaId: string) => void;
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -192,22 +195,36 @@ function renderUnitStack(overlay: SVGGElement, defId: string, count: number, anc
   }
 }
 
-/** Selection outline for a tile, drawn in the overlay so it paints above every
- *  other tile and decoration (SVG paints in document order, and the source tile
- *  sits beneath the later order/feature groups). Clones the tile geometry and pins
- *  it to the tile's position via its CTM, since the overlay is in root space. */
-function makeSelectionOutline(svg: SVGSVGElement, tile: SVGGraphicsElement): SVGElement | null {
+/** A tile outline clone pinned to the tile's on-screen position via its local->root
+ *  matrix (overlay is in root space), styled entirely by `className` (stroke colour and
+ *  width live in CSS). Used for the target/source glow rings. */
+function makeOutline(
+  svg: SVGSVGElement,
+  tile: SVGGraphicsElement,
+  className: string
+): SVGElement | null {
   const m = localToRoot(svg, tile);
   if (!m) {
     return null;
   }
   const outline = tile.cloneNode(false) as SVGElement;
   outline.removeAttribute("id");
-  outline.setAttribute("class", "tile-selected");
+  outline.setAttribute("class", className);
   outline.setAttribute("transform", `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
   outline.style.fill = "none";
-  outline.style.stroke = "#f0b429";
-  outline.style.strokeWidth = "8";
+  return outline;
+}
+
+/** Selection outline for a tile, drawn in the overlay so it paints above every
+ *  other tile and decoration (SVG paints in document order, and the source tile
+ *  sits beneath the later order/feature groups). Clones the tile geometry and pins
+ *  it to the tile's position via its CTM, since the overlay is in root space. */
+function makeSelectionOutline(svg: SVGSVGElement, tile: SVGGraphicsElement): SVGElement | null {
+  const outline = makeOutline(svg, tile, "tile-selected");
+  if (outline) {
+    outline.style.stroke = "#f0b429";
+    outline.style.strokeWidth = "8";
+  }
   return outline;
 }
 
@@ -229,12 +246,23 @@ interface DecorateInput {
   selectedAreaId: string | null;
   actionSpaces: Record<string, SeatId | null>;
   onSelectArea: (areaId: string) => void;
+  legalTargetIds?: ReadonlySet<string>;
+  sourceIds?: ReadonlySet<string>;
+  onSourceClick?: (areaId: string) => void;
 }
 
 /** Apply per-tile fill, selection stroke, and click handler. */
 function decorate(
   svg: SVGSVGElement,
-  { areas, selectedAreaId, actionSpaces, onSelectArea }: DecorateInput
+  {
+    areas,
+    selectedAreaId,
+    actionSpaces,
+    onSelectArea,
+    legalTargetIds,
+    sourceIds,
+    onSourceClick
+  }: DecorateInput
 ): void {
   const overlay = resetOverlay(svg);
 
@@ -249,12 +277,42 @@ function decorate(
     tile.style.stroke = "#000000";
     tile.style.strokeWidth = "5";
     tile.style.cursor = "pointer";
-    tile.onclick = () => onSelectArea(area.id);
+
+    const isTarget = legalTargetIds?.has(area.id) ?? false;
+    const isSource = sourceIds?.has(area.id) ?? false;
+    if (isTarget) {
+      tile.dataset.legalTarget = "true";
+    } else {
+      delete tile.dataset.legalTarget;
+    }
+    if (isSource) {
+      tile.dataset.source = "true";
+    } else {
+      delete tile.dataset.source;
+    }
+    tile.onclick = () => {
+      onSelectArea(area.id);
+      if (isSource) {
+        onSourceClick?.(area.id);
+      }
+    };
 
     if (area.id === selectedAreaId) {
       const outline = makeSelectionOutline(svg, tile);
       if (outline) {
         overlay.appendChild(outline);
+      }
+    }
+    if (isTarget) {
+      const glow = makeOutline(svg, tile, "tile-legal-target");
+      if (glow) {
+        overlay.appendChild(glow);
+      }
+    }
+    if (isSource) {
+      const glow = makeOutline(svg, tile, "tile-source");
+      if (glow) {
+        overlay.appendChild(glow);
       }
     }
 
@@ -298,7 +356,10 @@ export function MapBoard({
   activeSeat,
   selectedAreaId,
   actionSpaces,
-  onSelectArea
+  onSelectArea,
+  legalTargetIds,
+  sourceIds,
+  onSourceClick
 }: MapBoardProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
@@ -319,9 +380,17 @@ export function MapBoard({
   useEffect(() => {
     const svg = hostRef.current?.querySelector("svg");
     if (svg) {
-      decorate(svg, { areas, selectedAreaId, actionSpaces, onSelectArea });
+      decorate(svg, {
+        areas,
+        selectedAreaId,
+        actionSpaces,
+        onSelectArea,
+        legalTargetIds,
+        sourceIds,
+        onSourceClick
+      });
     }
-  }, [areas, selectedAreaId, actionSpaces, onSelectArea]);
+  }, [areas, selectedAreaId, actionSpaces, onSelectArea, legalTargetIds, sourceIds, onSourceClick]);
 
   return (
     <section className="board" data-testid="board" aria-label="Sengoku Jidai battlefield">
