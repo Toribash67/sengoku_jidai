@@ -29,3 +29,19 @@ export function saveStoredGame(game: StoredGame): void {
 export function clearStoredGame(): void {
   localStorage.removeItem(storageKey);
 }
+
+const panelWidthKey = "sengoku-jidai.panelWidth";
+
+/** Persisted side-panel width in px, or null if unset/invalid. */
+export function loadPanelWidth(): number | null {
+  const raw = localStorage.getItem(panelWidthKey);
+  if (raw === null) {
+    return null;
+  }
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+export function savePanelWidth(width: number): void {
+  localStorage.setItem(panelWidthKey, String(Math.round(width)));
+}

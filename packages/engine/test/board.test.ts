@@ -21,11 +21,12 @@ describe("gameBoard", () => {
     expect(gameBoard(s).ownerOf("nope")).toBeNull();
   });
 
-  it("drives suppliedAreas over live state (HQ supplies itself at setup)", () => {
+  it("drives suppliedAreas over live state (HQ + its starting navy at setup)", () => {
     const s = createInitialState({ gameId: "g", seed: "seed-A" });
     const supplied = suppliedAreas(riversMap, gameBoard(s), "red");
     expect(supplied.has(hqOf("red"))).toBe(true);
-    // No adjacent areas are controlled at setup, so supply is just the HQ.
-    expect(supplied.size).toBe(1);
+    // Red controls its HQ and the starting navy on tile14 (adjacent to the HQ); both supplied.
+    expect(supplied.has("tile14")).toBe(true);
+    expect(supplied.size).toBe(2);
   });
 });

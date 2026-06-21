@@ -101,20 +101,21 @@ describe("embark", () => {
 
   it("can place into an empty water adjacent to a supplied port", () => {
     const s = game();
-    // Red supplies its HQ harbor tile9 (ports include tile14/tile15). tile14 empty.
+    // Red supplies its HQ harbor tile9 (ports include tile14/tile15). tile14 holds the
+    // starting navy, so embark into the still-empty tile15.
     const r = resolveCommand(
       s,
       { seat: "red" },
       {
         type: "embark",
         spaceId: "embark-b", // N=2
-        placements: [{ area: "tile14", count: 2 }]
+        placements: [{ area: "tile15", count: 2 }]
       }
     );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
-    expect(r.nextState.areas["tile14"]!.owner).toBe("red");
-    expect(r.nextState.areas["tile14"]!.units.ship).toBe(2);
+    expect(r.nextState.areas["tile15"]!.owner).toBe("red");
+    expect(r.nextState.areas["tile15"]!.units.ship).toBe(2);
   });
 });
 

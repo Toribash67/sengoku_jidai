@@ -1,13 +1,21 @@
 import type { PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
-import { useEffect, useMemo, useState } from "react";
-import { Board } from "./components/board/Board.js";
+import { getMap } from "@sengoku-jidai/engine";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { AreaDetails } from "./components/board/AreaDetails.js";
+import { MapBoard } from "./components/board/MapBoard.js";
 import { ApiError, createHotseatGame, fetchGameView, submitCommand } from "./client/api.js";
 import {
   clearStoredGame,
+  loadPanelWidth,
   loadStoredGame,
+  savePanelWidth,
   saveStoredGame,
   type StoredGame
 } from "./state/localGame.js";
+
+const MIN_PANEL_WIDTH = 260;
+const MIN_MAP_WIDTH = 360;
+const DEFAULT_PANEL_WIDTH = 340;
 
 interface LoadedGame extends StoredGame {
   revision: number;
@@ -20,6 +28,33 @@ export function App() {
   const [events, setEvents] = useState<PlayerGameEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [panelWidth, setPanelWidth] = useState(() => loadPanelWidth() ?? DEFAULT_PANEL_WIDTH);
+  const layoutRef = useRef<HTMLElement>(null);
+  const draggingRef = useRef(false);
+
+  useEffect(() => {
+    savePanelWidth(panelWidth);
+  }, [panelWidth]);
+
+  function handleDividerPointerDown(event: PointerEvent<HTMLDivElement>) {
+    draggingRef.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleDividerPointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (!draggingRef.current || !layoutRef.current) {
+      return;
+    }
+    const rect = layoutRef.current.getBoundingClientRect();
+    const max = Math.max(MIN_PANEL_WIDTH, rect.width - MIN_MAP_WIDTH);
+    const next = Math.min(Math.max(rect.right - event.clientX, MIN_PANEL_WIDTH), max);
+    setPanelWidth(next);
+  }
+
+  function handleDividerPointerUp(event: PointerEvent<HTMLDivElement>) {
+    draggingRef.current = false;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
 
   useEffect(() => {
     const stored = loadStoredGame();
@@ -45,6 +80,11 @@ export function App() {
   const selectedArea = useMemo(
     () => game?.view.areas.find((area) => area.id === selectedAreaId) ?? null,
     [game?.view.areas, selectedAreaId]
+  );
+
+  const selectedMapArea = useMemo(
+    () => (game && selectedAreaId ? (getMap(game.view.mapId).areas[selectedAreaId] ?? null) : null),
+    [game, selectedAreaId]
   );
 
   async function handleCreateGame() {
@@ -150,12 +190,27 @@ export function App() {
         </div>
       </header>
 
-      <section className="game-layout">
-        <Board
+      <section
+        className="game-layout"
+        ref={layoutRef}
+        style={{ "--panel-width": `${panelWidth}px` } as CSSProperties}
+      >
+        <MapBoard
           areas={game.view.areas}
           activeSeat={game.view.activeSeat}
           selectedAreaId={selectedAreaId}
+          actionSpaces={game.view.actionSpaces}
           onSelectArea={setSelectedAreaId}
+        />
+
+        <div
+          className="layout-divider"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize map and panel"
+          onPointerDown={handleDividerPointerDown}
+          onPointerMove={handleDividerPointerMove}
+          onPointerUp={handleDividerPointerUp}
         />
 
         <aside className="side-panel" aria-label="Command panel">
@@ -175,29 +230,10 @@ export function App() {
 
           <section className="panel-section">
             <h2>{selectedArea ? selectedArea.id : "Select an area"}</h2>
-            {selectedArea ? (
-              <dl className="area-details">
-                <div>
-                  <dt>Owner</dt>
-                  <dd>{selectedArea.owner ?? "none"}</dd>
-                </div>
-                <div>
-                  <dt>Units</dt>
-                  <dd>
-                    {selectedArea.units.troop} troops, {selectedArea.units.ship} ships
-                  </dd>
-                </div>
-                <div>
-                  <dt>Value</dt>
-                  <dd>{selectedArea.valueStars} stars</dd>
-                </div>
-                <div>
-                  <dt>Supplied by</dt>
-                  <dd>{selectedArea.suppliedBy ?? "none"}</dd>
-                </div>
-              </dl>
+            {selectedArea && selectedMapArea ? (
+              <AreaDetails area={selectedArea} mapArea={selectedMapArea} view={game.view} />
             ) : (
-              <p className="muted">Area details appear here. Interactive commands come later.</p>
+              <p className="muted">Select an area to see its details.</p>
             )}
             <button
               type="button"
