@@ -15,6 +15,7 @@
 ## File Structure
 
 **Engine (`packages/engine/src/`)**
+
 - `types.ts` — trimmed to primitives only (`JsonValue, SeatId, PlayerId, GameMode, GameStatus`).
 - `serialization.ts` — rewritten for v2 (`serializeState`/`deserializeState`/`JsonGameState`).
 - `view.ts` — rewritten for v2 (`PlayerGameView`, `PlayerAreaView`, `LegalCommandSummary`, `LegalSpace`, `PlayerGameEvent`, `playerView`, `legalCommandsForState`, `playerEvents`).
@@ -23,13 +24,16 @@
 - `packages/engine/test/` — delete `engine.test.ts`; add `view.test.ts`, `serialization.test.ts`; extend `index.test.ts`.
 
 **Shared (`packages/shared/src/`)**
+
 - `schemas.ts` — `commandSchema` becomes the v2 discriminated union.
 
 **Server (`packages/server/src/`)**
+
 - `persistence/repository.ts` — engine call sites migrated (`createInitialState`, new `resolveCommand` signature).
 - `packages/server/test/server.test.ts` — exercises a real v2 command (`pass`).
 
 **Web (`packages/web/src/`)**
+
 - `components/board/Board.tsx` — read-only v2 area grid.
 - `App.tsx` — read-only board + `pass` submit.
 - `client/api.ts` — unchanged logic; types follow the v2 engine `Command`.
@@ -42,6 +46,7 @@
 This task is cohesive: the engine compiles green only once every sub-step is done, because `index.ts` and `types.ts` are mutually entangled with the placeholder files. Do all steps, then verify.
 
 **Files:**
+
 - Modify: `packages/engine/src/types.ts`
 - Modify: `packages/engine/src/serialization.ts`
 - Modify: `packages/engine/src/view.ts`
@@ -433,6 +438,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 2: Shared v2 command schema
 
 **Files:**
+
 - Modify: `packages/shared/src/schemas.ts`
 
 - [ ] **Step 1: Replace `commandSchema` with the v2 union**
@@ -463,7 +469,11 @@ export const commandSchema = z.discriminatedUnion("type", [
     spaceId: z.string().min(1),
     targetAreaId: z.string().min(1)
   }),
-  z.object({ type: z.literal("shell"), spaceId: z.string().min(1), targetAreaId: z.string().min(1) }),
+  z.object({
+    type: z.literal("shell"),
+    spaceId: z.string().min(1),
+    targetAreaId: z.string().min(1)
+  }),
   z.object({
     type: z.literal("reinforce"),
     spaceId: z.string().min(1),
@@ -510,6 +520,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 3: Server migration
 
 **Files:**
+
 - Modify: `packages/server/src/persistence/repository.ts`
 - Modify: `packages/server/test/server.test.ts`
 
@@ -540,13 +551,13 @@ import {
 In the `createGame(mode: GameMode, seed?: string)` method, replace the line:
 
 ```ts
-    const state = createGame({ gameId, mode, seed });
+const state = createGame({ gameId, mode, seed });
 ```
 
 with (note: v2 `createInitialState` requires `seed`, so generate one when absent):
 
 ```ts
-    const state = createInitialState({ gameId, mode, seed: seed ?? randomUUID() });
+const state = createInitialState({ gameId, mode, seed: seed ?? randomUUID() });
 ```
 
 - [ ] **Step 3: Update the `resolveCommand` call to the v2 signature**
@@ -554,18 +565,18 @@ with (note: v2 `createInitialState` requires `seed`, so generate one when absent
 In `submitCommand`, replace the call (currently lines 204–209):
 
 ```ts
-      const result = resolveCommand(
-        state,
-        { seat: session.seat, playerId: session.seat },
-        command,
-        state.rules
-      );
+const result = resolveCommand(
+  state,
+  { seat: session.seat, playerId: session.seat },
+  command,
+  state.rules
+);
 ```
 
 with (v2 `CommandActor` is `{ seat }`; there is no `rules` parameter):
 
 ```ts
-      const result = resolveCommand(state, { seat: session.seat }, command);
+const result = resolveCommand(state, { seat: session.seat }, command);
 ```
 
 - [ ] **Step 4: Update the server test to a real v2 command**
@@ -573,40 +584,38 @@ with (v2 `CommandActor` is `{ seat }`; there is no `rules` parameter):
 Replace the body of the `it("creates a hotseat game and accepts a command", ...)` test in `packages/server/test/server.test.ts` with one that passes as the active seat (initiative is seed-dependent):
 
 ```ts
-  it("creates a hotseat game and accepts a command", async () => {
-    const app = buildApp(testConfig());
+it("creates a hotseat game and accepts a command", async () => {
+  const app = buildApp(testConfig());
 
-    const created = await app.inject({
-      method: "POST",
-      url: "/api/games",
-      payload: { mode: "hotseat", seed: "test" }
-    });
-    expect(created.statusCode).toBe(200);
-    const body = created.json();
-    expect(body.revision).toBe(0);
-
-    const activeSeat = body.view.activeSeat as "red" | "black";
-    const token = body.seats.find(
-      (seat: { seat: string }) => seat.seat === activeSeat
-    ).token;
-
-    const command = await app.inject({
-      method: "POST",
-      url: `/api/games/${body.gameId}/commands`,
-      headers: {
-        authorization: `Bearer ${token}`
-      },
-      payload: {
-        baseRevision: 0,
-        clientCommandId: "test-command-1",
-        command: { type: "pass" }
-      }
-    });
-
-    expect(command.statusCode).toBe(200);
-    expect(command.json().revision).toBe(1);
-    await app.close();
+  const created = await app.inject({
+    method: "POST",
+    url: "/api/games",
+    payload: { mode: "hotseat", seed: "test" }
   });
+  expect(created.statusCode).toBe(200);
+  const body = created.json();
+  expect(body.revision).toBe(0);
+
+  const activeSeat = body.view.activeSeat as "red" | "black";
+  const token = body.seats.find((seat: { seat: string }) => seat.seat === activeSeat).token;
+
+  const command = await app.inject({
+    method: "POST",
+    url: `/api/games/${body.gameId}/commands`,
+    headers: {
+      authorization: `Bearer ${token}`
+    },
+    payload: {
+      baseRevision: 0,
+      clientCommandId: "test-command-1",
+      command: { type: "pass" }
+    }
+  });
+
+  expect(command.statusCode).toBe(200);
+  expect(command.json().revision).toBe(1);
+  await app.close();
+});
 ```
 
 - [ ] **Step 5: Typecheck the workspace and run the server test**
@@ -631,6 +640,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 4: Web minimal read-only client
 
 **Files:**
+
 - Modify: `packages/web/src/components/board/Board.tsx`
 - Modify: `packages/web/src/App.tsx`
 - Modify: `tests/e2e/hotseat.spec.ts`
@@ -690,7 +700,12 @@ export function Board({ areas, activeSeat, selectedAreaId, onSelectArea }: Board
 Replace the entire contents of `packages/web/src/App.tsx` with:
 
 ```tsx
-import type { PlayerAreaView, PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
+import type {
+  PlayerAreaView,
+  PlayerGameEvent,
+  PlayerGameView,
+  SeatId
+} from "@sengoku-jidai/engine";
 import { useEffect, useMemo, useState } from "react";
 import { Board } from "./components/board/Board.js";
 import { ApiError, createHotseatGame, fetchGameView, submitCommand } from "./client/api.js";
@@ -1043,7 +1058,10 @@ Mark Plan 4 done in `/Users/martin/.claude/projects/-Users-martin-repos-sengoku-
 ## Notes for the implementer
 
 - **DRY/YAGNI:** `spectatorView` and `legalCommandsForView` are intentionally dropped (unused). Do not re-add them.
-- **Lean `legal`:** `LegalSpace.legal` is a *deployability* flag (free space + viewer can deploy), not a per-action criteria check. Keep the documenting comment; do not enumerate per-action targets in this plan — that is a later phase.
+- **Lean `legal`:** `LegalSpace.legal` is a _deployability_ flag (free space + viewer can deploy), not a per-action criteria check. Keep the documenting comment; do not enumerate per-action targets in this plan — that is a later phase.
 - **No production data:** the dev SQLite DB is disposable. If a stale schema-1 snapshot ever errors on load, `pnpm db:reset` clears it.
 - **Whole-workspace commands republish dist:** `pnpm typecheck`, `pnpm test`, and `pnpm build` run `build:libs` first, so downstream packages always see the latest engine/shared `dist`.
+
+```
+
 ```

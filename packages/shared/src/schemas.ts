@@ -26,7 +26,11 @@ export const commandSchema = z.discriminatedUnion("type", [
     spaceId: z.string().min(1),
     targetAreaId: z.string().min(1)
   }),
-  z.object({ type: z.literal("shell"), spaceId: z.string().min(1), targetAreaId: z.string().min(1) }),
+  z.object({
+    type: z.literal("shell"),
+    spaceId: z.string().min(1),
+    targetAreaId: z.string().min(1)
+  }),
   z.object({
     type: z.literal("reinforce"),
     spaceId: z.string().min(1),

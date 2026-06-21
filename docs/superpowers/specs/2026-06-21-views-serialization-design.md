@@ -28,7 +28,7 @@ is the only public surface.
    (deploying commanders, composing advance/sail/bombard/shell/reinforce/embark/plan intents with previews)
    is deferred to a later phase, consistent with parent-spec §14.
 2. **`legal` payload = lean.** `legalCommandsForState` surfaces deployable action spaces with a
-   *deployability* flag plus `canPass`, **not** full per-action target/move enumeration. The view contract is
+   _deployability_ flag plus `canPass`, **not** full per-action target/move enumeration. The view contract is
    additive, so richer enumeration can be added later without breaking consumers. The engine's `legality.ts`
    primitives already exist; Plan 4 simply does not surface them all yet.
 3. **Drop dead view helpers.** `spectatorView` and `legalCommandsForView` are unused (only self-referenced)
@@ -49,11 +49,11 @@ current engine-owns-types layering, out of scope.)
 Rewrite against v2 `GameState`.
 
 - **`PlayerGameView`** (`schemaVersion: 2`) carries: `gameId, mapId, mode, status, round, phase, initiative,
-  activeSeat, viewerSeat, prompt`; `areas: PlayerAreaView[]`; `bonuses: Record<areaId, BonusType>`;
+activeSeat, viewerSeat, prompt`; `areas: PlayerAreaView[]`; `bonuses: Record<areaId, BonusType>`;
   `actionSpaces: Record<spaceId, SeatId | null>`; `victoryPoints: Record<SeatId, number>`; `winner`,
   `endReason`; `pendingDecision` (present only when it is the viewer's); `legal`.
 - **`PlayerAreaView`** = `{ id, kind, owner: SeatId | null, units: UnitCounts, valueStars: number,
-  suppliedBy: SeatId | null }`. `suppliedBy` is derived per render via `suppliedAreas(map, gameBoard(state), seat)`
+suppliedBy: SeatId | null }`. `suppliedBy` is derived per render via `suppliedAreas(map, gameBoard(state), seat)`
   for each seat (an area is supplied by at most one seat at rest).
 - **`victoryPoints`** tally computed via `victoryPoints(map, gameBoard(state), seat)` for both seats.
 - **`legalCommandsForState(state, seat): LegalCommandSummary`** — lean:
@@ -85,7 +85,7 @@ guard that throws. `JsonGameState = GameState` (the v2 state is already JSON-ser
   (re)defined in `view.ts`/`serialization.ts`; the command/event/result types already live in `commands.ts`.
 - **Delete** dead placeholder source files: `setup.ts`, `resolveCommand.ts`, `validateCommand.ts`.
 - **Rewrite `index.ts`** to `export *` from: `rules, types, state, game, commands, resolve, view,
-  serialization, maps/riversMap, maps/registry, rng, supply, scoring`. The explicit-re-export workarounds
+serialization, maps/riversMap, maps/registry, rng, supply, scoring`. The explicit-re-export workarounds
   (added to dodge placeholder clashes) are removed. Verify no duplicate-export error (TS2308).
 
 ### 4.4 Shared contract — `schemas.ts` + `api.ts`

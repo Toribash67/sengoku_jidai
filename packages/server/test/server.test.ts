@@ -28,9 +28,7 @@ describe("server", () => {
     expect(body.revision).toBe(0);
 
     const activeSeat = body.view.activeSeat as "red" | "black";
-    const token = body.seats.find(
-      (seat: { seat: string }) => seat.seat === activeSeat
-    ).token;
+    const token = body.seats.find((seat: { seat: string }) => seat.seat === activeSeat).token;
 
     const command = await app.inject({
       method: "POST",
