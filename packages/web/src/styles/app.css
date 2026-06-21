@@ -122,7 +122,7 @@ button:disabled {
 }
 
 .board-status {
-  fill: #24312d;
+  color: #24312d;
   font-size: 20px;
   font-weight: 700;
 }
