@@ -8,11 +8,41 @@ export const pendingChoiceSchema = z.object({
   label: z.string().min(1)
 });
 
+const moveSchema = z.object({
+  from: z.string().min(1),
+  count: z.number().int().positive()
+});
+
+const placementSchema = z.object({
+  area: z.string().min(1),
+  count: z.number().int().positive()
+});
+
 export const commandSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("advance"), spaceId: z.string().min(1), moves: z.array(moveSchema) }),
+  z.object({ type: z.literal("sail"), spaceId: z.string().min(1), moves: z.array(moveSchema) }),
   z.object({
-    type: z.literal("claimArea"),
-    areaId: z.string().min(1)
+    type: z.literal("bombard"),
+    spaceId: z.string().min(1),
+    targetAreaId: z.string().min(1)
   }),
+  z.object({
+    type: z.literal("shell"),
+    spaceId: z.string().min(1),
+    targetAreaId: z.string().min(1)
+  }),
+  z.object({
+    type: z.literal("reinforce"),
+    spaceId: z.string().min(1),
+    placements: z.array(placementSchema)
+  }),
+  z.object({
+    type: z.literal("embark"),
+    spaceId: z.string().min(1),
+    placements: z.array(placementSchema)
+  }),
+  z.object({ type: z.literal("plan"), spaceId: z.string().min(1) }),
+  z.object({ type: z.literal("pass") }),
   z.object({
     type: z.literal("choosePendingDecision"),
     pendingId: z.string().min(1),

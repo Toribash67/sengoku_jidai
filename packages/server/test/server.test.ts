@@ -27,17 +27,19 @@ describe("server", () => {
     const body = created.json();
     expect(body.revision).toBe(0);
 
-    const redToken = body.seats.find((seat: { seat: string }) => seat.seat === "red").token;
+    const activeSeat = body.view.activeSeat as "red" | "black";
+    const token = body.seats.find((seat: { seat: string }) => seat.seat === activeSeat).token;
+
     const command = await app.inject({
       method: "POST",
       url: `/api/games/${body.gameId}/commands`,
       headers: {
-        authorization: `Bearer ${redToken}`
+        authorization: `Bearer ${token}`
       },
       payload: {
         baseRevision: 0,
         clientCommandId: "test-command-1",
-        command: { type: "claimArea", areaId: "omi" }
+        command: { type: "pass" }
       }
     });
 
