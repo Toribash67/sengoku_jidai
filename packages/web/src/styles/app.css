@@ -312,3 +312,87 @@ button:disabled {
   stroke: #fffaf0;
   stroke-width: 3px;
 }
+
+.tile-legal-target {
+  fill: none;
+  stroke: #f0b429;
+  stroke-width: 6px;
+  stroke-dasharray: 14 10;
+  animation: glow-pulse 1.4s ease-in-out infinite;
+}
+
+.tile-source {
+  fill: none;
+  stroke: #2f9e44;
+  stroke-width: 6px;
+  stroke-dasharray: 14 10;
+  animation: glow-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.start-order {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.order-composer .source-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.order-composer .source-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.order-composer .source-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.order-composer .source-max {
+  color: #8a8577;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  line-height: 1;
+}
+
+.stepper-count {
+  min-width: 1.5ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.composer-total {
+  font-weight: 600;
+}
+
+.composer-actions {
+  display: flex;
+  gap: 8px;
+}
