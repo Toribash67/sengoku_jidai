@@ -47,4 +47,62 @@ describe("playerView (v2)", () => {
     expect(otherLegal.canPass).toBe(false);
     expect(otherLegal.spaces.every((s) => !s.legal)).toBe(true);
   });
+
+  it("enumerates advance/sail moves for the active seat with max = units - 1", () => {
+    // seed "fixed": active = red; HQ tile9 has 3 troops; navy tile14 has 2 ships.
+    expect(state.activeSeat).toBe("red");
+    const summary = legalCommandsForState(state, state.activeSeat);
+
+    expect(summary.moves.some((m) => m.type === "advance")).toBe(true);
+    expect(summary.moves.some((m) => m.type === "sail")).toBe(true);
+
+    // tile9 (3 troops) feeds an advance into adjacent tile1, capped at 2.
+    expect(summary.moves.find((m) => m.targetAreaId === "tile1")).toMatchObject({
+      spaceId: "advance-tile1",
+      type: "advance",
+      sources: [{ areaId: "tile9", max: 2 }]
+    });
+
+    // tile14 (2 ships) feeds a sail into adjacent tile15, capped at 1.
+    expect(summary.moves.find((m) => m.targetAreaId === "tile15")).toMatchObject({
+      spaceId: "sail-tile15",
+      type: "sail",
+      sources: [{ areaId: "tile14", max: 1 }]
+    });
+  });
+
+  it("never lists a movement target the seat already controls", () => {
+    const summary = legalCommandsForState(state, state.activeSeat);
+    expect(summary.moves.length).toBeGreaterThan(0);
+    for (const move of summary.moves) {
+      expect(state.areas[move.targetAreaId]!.owner).not.toBe(state.activeSeat);
+    }
+  });
+
+  it("gives the non-active seat no moves", () => {
+    const other = state.activeSeat === "red" ? "black" : "red";
+    expect(legalCommandsForState(state, other).moves).toEqual([]);
+  });
+
+  it("excludes a source that has only one unit (cannot move the last unit)", () => {
+    const drained = structuredClone(state);
+    drained.areas.tile9!.units.troop = 1;
+    const sources = legalCommandsForState(drained, "red").moves.flatMap((m) =>
+      m.sources.map((s) => s.areaId)
+    );
+    expect(sources).not.toContain("tile9");
+  });
+
+  it("excludes a movement target whose action space is already occupied", () => {
+    const occupied = structuredClone(state);
+    occupied.actionSpaces["advance-tile1"] = "red";
+    const summary = legalCommandsForState(occupied, "red");
+    expect(summary.moves.find((m) => m.spaceId === "advance-tile1")).toBeUndefined();
+  });
+
+  it("returns no moves outside the deploy phase", () => {
+    const recall = structuredClone(state);
+    recall.phase = "recall";
+    expect(legalCommandsForState(recall, "red").moves).toEqual([]);
+  });
 });
