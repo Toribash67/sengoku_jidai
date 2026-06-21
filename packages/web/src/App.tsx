@@ -1,6 +1,6 @@
 import type { PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
 import { useEffect, useMemo, useState } from "react";
-import { Board } from "./components/board/Board.js";
+import { MapBoard } from "./components/board/MapBoard.js";
 import { ApiError, createHotseatGame, fetchGameView, submitCommand } from "./client/api.js";
 import {
   clearStoredGame,
@@ -151,10 +151,11 @@ export function App() {
       </header>
 
       <section className="game-layout">
-        <Board
+        <MapBoard
           areas={game.view.areas}
           activeSeat={game.view.activeSeat}
           selectedAreaId={selectedAreaId}
+          actionSpaces={game.view.actionSpaces}
           onSelectArea={setSelectedAreaId}
         />
 
