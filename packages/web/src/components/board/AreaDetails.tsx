@@ -1,4 +1,4 @@
-import type { MapArea, PlayerAreaView, PlayerGameView } from "@sengoku-jidai/engine";
+import type { LegalMove, MapArea, PlayerAreaView, PlayerGameView } from "@sengoku-jidai/engine";
 
 /** Display names for the on-map action types that link to a board area. */
 const ACTION_LABEL: Record<string, string> = {
@@ -12,10 +12,13 @@ interface AreaDetailsProps {
   area: PlayerAreaView;
   mapArea: MapArea;
   view: PlayerGameView;
+  onStartOrder?: (move: LegalMove) => void;
 }
 
-export function AreaDetails({ area, mapArea, view }: AreaDetailsProps) {
+export function AreaDetails({ area, mapArea, view, onStartOrder }: AreaDetailsProps) {
   const bonus = view.bonuses[area.id] ?? null;
+  const move = view.legal.moves.find((candidate) => candidate.targetAreaId === area.id) ?? null;
+
   const actions = view.legal.spaces
     .filter((space) => space.areaId === area.id)
     .map((space) => ({
@@ -80,6 +83,11 @@ export function AreaDetails({ area, mapArea, view }: AreaDetailsProps) {
           ))}
         </ul>
       )}
+      {move && onStartOrder ? (
+        <button type="button" className="start-order" onClick={() => onStartOrder(move)}>
+          {move.type === "advance" ? "Advance" : "Sail"} into {move.targetAreaId}
+        </button>
+      ) : null}
     </>
   );
 }
