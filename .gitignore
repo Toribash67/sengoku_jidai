@@ -9,3 +9,6 @@ test-results/
 *.tsbuildinfo
 # Large local-only source material (rulebook PDF, map scans) — kept on disk, never committed
 source-material/
+
+# Visual brainstorming companion
+.superpowers/
