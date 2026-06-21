@@ -1,8 +1,9 @@
-import type { PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
+import type { LegalMove, PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
 import { getMap } from "@sengoku-jidai/engine";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { AreaDetails } from "./components/board/AreaDetails.js";
 import { MapBoard } from "./components/board/MapBoard.js";
+import { OrderComposer, type ComposerState } from "./components/board/OrderComposer.js";
 import { ApiError, createHotseatGame, fetchGameView, submitCommand } from "./client/api.js";
 import {
   clearStoredGame,
@@ -25,6 +26,7 @@ interface LoadedGame extends StoredGame {
 export function App() {
   const [game, setGame] = useState<LoadedGame | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const [composer, setComposer] = useState<ComposerState | null>(null);
   const [events, setEvents] = useState<PlayerGameEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +89,15 @@ export function App() {
     [game, selectedAreaId]
   );
 
+  const legalTargetIds = useMemo(
+    () => new Set(composer ? [] : (game?.view.legal.moves ?? []).map((m) => m.targetAreaId)),
+    [composer, game?.view.legal.moves]
+  );
+  const sourceIds = useMemo(
+    () => new Set(composer ? composer.sources.map((s) => s.areaId) : []),
+    [composer]
+  );
+
   async function handleCreateGame() {
     setBusy(true);
     setError(null);
@@ -100,6 +111,7 @@ export function App() {
       saveStoredGame(stored);
       setGame({ ...stored, revision: created.revision, view: created.view });
       setSelectedAreaId(null);
+      setComposer(null);
       setEvents([]);
     } catch (caught) {
       setError(errorMessage(caught));
@@ -123,6 +135,68 @@ export function App() {
       const stored = { gameId: game.gameId, activeSeat: seat, seats: game.seats };
       saveStoredGame(stored);
       setGame({ ...stored, revision: envelope.revision, view: envelope.view });
+      setSelectedAreaId(null);
+      setComposer(null);
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startOrder(move: LegalMove) {
+    setComposer({
+      spaceId: move.spaceId,
+      type: move.type,
+      targetAreaId: move.targetAreaId,
+      sources: move.sources.map((s) => ({ areaId: s.areaId, max: s.max })),
+      counts: {}
+    });
+  }
+
+  function adjustSource(areaId: string, delta: number) {
+    setComposer((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      const source = prev.sources.find((s) => s.areaId === areaId);
+      if (!source) {
+        return prev;
+      }
+      const next = Math.min(Math.max((prev.counts[areaId] ?? 0) + delta, 0), source.max);
+      return { ...prev, counts: { ...prev.counts, [areaId]: next } };
+    });
+  }
+
+  async function handleConfirmOrder() {
+    if (!game || !composer) {
+      return;
+    }
+    const token = game.seats.find((seat) => seat.seat === game.activeSeat)?.token;
+    if (!token) {
+      setError("Missing seat token.");
+      return;
+    }
+    const moves = composer.sources
+      .map((s) => ({ from: s.areaId, count: composer.counts[s.areaId] ?? 0 }))
+      .filter((m) => m.count > 0);
+    if (moves.length === 0) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await submitCommand(game.gameId, token, game.revision, {
+        type: composer.type,
+        spaceId: composer.spaceId,
+        moves
+      });
+      if (response.view) {
+        setGame({ ...game, revision: response.revision, view: response.view });
+      }
+      setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
+      setComposer(null);
       setSelectedAreaId(null);
     } catch (caught) {
       setError(errorMessage(caught));
@@ -201,6 +275,9 @@ export function App() {
           selectedAreaId={selectedAreaId}
           actionSpaces={game.view.actionSpaces}
           onSelectArea={setSelectedAreaId}
+          legalTargetIds={legalTargetIds}
+          sourceIds={sourceIds}
+          onSourceClick={(areaId) => adjustSource(areaId, 1)}
         />
 
         <div
@@ -229,19 +306,36 @@ export function App() {
           </div>
 
           <section className="panel-section">
-            <h2>{selectedArea ? selectedArea.id : "Select an area"}</h2>
-            {selectedArea && selectedMapArea ? (
-              <AreaDetails area={selectedArea} mapArea={selectedMapArea} view={game.view} />
+            {composer ? (
+              <OrderComposer
+                composer={composer}
+                busy={busy}
+                onAdjust={adjustSource}
+                onConfirm={handleConfirmOrder}
+                onCancel={() => setComposer(null)}
+              />
             ) : (
-              <p className="muted">Select an area to see its details.</p>
+              <>
+                <h2>{selectedArea ? selectedArea.id : "Select an area"}</h2>
+                {selectedArea && selectedMapArea ? (
+                  <AreaDetails
+                    area={selectedArea}
+                    mapArea={selectedMapArea}
+                    view={game.view}
+                    onStartOrder={isViewerActive ? startOrder : undefined}
+                  />
+                ) : (
+                  <p className="muted">Select an area to see its details.</p>
+                )}
+                <button
+                  type="button"
+                  onClick={handlePass}
+                  disabled={busy || !isViewerActive || !game.view.legal.canPass}
+                >
+                  Pass
+                </button>
+              </>
             )}
-            <button
-              type="button"
-              onClick={handlePass}
-              disabled={busy || !isViewerActive || !game.view.legal.canPass}
-            >
-              Pass
-            </button>
           </section>
 
           <section className="panel-section">
