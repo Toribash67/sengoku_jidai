@@ -17,7 +17,13 @@ interface OrderComposerProps {
 const VERB: Record<ComposerState["type"], string> = { advance: "Advance", sail: "Sail" };
 const UNIT: Record<ComposerState["type"], string> = { advance: "troops", sail: "ships" };
 
-export function OrderComposer({ composer, busy, onAdjust, onConfirm, onCancel }: OrderComposerProps) {
+export function OrderComposer({
+  composer,
+  busy,
+  onAdjust,
+  onConfirm,
+  onCancel
+}: OrderComposerProps) {
   const total = composer.sources.reduce(
     (sum, source) => sum + (composer.counts[source.areaId] ?? 0),
     0
@@ -28,7 +34,9 @@ export function OrderComposer({ composer, busy, onAdjust, onConfirm, onCancel }:
       <h2>
         {VERB[composer.type]} into {composer.targetAreaId}
       </h2>
-      <p className="muted">Choose how many {UNIT[composer.type]} to move (each source keeps one).</p>
+      <p className="muted">
+        Choose how many {UNIT[composer.type]} to move (each source keeps one).
+      </p>
       <ul className="source-list">
         {composer.sources.map((source) => {
           const count = composer.counts[source.areaId] ?? 0;
