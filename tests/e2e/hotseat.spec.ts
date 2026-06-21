@@ -5,7 +5,7 @@ test("creates a hotseat game, renders the SVG board, and selects a tile", async 
 
   await page.getByRole("button", { name: "New hotseat game" }).click();
   await expect(page.getByTestId("board")).toBeVisible();
-  await expect(page.getByText("Round 1")).toBeVisible();
+  await expect(page.getByText("Round 1", { exact: true })).toBeVisible();
 
   // The canonical map is inlined: the red HQ tile exists and is clickable.
   await expect(page.locator("#tile9")).toBeVisible();
@@ -15,5 +15,5 @@ test("creates a hotseat game, renders the SVG board, and selects a tile", async 
   await page.reload();
   await expect(page.getByTestId("board")).toBeVisible();
   await expect(page.locator("#tile9")).toBeVisible();
-  await expect(page.getByText("Round 1")).toBeVisible();
+  await expect(page.getByText("Round 1", { exact: true })).toBeVisible();
 });
