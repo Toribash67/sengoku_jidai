@@ -111,6 +111,16 @@ button:disabled {
   background: #dfe8df;
 }
 
+.map-host {
+  width: 100%;
+}
+
+.map-host svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .board-background {
   fill: #d8e1d8;
 }
