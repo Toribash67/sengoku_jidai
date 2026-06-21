@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -142,6 +145,8 @@ jobs:
   build-and-push:
     name: Build and Push Image
     runs-on: ubuntu-latest
+    # Validation jobs above run on every PR; only publish the image on pushes to main.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - typecheck
       - unit-tests
