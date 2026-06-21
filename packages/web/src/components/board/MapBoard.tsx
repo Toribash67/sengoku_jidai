@@ -13,6 +13,7 @@ export interface MapBoardProps {
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+const XLINK_NS = "http://www.w3.org/1999/xlink";
 
 const OVERLAY_ID = "map-overlay";
 const SEAT_MARK: Record<SeatId, string> = { red: "#7b1f1a", black: "#15181d" };
@@ -20,6 +21,16 @@ const SEAT_MARK: Record<SeatId, string> = { red: "#7b1f1a", black: "#15181d" };
 /** Shared tile geometry defs whose inline fill/stroke must be neutralized so each
  *  tile <use> can drive its own appearance. */
 const TILE_GEOMETRY_DEFS = ["path9", "path9-2", "path9-2-2", "path9-5", "path9-5-0"];
+
+/** Unit token defs in the SVG, keyed by seat. Armies are discs; ships are boats. */
+const ARMY_DEF: Record<SeatId, string> = { red: "path77", black: "path77-5" };
+const SHIP_DEF: Record<SeatId, string> = { red: "path1-7-5-4-2", black: "path1-7-5-4" };
+
+/** Static example unit instances in the SVG; hidden so only live units render. */
+const EXAMPLE_UNIT_IDS = ["red-army1", "black-army1", "red-ship1", "black-ship1"];
+
+/** Max tokens drawn in a stack; larger counts still show this many, with the real total. */
+const MAX_STACK_TOKENS = 5;
 
 const STRIPE_PATTERNS = `
 <pattern id="stripe-red" patternUnits="userSpaceOnUse" width="26" height="26" patternTransform="rotate(45)">
@@ -54,6 +65,12 @@ function captureAuthoredFills(svg: SVGSVGElement): void {
  *  (so per-tile fill/stroke wins), and inject stripe patterns. */
 function prepareSvg(svg: SVGSVGElement): void {
   captureAuthoredFills(svg);
+  for (const id of EXAMPLE_UNIT_IDS) {
+    const example = svg.querySelector<SVGElement>(`#${CSS.escape(id)}`);
+    if (example) {
+      example.style.display = "none";
+    }
+  }
   for (const id of TILE_GEOMETRY_DEFS) {
     const def = svg.querySelector<SVGElement>(`#${CSS.escape(id)}`);
     if (def) {
@@ -123,6 +140,58 @@ function makeOccupancy(at: Point, color: string): SVGCircleElement {
   return circle;
 }
 
+/** A `<use>` instance of a token def (army disc or ship). */
+function makeToken(defId: string): SVGUseElement {
+  const use = document.createElementNS(SVG_NS, "use");
+  use.setAttributeNS(XLINK_NS, "xlink:href", `#${defId}`);
+  use.setAttribute("href", `#${defId}`);
+  return use;
+}
+
+/**
+ * Draw a stack of unit tokens for one seat's units of a single type, anchored at a
+ * tile-relative point. Successive tokens are offset up-and-right (the skewed-stack
+ * look), centred on `anchor`; counts above MAX_STACK_TOKENS still draw that many. When
+ * the count is 2+, the total is labelled on the topmost token. `anchor` is a sub-position
+ * within the tile (currently the tile centre) so a second seat's stack can be offset here
+ * later without overlapping.
+ */
+function renderUnitStack(overlay: SVGGElement, defId: string, count: number, anchor: Point): void {
+  const visible = Math.min(count, MAX_STACK_TOKENS);
+  if (visible <= 0) {
+    return;
+  }
+
+  // Measure the token's native centre and size (overlay is unscaled root space).
+  const probe = makeToken(defId);
+  overlay.appendChild(probe);
+  const box = probe.getBBox();
+  overlay.removeChild(probe);
+  const nativeCx = box.x + box.width / 2;
+  const nativeCy = box.y + box.height / 2;
+  const dx = box.width * 0.18;
+  const dy = box.height * 0.18;
+  const startX = -((visible - 1) * dx) / 2;
+  const startY = ((visible - 1) * dy) / 2;
+
+  let topCenter = anchor;
+  for (let k = 0; k < visible; k += 1) {
+    const offsetX = startX + k * dx;
+    const offsetY = startY - k * dy;
+    const token = makeToken(defId);
+    token.setAttribute(
+      "transform",
+      `translate(${anchor.x - nativeCx + offsetX} ${anchor.y - nativeCy + offsetY})`
+    );
+    overlay.appendChild(token);
+    topCenter = { x: anchor.x + offsetX, y: anchor.y + offsetY };
+  }
+
+  if (count >= 2) {
+    overlay.appendChild(makeText(String(count), topCenter));
+  }
+}
+
 /** Selection outline for a tile, drawn in the overlay so it paints above every
  *  other tile and decoration (SVG paints in document order, and the source tile
  *  sits beneath the later order/feature groups). Clones the tile geometry and pins
@@ -189,10 +258,18 @@ function decorate(
       }
     }
 
-    if (area.units.troop + area.units.ship > 0) {
+    // Unit stacks for the controlling seat. Armies and ships never share a region, so
+    // each area shows at most one stack today; `center` is the anchor a future second
+    // seat's stack would offset from.
+    if (area.owner && area.units.troop + area.units.ship > 0) {
       const center = centerInRoot(svg, tile);
       if (center) {
-        overlay.appendChild(makeText(`${area.units.troop}t·${area.units.ship}s`, center));
+        if (area.units.troop > 0) {
+          renderUnitStack(overlay, ARMY_DEF[area.owner], area.units.troop, center);
+        }
+        if (area.units.ship > 0) {
+          renderUnitStack(overlay, SHIP_DEF[area.owner], area.units.ship, center);
+        }
       }
     }
   }
