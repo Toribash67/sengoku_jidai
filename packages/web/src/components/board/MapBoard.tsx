@@ -169,8 +169,8 @@ function renderUnitStack(overlay: SVGGElement, defId: string, count: number, anc
   overlay.removeChild(probe);
   const nativeCx = box.x + box.width / 2;
   const nativeCy = box.y + box.height / 2;
-  const dx = box.width * 0.18;
-  const dy = box.height * 0.18;
+  const dx = box.width * 0.1;
+  const dy = box.height * 0.1;
   const startX = -((visible - 1) * dx) / 2;
   const startY = ((visible - 1) * dy) / 2;
 

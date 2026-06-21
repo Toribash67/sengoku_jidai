@@ -41,27 +41,32 @@ describe("createInitialState", () => {
     expect(s.endReason).toBeNull();
   });
 
-  it("garrisons each HQ with the starting troops and leaves every other area empty", () => {
+  it("garrisons each HQ with troops, gives each base a starting navy, leaves the rest empty", () => {
     const s = createInitialState(opts);
     const redHq = hqOf("red");
     const blackHq = hqOf("black");
     const garrison = { troop: HQ_STARTING_TROOPS, ship: 0, siege: 0 };
     expect(s.areas[redHq]).toEqual({ owner: "red", units: garrison });
     expect(s.areas[blackHq]).toEqual({ owner: "black", units: garrison });
+    // Starting navy in the sea tile above each base.
+    expect(s.areas.tile14).toEqual({ owner: "red", units: { troop: 0, ship: 2, siege: 0 } });
+    expect(s.areas.tile18).toEqual({ owner: "black", units: { troop: 0, ship: 2, siege: 0 } });
+    const occupied = new Set([redHq, blackHq, "tile14", "tile18"]);
     for (const [id, a] of Object.entries(s.areas)) {
-      if (id === redHq || id === blackHq) continue;
+      if (occupied.has(id)) continue;
       expect(a, id).toEqual({ owner: null, units: { troop: 0, ship: 0, siege: 0 } });
     }
     expect(Object.keys(s.areas).sort()).toEqual(Object.keys(riversMap.areas).sort());
   });
 
-  it("gives each player the pool minus deployed troops, plus 5 commanders", () => {
+  it("gives each player the pool minus deployed troops and ships, plus 5 commanders", () => {
     const s = createInitialState(opts);
     for (const seat of ["red", "black"] as const) {
       expect(s.players[seat].seat).toBe(seat);
       expect(s.players[seat].reserve).toEqual({
         ...RIVERS_UNIT_POOL,
-        troop: RIVERS_UNIT_POOL.troop - HQ_STARTING_TROOPS
+        troop: RIVERS_UNIT_POOL.troop - HQ_STARTING_TROOPS,
+        ship: RIVERS_UNIT_POOL.ship - 2
       });
       expect(s.players[seat].commanders).toEqual({
         total: riversRuleset.commandersPerPlayer,

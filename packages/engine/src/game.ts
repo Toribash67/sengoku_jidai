@@ -16,6 +16,17 @@ import {
   type UnitType
 } from "./state.js";
 
+/**
+ * Interim starting navies: ships placed in the sea tile above each player's base on
+ * the Rivers map. Like {@link HQ_STARTING_TROOPS} this is interim setup hardcoded to
+ * the Rivers tile ids; a future map-driven field can supersede it. Areas not present
+ * on the active map are simply skipped.
+ */
+const STARTING_NAVIES: Record<string, { seat: SeatId; ships: number }> = {
+  tile14: { seat: "red", ships: 2 },
+  tile18: { seat: "black", ships: 2 }
+};
+
 export interface GameSetupOptions {
   gameId: string;
   /** Seed string; identical seeds replay identically. */
@@ -63,13 +74,17 @@ export function createInitialState(options: GameSetupOptions): GameState {
   rngState = draw.state;
   const initiative: SeatId = draw.value < 0.5 ? "red" : "black";
 
-  // Build areas, garrisoning each HQ.
+  // Build areas, garrisoning each HQ and the starting navy above each base.
   const areas: Record<string, AreaRuntime> = {};
   for (const area of Object.values(map.areas)) {
-    areas[area.id] =
-      area.hq !== null
-        ? { owner: area.hq, units: { ...zeroUnits(), troop: HQ_STARTING_TROOPS } }
-        : { owner: null, units: zeroUnits() };
+    const navy = STARTING_NAVIES[area.id];
+    if (area.hq !== null) {
+      areas[area.id] = { owner: area.hq, units: { ...zeroUnits(), troop: HQ_STARTING_TROOPS } };
+    } else if (navy) {
+      areas[area.id] = { owner: navy.seat, units: { ...zeroUnits(), ship: navy.ships } };
+    } else {
+      areas[area.id] = { owner: null, units: zeroUnits() };
+    }
   }
 
   // Reserve = the full pool minus whatever was placed on the board for that seat.
