@@ -23,8 +23,8 @@ describe("playerView (v2)", () => {
 
   it("computes a victory-point tally for both seats", () => {
     const view = playerView(state, "red");
-    expect(typeof view.victoryPoints.red).toBe("number");
-    expect(typeof view.victoryPoints.black).toBe("number");
+    expect(Number.isFinite(view.victoryPoints.red)).toBe(true);
+    expect(Number.isFinite(view.victoryPoints.black)).toBe(true);
   });
 
   it("redacts a pending decision from the non-owning seat", () => {

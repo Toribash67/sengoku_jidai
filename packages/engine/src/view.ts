@@ -77,7 +77,10 @@ export function playerView(state: GameState, viewerSeat: SeatId): PlayerGameView
   }
 
   const areas: PlayerAreaView[] = Object.entries(state.areas).map(([id, runtime]) => {
-    const mapArea = map.areas[id]!;
+    const mapArea = map.areas[id];
+    if (!mapArea) {
+      throw new Error(`State area "${id}" has no map definition (mapId: ${state.mapId}).`);
+    }
     return {
       id,
       kind: mapArea.kind,
@@ -142,6 +145,9 @@ export function playerEvents(events: GameEvent[]): PlayerGameEvent[] {
 }
 
 function buildPrompt(state: GameState, viewer: SeatId): string {
+  if (state.status === "abandoned") {
+    return "Game abandoned.";
+  }
   if (state.status === "complete") {
     return state.winner ? `Game over — ${state.winner} wins.` : "Game over.";
   }
