@@ -157,7 +157,13 @@ function decorate(
   }
 }
 
-export function MapBoard({ areas, activeSeat, selectedAreaId, actionSpaces, onSelectArea }: MapBoardProps) {
+export function MapBoard({
+  areas,
+  activeSeat,
+  selectedAreaId,
+  actionSpaces,
+  onSelectArea
+}: MapBoardProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   // Inject + prep once.

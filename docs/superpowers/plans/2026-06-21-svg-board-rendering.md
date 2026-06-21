@@ -9,6 +9,7 @@
 **Tech Stack:** React 19, TypeScript, Vite 6 (`?raw` import), Vitest (pure-helper unit tests), Playwright (e2e smoke). Spec: `docs/superpowers/specs/2026-06-21-svg-board-rendering-design.md`.
 
 **Key SVG facts (verified against `cloned_map.svg`):**
+
 - Tiles are `<use id="tileN">` elements referencing five shared geometry defs: `path9`, `path9-2`, `path9-2-2`, `path9-5`, `path9-5-0`. Those defs live inside `<g id="layer1" style="display:none">` — **layer1 must NOT be removed.**
 - The defs carry inline `fill`/`stroke`, which by SVG cascade win over a `fill` set on the `<use>`. Prep sets the defs' `fill`/`stroke`/`stroke-width` to `inherit` so each tile `<use>`'s own inline style drives its appearance.
 - There is an empty `<defs id="defs1"/>` for injecting stripe patterns.
@@ -36,11 +37,12 @@
 ## Task 1: Pure `tileFill` helper
 
 **Files:**
+
 - Create: `packages/web/src/components/board/tileFill.ts`
 - Test: `packages/web/test/board/tileFill.test.ts`
 - Modify: `packages/web/tsconfig.json`
 
-- [ ] **Step 1: Add `test/**` to the web tsconfig include**
+- [ ] **Step 1: Add `test/**` to the web tsconfig include\*\*
 
 Modify `packages/web/tsconfig.json` — change the `include` line to:
 
@@ -140,6 +142,7 @@ git commit -m "feat(web): add pure tileFill helper for owner/supply tinting"
 ## Task 2: Pure `slotIdForSpace` helper
 
 **Files:**
+
 - Create: `packages/web/src/components/board/slotMapping.ts`
 - Test: `packages/web/test/board/slotMapping.test.ts`
 
@@ -228,6 +231,7 @@ git commit -m "feat(web): add action-space to SVG slot id mapping helper"
 This task gets the raw SVG on screen via `MapBoard`, swaps it into `App`, and deletes the old `Board`. Tints/overlays come in Tasks 4–5.
 
 **Files:**
+
 - Modify: `packages/web/vite.config.ts`
 - Create: `packages/web/src/components/board/MapBoard.tsx`
 - Modify: `packages/web/src/App.tsx`
@@ -307,7 +311,9 @@ Change the import on line 3 from:
 ```tsx
 import { Board } from "./components/board/Board.js";
 ```
+
 to:
+
 ```tsx
 import { MapBoard } from "./components/board/MapBoard.js";
 ```
@@ -315,13 +321,13 @@ import { MapBoard } from "./components/board/MapBoard.js";
 Replace the `<Board ... />` element (currently lines 154-159) with:
 
 ```tsx
-        <MapBoard
-          areas={game.view.areas}
-          activeSeat={game.view.activeSeat}
-          selectedAreaId={selectedAreaId}
-          actionSpaces={game.view.actionSpaces}
-          onSelectArea={setSelectedAreaId}
-        />
+<MapBoard
+  areas={game.view.areas}
+  activeSeat={game.view.activeSeat}
+  selectedAreaId={selectedAreaId}
+  actionSpaces={game.view.actionSpaces}
+  onSelectArea={setSelectedAreaId}
+/>
 ```
 
 - [ ] **Step 4: Delete the old board**
@@ -354,6 +360,7 @@ git commit -m "feat(web): render cloned_map.svg inline via MapBoard"
 Add the one-time SVG prep and the per-tile decoration.
 
 **Files:**
+
 - Modify: `packages/web/src/components/board/MapBoard.tsx`
 - Modify: `packages/web/src/styles/app.css`
 
@@ -420,7 +427,10 @@ interface DecorateInput {
 }
 
 /** Apply per-tile fill, selection stroke, and click handler. */
-function decorate(svg: SVGSVGElement, { areas, selectedAreaId, onSelectArea }: DecorateInput): void {
+function decorate(
+  svg: SVGSVGElement,
+  { areas, selectedAreaId, onSelectArea }: DecorateInput
+): void {
   for (const area of areas) {
     const tile = svg.querySelector<SVGGraphicsElement>(`#${CSS.escape(area.id)}`);
     if (!tile) {
@@ -506,6 +516,7 @@ git commit -m "feat(web): tint, highlight, and select map tiles by game state"
 ## Task 5: Overlay layer — unit counts + action-space occupancy
 
 **Files:**
+
 - Modify: `packages/web/src/components/board/MapBoard.tsx`
 - Modify: `packages/web/src/styles/app.css`
 
@@ -644,12 +655,12 @@ function decorate(
 Update the decorate `useEffect` to pass `actionSpaces` and add it to the dependency array:
 
 ```tsx
-  useEffect(() => {
-    const svg = hostRef.current?.querySelector("svg");
-    if (svg) {
-      decorate(svg, { areas, selectedAreaId, actionSpaces, onSelectArea });
-    }
-  }, [areas, selectedAreaId, actionSpaces, onSelectArea]);
+useEffect(() => {
+  const svg = hostRef.current?.querySelector("svg");
+  if (svg) {
+    decorate(svg, { areas, selectedAreaId, actionSpaces, onSelectArea });
+  }
+}, [areas, selectedAreaId, actionSpaces, onSelectArea]);
 ```
 
 - [ ] **Step 2: Style the overlay text**
@@ -696,6 +707,7 @@ git commit -m "feat(web): overlay unit counts and action-space occupancy on the 
 ## Task 6: Adapt e2e smoke, remove dead CSS, full verification
 
 **Files:**
+
 - Modify: `tests/e2e/hotseat.spec.ts`
 - Modify: `packages/web/src/styles/app.css`
 

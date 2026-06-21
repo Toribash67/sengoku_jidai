@@ -34,7 +34,7 @@ No engine, server, or shared-package changes. This consumes the existing LEAN
 
 - The SVG is imported into the web bundle as raw markup (Vite `?raw`) and rendered inline
   by a new `MapBoard` component.
-- Dynamic state is drawn *inside the same SVG coordinate space* — tile fills, unit-count
+- Dynamic state is drawn _inside the same SVG coordinate space_ — tile fills, unit-count
   `<text>`, occupancy `<circle>`, selection outline — so everything scales together with
   no HTML/SVG alignment drift.
 
@@ -45,6 +45,7 @@ No engine, server, or shared-package changes. This consumes the existing LEAN
 > `stroke`, which by SVG cascade rules win over a `fill` set on the `<use>`. So recoloring
 > requires neutralizing the def styling first (see SVG preparation). There is also an empty
 > real `<defs id="defs1"/>` where the stripe `<pattern>` is injected.
+
 - An `<img src>` embed was rejected: it cannot recolor individual tiles or attach per-tile
   click handlers, both of which this design requires.
 
@@ -55,8 +56,8 @@ No engine, server, or shared-package changes. This consumes the existing LEAN
   child for `<MapBoard>`.
 - `MapBoard.tsx` (new, replaces `Board.tsx`): same prop shape as today —
   `{ areas: PlayerAreaView[]; activeSeat: SeatId; selectedAreaId: string | null;
-  onSelectArea: (id: string) => void }` — plus it additionally reads `actionSpaces:
-  Record<string, SeatId | null>` from the view for occupancy markers.
+onSelectArea: (id: string) => void }` — plus it additionally reads `actionSpaces:
+Record<string, SeatId | null>` from the view for occupancy markers.
 - A tiny pure helper module (e.g. `tileFill.ts`) exposes the fill decision so it is unit
   testable in isolation.
 
@@ -88,7 +89,7 @@ On mount `MapBoard` injects the raw SVG into the DOM and runs the one-time prepa
    `<circle>` (seat-coloured) in the overlay `<g>` at the corresponding order-slot's center
    (same getBBox+getCTM mapping). The engine space id maps to the SVG slot id by type:
    `advance-tileN → #move-tileN`, `sail-tileN → #sail-tileN`, `bombard-tileN →
-   #bombard-tileN`, `shell-tileN → #shell-tileN`. Support spaces
+#bombard-tileN`, `shell-tileN → #shell-tileN`. Support spaces
    (reinforce/embark/plan) have no board slot and are skipped. A pure `slotIdForSpace`
    helper performs this mapping.
 
