@@ -53,7 +53,6 @@ export function AreaDetails({ area, mapArea, view }: AreaDetailsProps) {
         <li>Terrain: {mapArea.kind}</li>
         {mapArea.hq ? <li>{mapArea.hq} HQ</li> : null}
         {mapArea.harbor ? <li>Harbor</li> : null}
-        {mapArea.shellable ? <li>Shellable from sea</li> : null}
         {mapArea.ports.length > 0 ? <li>Piers &rarr; {mapArea.ports.join(", ")}</li> : null}
         {bonus ? <li>Bonus: {bonus}</li> : null}
       </ul>
