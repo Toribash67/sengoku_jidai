@@ -1,9 +1,4 @@
-import type {
-  PlayerAreaView,
-  PlayerGameEvent,
-  PlayerGameView,
-  SeatId
-} from "@sengoku-jidai/engine";
+import type { PlayerAreaView, PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
 import { useEffect, useMemo, useState } from "react";
 import { Board } from "./components/board/Board.js";
 import { ApiError, createHotseatGame, fetchGameView, submitCommand } from "./client/api.js";
@@ -96,7 +91,7 @@ export function App() {
     }
   }
 
-  async function handleClaimArea(area: PlayerAreaView) {
+  async function handlePass() {
     if (!game) {
       return;
     }
@@ -109,15 +104,11 @@ export function App() {
     setBusy(true);
     setError(null);
     try {
-      const response = await submitCommand(game.gameId, token, game.revision, {
-        type: "claimArea",
-        areaId: area.id
-      });
+      const response = await submitCommand(game.gameId, token, game.revision, { type: "pass" });
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
       }
       setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
-      setSelectedAreaId(area.id);
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
@@ -139,6 +130,8 @@ export function App() {
     );
   }
 
+  const isViewerActive = game.view.activeSeat === game.activeSeat;
+
   return (
     <main className="app-shell">
       <header className="top-bar">
@@ -148,8 +141,12 @@ export function App() {
         </div>
         <div className="top-stats" aria-label="Game status">
           <span>Round {game.view.round}</span>
+          <span>{game.view.phase}</span>
           <span>Revision {game.revision}</span>
           <span>{game.view.activeSeat} to act</span>
+          <span>
+            VP {game.view.victoryPoints.red}–{game.view.victoryPoints.black}
+          </span>
         </div>
       </header>
 
@@ -177,34 +174,38 @@ export function App() {
           </div>
 
           <section className="panel-section">
-            <h2>{selectedArea ? selectedArea.name : "Select an area"}</h2>
+            <h2>{selectedArea ? selectedArea.id : "Select an area"}</h2>
             {selectedArea ? (
-              <>
-                <dl className="area-details">
-                  <div>
-                    <dt>Control</dt>
-                    <dd>{selectedArea.controller ?? "none"}</dd>
-                  </div>
-                  <div>
-                    <dt>Strength</dt>
-                    <dd>{selectedArea.strength}</dd>
-                  </div>
-                  <div>
-                    <dt>Adjacent</dt>
-                    <dd>{selectedArea.adjacent.join(", ")}</dd>
-                  </div>
-                </dl>
-                <button
-                  type="button"
-                  onClick={() => handleClaimArea(selectedArea)}
-                  disabled={busy || game.view.activeSeat !== game.activeSeat}
-                >
-                  Claim area
-                </button>
-              </>
+              <dl className="area-details">
+                <div>
+                  <dt>Owner</dt>
+                  <dd>{selectedArea.owner ?? "none"}</dd>
+                </div>
+                <div>
+                  <dt>Units</dt>
+                  <dd>
+                    {selectedArea.units.troop} troops, {selectedArea.units.ship} ships
+                  </dd>
+                </div>
+                <div>
+                  <dt>Value</dt>
+                  <dd>{selectedArea.valueStars} stars</dd>
+                </div>
+                <div>
+                  <dt>Supplied by</dt>
+                  <dd>{selectedArea.suppliedBy ?? "none"}</dd>
+                </div>
+              </dl>
             ) : (
-              <p className="muted">Area details and legal commands appear here.</p>
+              <p className="muted">Area details appear here. Interactive commands come later.</p>
             )}
+            <button
+              type="button"
+              onClick={handlePass}
+              disabled={busy || !isViewerActive || !game.view.legal.canPass}
+            >
+              Pass
+            </button>
           </section>
 
           <section className="panel-section">
@@ -239,10 +240,10 @@ export function App() {
 }
 
 function eventLabel(event: PlayerGameEvent): string {
-  if (event.type === "areaClaimed") {
-    return `${event.seat} claimed ${event.areaId}`;
+  if ("seat" in event && typeof event.seat === "string") {
+    return `${event.seat}: ${event.type}`;
   }
-  return `${event.seat} chose ${event.choiceId}`;
+  return event.type;
 }
 
 function errorMessage(caught: unknown): string {
