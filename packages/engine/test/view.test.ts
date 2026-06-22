@@ -17,7 +17,7 @@ describe("playerView (v2)", () => {
     const hq = view.areas.find((area) => area.id === "tile9");
     expect(hq).toBeDefined();
     expect(hq?.owner).toBe("red");
-    expect(hq?.units.troop).toBe(3);
+    expect(hq?.units.troop).toBe(5);
     expect(hq?.kind).toBe("land");
   });
 
@@ -49,25 +49,25 @@ describe("playerView (v2)", () => {
   });
 
   it("enumerates advance/sail moves for the active seat with max = units - 1", () => {
-    // seed "fixed": active = red; HQ tile9 has 3 troops; navy tile14 has 2 ships.
+    // seed "fixed": active = red; HQ tile9 has 5 troops; navy tile14 has 3 ships.
     expect(state.activeSeat).toBe("red");
     const summary = legalCommandsForState(state, state.activeSeat);
 
     expect(summary.moves.some((m) => m.type === "advance")).toBe(true);
     expect(summary.moves.some((m) => m.type === "sail")).toBe(true);
 
-    // tile9 (3 troops) feeds an advance into adjacent tile1, capped at 2.
+    // tile9 (5 troops) feeds an advance into adjacent tile1, capped at 4.
     expect(summary.moves.find((m) => m.targetAreaId === "tile1")).toMatchObject({
       spaceId: "advance-tile1",
       type: "advance",
-      sources: [{ areaId: "tile9", max: 2 }]
+      sources: [{ areaId: "tile9", max: 4 }]
     });
 
-    // tile14 (2 ships) feeds a sail into adjacent tile15, capped at 1.
+    // tile14 (3 ships) feeds a sail into adjacent tile15, capped at 2.
     expect(summary.moves.find((m) => m.targetAreaId === "tile15")).toMatchObject({
       spaceId: "sail-tile15",
       type: "sail",
-      sources: [{ areaId: "tile14", max: 1 }]
+      sources: [{ areaId: "tile14", max: 2 }]
     });
   });
 

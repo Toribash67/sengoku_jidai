@@ -11,6 +11,6 @@ describe("unit state helpers", () => {
 
   it("defines the Rivers unit pools and starting garrison size", () => {
     expect(RIVERS_UNIT_POOL).toEqual({ troop: 25, ship: 10, siege: 0 });
-    expect(HQ_STARTING_TROOPS).toBe(3);
+    expect(HQ_STARTING_TROOPS).toBe(5);
   });
 });

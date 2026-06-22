@@ -62,7 +62,7 @@ describe("validateCommand per-action criteria", () => {
     const cmd: Command = {
       type: "advance",
       spaceId: "advance-tile1",
-      moves: [{ from: hqOf("red"), count: 3 }]
+      moves: [{ from: hqOf("red"), count: 5 }]
     };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("illegalMove");
   });
@@ -138,13 +138,13 @@ describe("validateCommand per-action criteria", () => {
 
   it("advance: rejects duplicate-source moves that together take the last unit", () => {
     const s = base();
-    // HQ tile9 has 3 troops; two moves of 2 from the same source sum to 4 > 3-1.
+    // HQ tile9 has 5 troops; two moves of 3 from the same source sum to 6 > 5-1.
     const cmd: Command = {
       type: "advance",
       spaceId: "advance-tile1",
       moves: [
-        { from: hqOf("red"), count: 2 },
-        { from: hqOf("red"), count: 2 }
+        { from: hqOf("red"), count: 3 },
+        { from: hqOf("red"), count: 3 }
       ]
     };
     expect(validateCommand(s, { seat: "red" }, cmd)?.code).toBe("illegalMove");

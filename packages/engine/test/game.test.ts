@@ -49,8 +49,8 @@ describe("createInitialState", () => {
     expect(s.areas[redHq]).toEqual({ owner: "red", units: garrison });
     expect(s.areas[blackHq]).toEqual({ owner: "black", units: garrison });
     // Starting navy in the sea tile above each base.
-    expect(s.areas.tile14).toEqual({ owner: "red", units: { troop: 0, ship: 2, siege: 0 } });
-    expect(s.areas.tile18).toEqual({ owner: "black", units: { troop: 0, ship: 2, siege: 0 } });
+    expect(s.areas.tile14).toEqual({ owner: "red", units: { troop: 0, ship: 3, siege: 0 } });
+    expect(s.areas.tile18).toEqual({ owner: "black", units: { troop: 0, ship: 3, siege: 0 } });
     const occupied = new Set([redHq, blackHq, "tile14", "tile18"]);
     for (const [id, a] of Object.entries(s.areas)) {
       if (occupied.has(id)) continue;
@@ -66,7 +66,7 @@ describe("createInitialState", () => {
       expect(s.players[seat].reserve).toEqual({
         ...RIVERS_UNIT_POOL,
         troop: RIVERS_UNIT_POOL.troop - HQ_STARTING_TROOPS,
-        ship: RIVERS_UNIT_POOL.ship - 2
+        ship: RIVERS_UNIT_POOL.ship - 3
       });
       expect(s.players[seat].commanders).toEqual({
         total: riversRuleset.commandersPerPlayer,

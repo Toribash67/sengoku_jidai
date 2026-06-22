@@ -19,6 +19,9 @@ describe("reinforce", () => {
   it("places troops from reserve into a supplied land area", () => {
     const s = game();
     const hq = hqOf("red");
+    // Drop HQ to 3 so there is room to reinforce (land cap = 5); return surplus to reserve.
+    s.players.red.reserve.troop += s.areas[hq]!.units.troop - 3;
+    s.areas[hq]!.units.troop = 3;
     const before = s.players.red.reserve.troop;
     const r = resolveCommand(
       s,
@@ -122,7 +125,7 @@ describe("embark", () => {
 describe("advance", () => {
   it("moves troops into an empty adjacent land and takes control", () => {
     const s = game();
-    const hq = hqOf("red"); // tile9, 3 troops; tile1 empty land adjacent.
+    const hq = hqOf("red"); // tile9, 5 troops; tile1 empty land adjacent.
     const r = resolveCommand(
       s,
       { seat: "red" },
@@ -136,7 +139,7 @@ describe("advance", () => {
     if (r.status !== "accepted") return;
     expect(r.nextState.areas["tile1"]!.owner).toBe("red");
     expect(r.nextState.areas["tile1"]!.units.troop).toBe(2);
-    expect(r.nextState.areas[hq]!.units.troop).toBe(1); // 3 - 2
+    expect(r.nextState.areas[hq]!.units.troop).toBe(3); // 5 - 2
   });
 
   it("resolves conflict when advancing into an enemy land", () => {
