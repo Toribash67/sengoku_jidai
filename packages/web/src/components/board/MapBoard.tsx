@@ -230,7 +230,7 @@ function makeSupplyOverlay(
   clone.removeAttribute("id");
   clone.setAttribute("transform", `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
   clone.style.fill = SEAT_SOLID[seat];
-  clone.style.fillOpacity = "0.25";
+  clone.style.opacity = "0.25";
   clone.style.stroke = "none";
   return clone;
 }
@@ -286,6 +286,8 @@ function decorate(
 ): void {
   const overlay = resetOverlay(svg);
 
+  // Pass 1: tile fills + supply overlays. Must paint before outlines/units so that
+  // selection highlights and glow rings always render on top regardless of area order.
   for (const area of areas) {
     const tile = svg.querySelector<SVGGraphicsElement>(`#${CSS.escape(area.id)}`);
     if (!tile) {
@@ -327,6 +329,16 @@ function decorate(
         overlay.appendChild(supplyOverlay);
       }
     }
+  }
+
+  // Pass 2: selection outlines, glow rings, unit stacks — always above supply overlays.
+  for (const area of areas) {
+    const tile = svg.querySelector<SVGGraphicsElement>(`#${CSS.escape(area.id)}`);
+    if (!tile) {
+      continue;
+    }
+    const isTarget = legalTargetIds?.has(area.id) ?? false;
+    const isSource = sourceIds?.has(area.id) ?? false;
 
     if (area.id === selectedAreaId) {
       const outline = makeSelectionOutline(svg, tile);
