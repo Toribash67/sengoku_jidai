@@ -23,8 +23,8 @@ import {
  * on the active map are simply skipped.
  */
 const STARTING_NAVIES: Record<string, { seat: SeatId; ships: number }> = {
-  tile14: { seat: "red", ships: 2 },
-  tile18: { seat: "black", ships: 2 }
+  tile14: { seat: "red", ships: 3 },
+  tile18: { seat: "black", ships: 3 }
 };
 
 export interface GameSetupOptions {
