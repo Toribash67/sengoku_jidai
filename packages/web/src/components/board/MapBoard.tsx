@@ -1,7 +1,7 @@
 import type { PlayerAreaView, SeatId } from "@sengoku-jidai/engine";
 import { useEffect, useRef } from "react";
 import rawMapSvg from "../../../../../cloned_map.svg?raw";
-import { tileFill } from "./tileFill.js";
+import { TILE_LAND_FILL, TILE_SEA_FILL, tileFill } from "./tileFill.js";
 import { slotIdForSpace } from "./slotMapping.js";
 
 export interface MapBoardProps {
@@ -215,6 +215,26 @@ function makeOutline(
   return outline;
 }
 
+/** Filled clone of a tile tinted in the seat colour at 25% opacity, drawn in the
+ *  overlay so the underlying map artwork shows through. */
+function makeSupplyOverlay(
+  svg: SVGSVGElement,
+  tile: SVGGraphicsElement,
+  seat: SeatId
+): SVGElement | null {
+  const m = localToRoot(svg, tile);
+  if (!m) {
+    return null;
+  }
+  const clone = tile.cloneNode(false) as SVGElement;
+  clone.removeAttribute("id");
+  clone.setAttribute("transform", `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
+  clone.style.fill = SEAT_SOLID[seat];
+  clone.style.fillOpacity = "0.25";
+  clone.style.stroke = "none";
+  return clone;
+}
+
 /** Selection outline for a tile, drawn in the overlay so it paints above every
  *  other tile and decoration (SVG paints in document order, and the source tile
  *  sits beneath the later order/feature groups). Clones the tile geometry and pins
@@ -271,9 +291,13 @@ function decorate(
     if (!tile) {
       throw new Error(`cloned_map.svg has no element for area "${area.id}"`);
     }
-    // Owned tiles get the seat tint/stripe; unowned tiles keep their authored colour.
+    // Supplied tiles keep their natural map colour; a translucent overlay provides the tint.
+    // Unsupplied-owned tiles get the stripe pattern. Unowned tiles keep their authored colour.
+    const isSupplied = area.owner !== null && area.suppliedBy === area.owner;
     tile.style.fill =
-      area.owner === null ? (tile.dataset.authoredFill ?? tileFill(area)) : tileFill(area);
+      area.owner === null || isSupplied
+        ? (tile.dataset.authoredFill ?? (area.kind === "sea" ? TILE_SEA_FILL : TILE_LAND_FILL))
+        : tileFill(area);
     tile.style.stroke = "#000000";
     tile.style.strokeWidth = "5";
     tile.style.cursor = "pointer";
@@ -296,6 +320,13 @@ function decorate(
         onSourceClick?.(area.id);
       }
     };
+
+    if (isSupplied && area.owner !== null) {
+      const supplyOverlay = makeSupplyOverlay(svg, tile, area.owner);
+      if (supplyOverlay) {
+        overlay.appendChild(supplyOverlay);
+      }
+    }
 
     if (area.id === selectedAreaId) {
       const outline = makeSelectionOutline(svg, tile);
