@@ -1,7 +1,7 @@
 import type { PlayerAreaView, SeatId } from "@sengoku-jidai/engine";
 import { useEffect, useRef } from "react";
 import rawMapSvg from "../../../../../cloned_map.svg?raw";
-import { TILE_LAND_FILL, TILE_SEA_FILL, tileFill } from "./tileFill.js";
+import { SEAT_SOLID, TILE_LAND_FILL, TILE_SEA_FILL, tileFill } from "./tileFill.js";
 import { slotIdForSpace } from "./slotMapping.js";
 
 export interface MapBoardProps {
