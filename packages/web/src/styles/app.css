@@ -396,3 +396,44 @@ button:disabled {
   display: flex;
   gap: 8px;
 }
+
+.order-composer .target-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.target-option {
+  font-variant-numeric: tabular-nums;
+}
+
+.target-option.is-selected {
+  outline: 2px solid #f0b429;
+  outline-offset: 1px;
+}
+
+.support-actions {
+  margin-top: 16px;
+}
+
+.support-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.support-option {
+  width: 100%;
+  text-align: left;
+}
+
+.support-meta {
+  color: #8a8577;
+  font-variant-numeric: tabular-nums;
+}

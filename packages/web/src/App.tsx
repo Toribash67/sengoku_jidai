@@ -1,9 +1,19 @@
-import type { LegalMove, PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
+import type {
+  Command,
+  LegalMove,
+  LegalPlacement,
+  LegalPlan,
+  LegalStrike,
+  PlayerGameEvent,
+  PlayerGameView,
+  SeatId
+} from "@sengoku-jidai/engine";
 import { getMap } from "@sengoku-jidai/engine";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { AreaDetails } from "./components/board/AreaDetails.js";
 import { MapBoard } from "./components/board/MapBoard.js";
 import { OrderComposer, type ComposerState } from "./components/board/OrderComposer.js";
+import { SupportActions } from "./components/board/SupportActions.js";
 import { ApiError, createHotseatGame, fetchGameView, submitCommand } from "./client/api.js";
 import {
   clearStoredGame,
@@ -89,14 +99,25 @@ export function App() {
     [game, selectedAreaId]
   );
 
+  // Glowing (non-interactive) targets: advance/sail destinations while not composing.
   const legalTargetIds = useMemo(
     () => new Set(composer ? [] : (game?.view.legal.moves ?? []).map((m) => m.targetAreaId)),
     [composer, game?.view.legal.moves]
   );
-  const sourceIds = useMemo(
-    () => new Set(composer ? composer.sources.map((s) => s.areaId) : []),
-    [composer]
-  );
+  // Glowing, clickable tiles for the active composer: move sources, or strike/placement
+  // targets. Plan has no tiles.
+  const sourceIds = useMemo(() => {
+    if (!composer) {
+      return new Set<string>();
+    }
+    if (composer.kind === "move") {
+      return new Set(composer.sources.map((s) => s.areaId));
+    }
+    if (composer.kind === "strike" || composer.kind === "placement") {
+      return new Set(composer.targets);
+    }
+    return new Set<string>();
+  }, [composer]);
 
   async function handleCreateGame() {
     setBusy(true);
@@ -146,6 +167,7 @@ export function App() {
 
   function startOrder(move: LegalMove) {
     setComposer({
+      kind: "move",
       spaceId: move.spaceId,
       type: move.type,
       targetAreaId: move.targetAreaId,
@@ -154,18 +176,82 @@ export function App() {
     });
   }
 
-  function adjustSource(areaId: string, delta: number) {
+  function startStrike(strike: LegalStrike) {
+    setComposer({
+      kind: "strike",
+      spaceId: strike.spaceId,
+      type: strike.type,
+      linkedAreaId: strike.linkedAreaId,
+      targets: [...strike.targets],
+      dice: strike.dice,
+      targetAreaId: strike.targets.length === 1 ? strike.targets[0]! : null
+    });
+  }
+
+  function startPlacement(placement: LegalPlacement) {
+    setComposer({
+      kind: "placement",
+      spaceId: placement.spaceId,
+      type: placement.type,
+      unit: placement.unit,
+      targets: [...placement.targets],
+      pool: placement.pool,
+      reserve: placement.reserve,
+      counts: {}
+    });
+  }
+
+  function startPlan(plan: LegalPlan) {
+    setComposer({ kind: "plan", spaceId: plan.spaceId, initiative: plan.initiative });
+  }
+
+  // Adjust a staged count for a move source or placement target, clamped to its bound:
+  // a move source keeps one unit; a placement is bounded by min(pool, reserve) overall.
+  function adjustCount(areaId: string, delta: number) {
     setComposer((prev) => {
       if (!prev) {
         return prev;
       }
-      const source = prev.sources.find((s) => s.areaId === areaId);
-      if (!source) {
-        return prev;
+      if (prev.kind === "move") {
+        const source = prev.sources.find((s) => s.areaId === areaId);
+        if (!source) {
+          return prev;
+        }
+        const next = clamp((prev.counts[areaId] ?? 0) + delta, 0, source.max);
+        return { ...prev, counts: { ...prev.counts, [areaId]: next } };
       }
-      const next = Math.min(Math.max((prev.counts[areaId] ?? 0) + delta, 0), source.max);
-      return { ...prev, counts: { ...prev.counts, [areaId]: next } };
+      if (prev.kind === "placement") {
+        if (!prev.targets.includes(areaId)) {
+          return prev;
+        }
+        const cap = Math.min(prev.pool, prev.reserve);
+        const others = Object.entries(prev.counts).reduce(
+          (sum, [id, n]) => (id === areaId ? sum : sum + n),
+          0
+        );
+        const next = clamp((prev.counts[areaId] ?? 0) + delta, 0, cap - others);
+        return { ...prev, counts: { ...prev.counts, [areaId]: next } };
+      }
+      return prev;
     });
+  }
+
+  function selectStrikeTarget(areaId: string) {
+    setComposer((prev) =>
+      prev?.kind === "strike" && prev.targets.includes(areaId)
+        ? { ...prev, targetAreaId: areaId }
+        : prev
+    );
+  }
+
+  // A click on a glowing map tile during composition: pick the strike target, or stage a
+  // unit for a move/placement.
+  function handleSourceClick(areaId: string) {
+    if (composer?.kind === "strike") {
+      selectStrikeTarget(areaId);
+    } else {
+      adjustCount(areaId, 1);
+    }
   }
 
   async function handleConfirmOrder() {
@@ -177,21 +263,15 @@ export function App() {
       setError("Missing seat token.");
       return;
     }
-    const moves = composer.sources
-      .map((s) => ({ from: s.areaId, count: composer.counts[s.areaId] ?? 0 }))
-      .filter((m) => m.count > 0);
-    if (moves.length === 0) {
+    const command = buildCommand(composer);
+    if (!command) {
       return;
     }
 
     setBusy(true);
     setError(null);
     try {
-      const response = await submitCommand(game.gameId, token, game.revision, {
-        type: composer.type,
-        spaceId: composer.spaceId,
-        moves
-      });
+      const response = await submitCommand(game.gameId, token, game.revision, command);
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
       }
@@ -277,7 +357,7 @@ export function App() {
           onSelectArea={setSelectedAreaId}
           legalTargetIds={legalTargetIds}
           sourceIds={sourceIds}
-          onSourceClick={(areaId) => adjustSource(areaId, 1)}
+          onSourceClick={handleSourceClick}
         />
 
         <div
@@ -310,7 +390,8 @@ export function App() {
               <OrderComposer
                 composer={composer}
                 busy={busy}
-                onAdjust={adjustSource}
+                onAdjust={adjustCount}
+                onSelectTarget={selectStrikeTarget}
                 onConfirm={handleConfirmOrder}
                 onCancel={() => setComposer(null)}
               />
@@ -323,10 +404,20 @@ export function App() {
                     mapArea={selectedMapArea}
                     view={game.view}
                     onStartOrder={isViewerActive ? startOrder : undefined}
+                    onStartStrike={isViewerActive ? startStrike : undefined}
                   />
                 ) : (
                   <p className="muted">Select an area to see its details.</p>
                 )}
+                {isViewerActive ? (
+                  <SupportActions
+                    placements={game.view.legal.placements}
+                    plans={game.view.legal.plans}
+                    busy={busy}
+                    onStartPlacement={startPlacement}
+                    onStartPlan={startPlan}
+                  />
+                ) : null}
                 <button
                   type="button"
                   onClick={handlePass}
@@ -367,6 +458,44 @@ export function App() {
       </section>
     </main>
   );
+}
+
+/** Build the engine Command for the composed order, or null if nothing is staged yet
+ *  (no units chosen / no strike target). */
+function buildCommand(composer: ComposerState): Command | null {
+  switch (composer.kind) {
+    case "move": {
+      const moves = composer.sources
+        .map((s) => ({ from: s.areaId, count: composer.counts[s.areaId] ?? 0 }))
+        .filter((m) => m.count > 0);
+      // advance and sail share the same { spaceId, moves } payload.
+      return moves.length > 0
+        ? ({ type: composer.type, spaceId: composer.spaceId, moves } as Command)
+        : null;
+    }
+    case "placement": {
+      const placements = composer.targets
+        .map((area) => ({ area, count: composer.counts[area] ?? 0 }))
+        .filter((p) => p.count > 0);
+      return placements.length > 0
+        ? ({ type: composer.type, spaceId: composer.spaceId, placements } as Command)
+        : null;
+    }
+    case "strike":
+      return composer.targetAreaId
+        ? ({
+            type: composer.type,
+            spaceId: composer.spaceId,
+            targetAreaId: composer.targetAreaId
+          } as Command)
+        : null;
+    case "plan":
+      return { type: "plan", spaceId: composer.spaceId };
+  }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 function eventLabel(event: PlayerGameEvent): string {
