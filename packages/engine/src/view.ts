@@ -2,7 +2,17 @@ import { getMap } from "./maps/registry.js";
 import { gameBoard } from "./board.js";
 import { suppliedAreas } from "./supply.js";
 import { victoryPoints } from "./scoring.js";
-import { advanceSources, available, sailReachable } from "./legality.js";
+import {
+  advanceSources,
+  available,
+  sailReachable,
+  reinforceTargets,
+  embarkTargets,
+  bombardTargets,
+  shellTargets,
+  supportTypeOccupied
+} from "./legality.js";
+import { suppliesBonus } from "./validate.js";
 import { buildActionSpaces } from "./actionSpaces.js";
 import type { ActionSpace } from "./actionSpaces.js";
 import type { AreaKind, MapDefinition } from "./maps/riversMap.js";
@@ -35,6 +45,46 @@ export interface LegalMove {
   sources: { areaId: string; max: number }[];
 }
 
+/** An offered Bombard or Shell: deploy into the linked space, then pick one enemy target.
+ *  Bombard is linked to a supplied water and hits adjacent enemy land; Shell is linked to
+ *  a supplied land and hits adjacent enemy water. */
+export interface LegalStrike {
+  /** Linked action space: "bombard-<sea>" | "shell-<land>". */
+  spaceId: string;
+  type: "bombard" | "shell";
+  /** The supplied water (bombard) or land (shell) the space is linked to. */
+  linkedAreaId: string;
+  /** Enemy-held areas that may be targeted. */
+  targets: string[];
+  /** Dice that would be rolled: ships in the linked water (+1 with Pirate Haven) for
+   *  bombard; always two for shell. Informational for the UI. */
+  dice: number;
+}
+
+/** An offered Reinforce (troops) or Embark (ships). These are support spaces with no
+ *  linked board tile; `targets` are the areas units may be placed into. */
+export interface LegalPlacement {
+  /** Support action space: "reinforce-a" | "embark-b" | ... */
+  spaceId: string;
+  type: "reinforce" | "embark";
+  unit: "troop" | "ship";
+  /** Areas the seat may place units into. */
+  targets: string[];
+  /** Units this space allows placing (its amount, +2 for Reinforce with Barracks). */
+  pool: number;
+  /** Units the seat has in reserve; the placeable total is `min(pool, reserve)`. */
+  reserve: number;
+}
+
+/** An offered Plan: a support space (no linked tile) that yields a card and, for the one
+ *  initiative space, next round's initiative. */
+export interface LegalPlan {
+  /** Support action space: "plan-a" | "plan-b". */
+  spaceId: string;
+  /** True for the single Plan space that seizes next-round initiative. */
+  initiative: boolean;
+}
+
 export interface LegalSpace {
   spaceId: string;
   type: ActionType;
@@ -43,7 +93,7 @@ export interface LegalSpace {
   /** Deployability flag only: the space is free and the viewer could deploy a
    *  commander here now. This is NOT a full per-action criteria check — a deployable
    *  space may still reject the specific action (e.g. no legal move exists). Richer
-   *  per-action target enumeration is deferred to the interactive-UI phase. */
+   *  per-action criteria live in the typed action lists below. */
   legal: boolean;
 }
 
@@ -51,7 +101,14 @@ export interface LegalCommandSummary {
   activeSeat: SeatId;
   spaces: LegalSpace[];
   canPass: boolean;
+  /** Advance/Sail movements, each with its legal sources. */
   moves: LegalMove[];
+  /** Bombard/Shell ranged attacks, each with its enemy targets. */
+  strikes: LegalStrike[];
+  /** Reinforce/Embark placements, each with its targets and pool. */
+  placements: LegalPlacement[];
+  /** Plan deployments. */
+  plans: LegalPlan[];
 }
 
 export interface PlayerGameView {
@@ -154,7 +211,10 @@ export function legalCommandsForState(state: GameState, seat: SeatId): LegalComm
     activeSeat: state.activeSeat,
     spaces,
     canPass: canDeploy,
-    moves: canDeploy ? enumerateMoves(state, seat, map, catalog) : []
+    moves: canDeploy ? enumerateMoves(state, seat, map, catalog) : [],
+    strikes: canDeploy ? enumerateStrikes(state, seat, map, catalog) : [],
+    placements: canDeploy ? enumeratePlacements(state, seat, map, catalog) : [],
+    plans: canDeploy ? enumeratePlans(state, seat, map, catalog) : []
   };
 }
 
@@ -187,6 +247,89 @@ function enumerateMoves(
     }
   }
   return moves;
+}
+
+/** Bombard/Shell strikes the seat can deploy now: the linked area must be supplied and
+ *  have at least one enemy target, and (for Bombard) at least one die to roll. */
+function enumerateStrikes(
+  state: GameState,
+  seat: SeatId,
+  map: MapDefinition,
+  catalog: ActionSpace[]
+): LegalStrike[] {
+  const board = gameBoard(state);
+  const supplied = suppliedAreas(map, board, seat);
+  const enemy: SeatId = seat === "red" ? "black" : "red";
+  const strikes: LegalStrike[] = [];
+  for (const space of catalog) {
+    if (space.type !== "bombard" && space.type !== "shell") continue;
+    if (state.actionSpaces[space.id] !== null) continue;
+    if (!state.rules.enabledActions.includes(space.type)) continue;
+    const linked = space.areaId!;
+    if (!supplied.has(linked)) continue;
+    // Land areas hold only troops, sea only ships, so an enemy-owned adjacent area always
+    // holds the unit this strike removes.
+    const targets = (
+      space.type === "bombard" ? bombardTargets(map, linked) : shellTargets(map, linked)
+    ).filter((id) => state.areas[id]?.owner === enemy);
+    if (targets.length === 0) continue;
+    const dice =
+      space.type === "bombard"
+        ? state.areas[linked]!.units.ship + (suppliesBonus(state, seat, "pirateHaven") ? 1 : 0)
+        : 2;
+    if (dice < 1) continue;
+    strikes.push({ spaceId: space.id, type: space.type, linkedAreaId: linked, targets, dice });
+  }
+  return strikes;
+}
+
+/** Reinforce/Embark placements the seat can deploy now: the support type is unused this
+ *  round, there is somewhere to place, and the reserve is non-empty. */
+function enumeratePlacements(
+  state: GameState,
+  seat: SeatId,
+  map: MapDefinition,
+  catalog: ActionSpace[]
+): LegalPlacement[] {
+  const board = gameBoard(state);
+  const placements: LegalPlacement[] = [];
+  for (const space of catalog) {
+    if (space.type !== "reinforce" && space.type !== "embark") continue;
+    if (state.actionSpaces[space.id] !== null) continue;
+    if (!state.rules.enabledActions.includes(space.type)) continue;
+    if (supportTypeOccupied(map, state, seat, space.type)) continue;
+    const unit = space.type === "reinforce" ? "troop" : "ship";
+    const reserve = state.players[seat].reserve[unit];
+    if (reserve <= 0) continue;
+    const targets =
+      space.type === "reinforce"
+        ? [...reinforceTargets(map, board, seat)]
+        : [...embarkTargets(map, state, seat)];
+    if (targets.length === 0) continue;
+    const barracks = space.type === "reinforce" && suppliesBonus(state, seat, "barracks");
+    const pool = space.amount! + (barracks ? 2 : 0);
+    placements.push({ spaceId: space.id, type: space.type, unit, targets, pool, reserve });
+  }
+  return placements;
+}
+
+/** Plan deployments the seat can make now: every free Plan space, unless a Plan space is
+ *  already used this round. */
+function enumeratePlans(
+  state: GameState,
+  seat: SeatId,
+  map: MapDefinition,
+  catalog: ActionSpace[]
+): LegalPlan[] {
+  if (supportTypeOccupied(map, state, seat, "plan")) return [];
+  const plans: LegalPlan[] = [];
+  for (const space of catalog) {
+    if (space.type !== "plan") continue;
+    if (state.actionSpaces[space.id] !== null) continue;
+    if (!state.rules.enabledActions.includes("plan")) continue;
+    plans.push({ spaceId: space.id, initiative: space.initiative ?? false });
+  }
+  return plans;
 }
 
 export function playerEvents(events: GameEvent[]): PlayerGameEvent[] {

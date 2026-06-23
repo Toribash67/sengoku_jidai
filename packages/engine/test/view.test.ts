@@ -105,4 +105,88 @@ describe("playerView (v2)", () => {
     recall.phase = "recall";
     expect(legalCommandsForState(recall, "red").moves).toEqual([]);
   });
+
+  // At setup red supplies exactly {tile9 (HQ), tile14 (navy)} and no bonus slot, so
+  // Barracks/Pirate Haven never apply here — pools and dice are exact.
+
+  it("enumerates reinforce/embark placements with unit, reserve, pool and targets", () => {
+    const summary = legalCommandsForState(state, "red");
+
+    const reinforce = summary.placements.filter((p) => p.type === "reinforce");
+    expect(reinforce.map((p) => p.spaceId).sort()).toEqual(["reinforce-a", "reinforce-b"]);
+    for (const p of reinforce) {
+      expect(p.unit).toBe("troop");
+      expect(p.reserve).toBe(20); // 25 pool - 5 on the HQ
+      expect(p.targets).toEqual(["tile9"]); // only supplied land at setup
+    }
+    expect(reinforce.find((p) => p.spaceId === "reinforce-a")!.pool).toBe(6);
+    expect(reinforce.find((p) => p.spaceId === "reinforce-b")!.pool).toBe(5);
+
+    const embark = summary.placements.filter((p) => p.type === "embark");
+    expect(embark.map((p) => p.spaceId).sort()).toEqual(["embark-a", "embark-b"]);
+    for (const p of embark) {
+      expect(p.unit).toBe("ship");
+      expect(p.reserve).toBe(7); // 10 pool - 3 in the navy
+      expect([...p.targets].sort()).toEqual(["tile14", "tile15"]); // supplied sea + port
+    }
+    expect(embark.find((p) => p.spaceId === "embark-a")!.pool).toBe(3);
+  });
+
+  it("drops reinforce placements once a Reinforce space is used, keeping embark", () => {
+    const used = structuredClone(state);
+    used.actionSpaces["reinforce-a"] = "red";
+    const placements = legalCommandsForState(used, "red").placements;
+    expect(placements.some((p) => p.type === "reinforce")).toBe(false);
+    expect(placements.some((p) => p.type === "embark")).toBe(true);
+  });
+
+  it("enumerates both Plan spaces, flagging the initiative one", () => {
+    const plans = legalCommandsForState(state, "red").plans;
+    expect(plans.find((p) => p.spaceId === "plan-a")).toMatchObject({ initiative: true });
+    expect(plans.find((p) => p.spaceId === "plan-b")).toMatchObject({ initiative: false });
+  });
+
+  it("drops all Plan options once a Plan space is used this round", () => {
+    const used = structuredClone(state);
+    used.actionSpaces["plan-a"] = "red";
+    expect(legalCommandsForState(used, "red").plans).toEqual([]);
+  });
+
+  it("offers no strikes at setup (no enemy borders a supplied area)", () => {
+    expect(legalCommandsForState(state, "red").strikes).toEqual([]);
+  });
+
+  it("enumerates a bombard against enemy land adjacent to supplied water", () => {
+    const scenario = structuredClone(state);
+    // tile19 is land adjacent to red-supplied sea tile14.
+    scenario.areas.tile19 = { owner: "black", units: { troop: 2, ship: 0, siege: 0 } };
+    const strike = legalCommandsForState(scenario, "red").strikes.find(
+      (s) => s.spaceId === "bombard-tile14"
+    );
+    expect(strike).toMatchObject({ type: "bombard", linkedAreaId: "tile14", dice: 3 });
+    // Exact: only the enemy land is offered; the friendly neighbour tile9 is filtered out.
+    expect(strike!.targets).toEqual(["tile19"]);
+  });
+
+  it("enumerates a shell against enemy ships adjacent to supplied shellable land", () => {
+    const scenario = structuredClone(state);
+    // Red controls shellable land tile10 (adjacent to HQ -> supplied); black ships sit on
+    // adjacent sea tile11.
+    scenario.areas.tile10 = { owner: "red", units: { troop: 3, ship: 0, siege: 0 } };
+    scenario.areas.tile11 = { owner: "black", units: { troop: 0, ship: 2, siege: 0 } };
+    const strike = legalCommandsForState(scenario, "red").strikes.find(
+      (s) => s.spaceId === "shell-tile10"
+    );
+    expect(strike).toMatchObject({ type: "shell", linkedAreaId: "tile10", dice: 2 });
+    // Exact: only the enemy sea is offered; friendly/empty neighbour seas are filtered out.
+    expect(strike!.targets).toEqual(["tile11"]);
+  });
+
+  it("gives the non-active seat no strikes, placements, or plans", () => {
+    const other = state.activeSeat === "red" ? "black" : "red";
+    const summary = legalCommandsForState(state, other);
+    expect(summary.strikes).toEqual([]);
+    expect(summary.placements).toEqual([]);
+    expect(summary.plans).toEqual([]);
+  });
 });
