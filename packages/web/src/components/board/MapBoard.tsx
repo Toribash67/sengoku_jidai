@@ -285,6 +285,7 @@ function decorate(
   }: DecorateInput
 ): void {
   const overlay = resetOverlay(svg);
+  let selectedTile: SVGGraphicsElement | null = null;
 
   // Pass 1: tile fills + supply overlays. Must paint before outlines/units so that
   // selection highlights and glow rings always render on top regardless of area order.
@@ -341,10 +342,7 @@ function decorate(
     const isSource = sourceIds?.has(area.id) ?? false;
 
     if (area.id === selectedAreaId) {
-      const outline = makeSelectionOutline(svg, tile);
-      if (outline) {
-        overlay.appendChild(outline);
-      }
+      selectedTile = tile;
     }
     if (isTarget) {
       const glow = makeOutline(svg, tile, "tile-legal-target");
@@ -390,6 +388,16 @@ function decorate(
     const center = centerInRoot(svg, slot);
     if (center) {
       overlay.appendChild(makeOccupancy(center, SEAT_MARK[occupant]));
+    }
+  }
+
+  // Selection outline is appended last so it paints above every other overlay element
+  // (supply tints, glow rings, unit stacks, occupancy marks). Appending it mid-pass let
+  // later tiles' units and the occupancy marks cover it for some selections.
+  if (selectedTile) {
+    const outline = makeSelectionOutline(svg, selectedTile);
+    if (outline) {
+      overlay.appendChild(outline);
     }
   }
 }
