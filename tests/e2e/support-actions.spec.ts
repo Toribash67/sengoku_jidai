@@ -16,10 +16,16 @@ test("reinforces from the support panel and resolves it", async ({ page }) => {
   await switchToActiveSeat(page);
 
   // Open the Reinforce placement composer from the support list.
-  await page.getByRole("button", { name: /^Reinforce/ }).first().click();
+  await page
+    .getByRole("button", { name: /^Reinforce/ })
+    .first()
+    .click();
 
   // Stage one troop on the (only) supplied target, then confirm.
-  await page.getByRole("button", { name: /^More at / }).first().click();
+  await page
+    .getByRole("button", { name: /^More at / })
+    .first()
+    .click();
   await page.getByRole("button", { name: /^Confirm Reinforce/ }).click();
 
   // The order resolved: a unit-placement event is logged.
@@ -36,5 +42,6 @@ test("plans from the support panel and resolves it", async ({ page }) => {
   await page.getByRole("button", { name: /^Plan/ }).first().click();
   await page.getByRole("button", { name: "Confirm Plan" }).click();
 
-  await expect(page.getByText(/commanderDeployed|initiativeSeized/)).toBeVisible();
+  // The initiative Plan space emits both commanderDeployed and initiativeSeized.
+  await expect(page.getByText(/commanderDeployed|initiativeSeized/).first()).toBeVisible();
 });
