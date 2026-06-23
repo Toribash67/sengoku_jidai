@@ -1,4 +1,10 @@
-import type { LegalMove, MapArea, PlayerAreaView, PlayerGameView } from "@sengoku-jidai/engine";
+import type {
+  LegalMove,
+  LegalStrike,
+  MapArea,
+  PlayerAreaView,
+  PlayerGameView
+} from "@sengoku-jidai/engine";
 
 /** Display names for the on-map action types that link to a board area. */
 const ACTION_LABEL: Record<string, string> = {
@@ -13,11 +19,21 @@ interface AreaDetailsProps {
   mapArea: MapArea;
   view: PlayerGameView;
   onStartOrder?: (move: LegalMove) => void;
+  onStartStrike?: (strike: LegalStrike) => void;
 }
 
-export function AreaDetails({ area, mapArea, view, onStartOrder }: AreaDetailsProps) {
+export function AreaDetails({
+  area,
+  mapArea,
+  view,
+  onStartOrder,
+  onStartStrike
+}: AreaDetailsProps) {
   const bonus = view.bonuses[area.id] ?? null;
   const move = view.legal.moves.find((candidate) => candidate.targetAreaId === area.id) ?? null;
+  // Bombard/Shell deploy from this area (the supplied water/land); the target is picked in
+  // the composer.
+  const strike = view.legal.strikes.find((candidate) => candidate.linkedAreaId === area.id) ?? null;
 
   const actions = view.legal.spaces
     .filter((space) => space.areaId === area.id)
@@ -86,6 +102,11 @@ export function AreaDetails({ area, mapArea, view, onStartOrder }: AreaDetailsPr
       {move && onStartOrder ? (
         <button type="button" className="start-order" onClick={() => onStartOrder(move)}>
           {move.type === "advance" ? "Advance" : "Sail"} into {move.targetAreaId}
+        </button>
+      ) : null}
+      {strike && onStartStrike ? (
+        <button type="button" className="start-order" onClick={() => onStartStrike(strike)}>
+          {ACTION_LABEL[strike.type]} from {strike.linkedAreaId}
         </button>
       ) : null}
     </>
