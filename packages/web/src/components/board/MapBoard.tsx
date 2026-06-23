@@ -215,7 +215,7 @@ function makeOutline(
   return outline;
 }
 
-/** Filled clone of a tile tinted in the seat colour at 25% opacity, drawn in the
+/** Filled clone of a tile tinted in the seat colour at 40% opacity, drawn in the
  *  overlay so the underlying map artwork shows through. */
 function makeSupplyOverlay(
   svg: SVGSVGElement,
@@ -230,7 +230,7 @@ function makeSupplyOverlay(
   clone.removeAttribute("id");
   clone.setAttribute("transform", `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
   clone.style.fill = SEAT_SOLID[seat];
-  clone.style.opacity = "0.25";
+  clone.style.opacity = "0.4";
   clone.style.stroke = "none";
   return clone;
 }
