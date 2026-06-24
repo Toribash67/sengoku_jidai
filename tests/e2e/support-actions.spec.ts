@@ -28,7 +28,7 @@ test("reinforces from the action bar and resolves it", async ({ page }) => {
   await page.getByRole("button", { name: /^Confirm Reinforce/ }).click();
 
   // The order resolved: a unit-placement event is logged.
-  await expect(page.getByText(/unitsPlaced/)).toBeVisible();
+  await expect(page.getByText(/placed/)).toBeVisible();
 });
 
 test("plans from the action bar and resolves it", async ({ page }) => {

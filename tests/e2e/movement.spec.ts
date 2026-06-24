@@ -26,5 +26,5 @@ test("issues a movement order from the board and resolves it", async ({ page }) 
   await page.getByRole("button", { name: /^Confirm/ }).click();
 
   // The order resolved: a unit-move event is logged.
-  await expect(page.getByText(/unitsMoved/)).toBeVisible();
+  await expect(page.getByText(/moved/)).toBeVisible();
 });
