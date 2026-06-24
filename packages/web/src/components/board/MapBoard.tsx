@@ -23,6 +23,9 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
 
 const OVERLAY_ID = "map-overlay";
+/** Supply/control tints live in their own group just above the tiles, so the map's
+ *  feature art (HQ/harbour/star/bonus icons) and units paint on top of them. */
+const SUPPLY_LAYER_ID = "map-supply";
 const SEAT_MARK: Record<SeatId, string> = { red: "#7b1f1a", black: "#15181d" };
 
 /** Shared tile geometry defs whose inline fill/stroke must be neutralized so each
@@ -250,20 +253,12 @@ function makeOutline(
   return outline;
 }
 
-/** Filled clone of a tile tinted in the seat colour at 40% opacity, drawn in the
- *  overlay so the underlying map artwork shows through. */
-function makeSupplyOverlay(
-  svg: SVGSVGElement,
-  tile: SVGGraphicsElement,
-  seat: SeatId
-): SVGElement | null {
-  const m = localToRoot(svg, tile);
-  if (!m) {
-    return null;
-  }
+/** Filled clone of a tile tinted in the seat colour at 40% opacity. It keeps the tile's
+ *  own transform so it can live in the supply layer (a sibling of the tiles, sharing their
+ *  coordinate space) and align without any matrix mapping. */
+function makeSupplyTint(tile: SVGGraphicsElement, seat: SeatId): SVGElement {
   const clone = tile.cloneNode(false) as SVGElement;
   clone.removeAttribute("id");
-  clone.setAttribute("transform", `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
   clone.style.fill = SEAT_SOLID[seat];
   clone.style.opacity = "0.4";
   clone.style.stroke = "none";
@@ -312,6 +307,25 @@ function resetOverlay(svg: SVGSVGElement): SVGGElement {
   return overlay;
 }
 
+/** Get (creating if needed) the supply-tint group, emptied for a fresh pass. It is appended
+ *  as the last child of the tiles' parent group, so its tints paint directly above the tiles
+ *  but below the later order/feature/unit layers. Returns null if the tiles aren't found. */
+function resetSupplyLayer(svg: SVGSVGElement): SVGGElement | null {
+  let layer = svg.querySelector<SVGGElement>(`#${SUPPLY_LAYER_ID}`);
+  if (!layer) {
+    const tilesParent = svg.querySelector<SVGElement>('use[id^="tile"]')?.parentElement;
+    if (!tilesParent) {
+      return null;
+    }
+    layer = document.createElementNS(SVG_NS, "g");
+    layer.setAttribute("id", SUPPLY_LAYER_ID);
+    layer.setAttribute("pointer-events", "none");
+    tilesParent.appendChild(layer);
+  }
+  layer.replaceChildren();
+  return layer;
+}
+
 interface DecorateInput {
   areas: PlayerAreaView[];
   selectedAreaId: string | null;
@@ -340,10 +354,11 @@ function decorate(
   }: DecorateInput
 ): void {
   const overlay = resetOverlay(svg);
+  const supplyLayer = resetSupplyLayer(svg);
   let selectedTile: SVGGraphicsElement | null = null;
 
-  // Pass 1: tile fills + supply overlays. Must paint before outlines/units so that
-  // selection highlights and glow rings always render on top regardless of area order.
+  // Pass 1: tile fills + supply tints. The tints go in the low supply layer; the source
+  // stripes, outlines, units, and badges go in the top overlay so they always paint above.
   for (const area of areas) {
     const tile = svg.querySelector<SVGGraphicsElement>(`#${CSS.escape(area.id)}`);
     if (!tile) {
@@ -379,11 +394,8 @@ function decorate(
       }
     };
 
-    if (isSupplied && area.owner !== null) {
-      const supplyOverlay = makeSupplyOverlay(svg, tile, area.owner);
-      if (supplyOverlay) {
-        overlay.appendChild(supplyOverlay);
-      }
+    if (isSupplied && area.owner !== null && supplyLayer) {
+      supplyLayer.appendChild(makeSupplyTint(tile, area.owner));
     }
 
     // Eligible sources/targets get a striped highlight, painted over any supply tint.
