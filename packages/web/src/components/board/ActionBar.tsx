@@ -28,11 +28,13 @@ interface ActionBarProps {
 
 /** A `[−] N [+]` stepper for the currently selected area's staged count. */
 function Stepper({
+  label,
   count,
   canDecrement,
   canIncrement,
   onAdjust
 }: {
+  label: string;
   count: number;
   canDecrement: boolean;
   canIncrement: boolean;
@@ -40,7 +42,7 @@ function Stepper({
 }) {
   return (
     <span className="action-bar-stepper">
-      <span className="stepper-label">Selected area</span>
+      <span className="stepper-label">{label}</span>
       <span className="stepper">
         <button
           type="button"
@@ -113,6 +115,7 @@ function MoveBar({
       </span>
       {source ? (
         <Stepper
+          label="Selected source"
           count={count}
           canDecrement={!busy && count > 0}
           canIncrement={!busy && count < source.max}
@@ -157,6 +160,7 @@ function PlacementBar({
       </span>
       {isTarget && selectedAreaId ? (
         <Stepper
+          label="Selected area"
           count={count}
           canDecrement={!busy && count > 0}
           canIncrement={!busy && total < cap}

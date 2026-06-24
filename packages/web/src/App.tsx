@@ -38,6 +38,8 @@ export function App() {
   const [game, setGame] = useState<LoadedGame | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [composer, setComposer] = useState<ComposerState | null>(null);
+  // The source the stepper adjusts (the last-clicked glowing tile during a move).
+  const [activeSourceId, setActiveSourceId] = useState<string | null>(null);
   const [events, setEvents] = useState<PlayerGameEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +50,11 @@ export function App() {
   useEffect(() => {
     savePanelWidth(panelWidth);
   }, [panelWidth]);
+
+  // Forget the active source whenever the composed order changes or clears.
+  useEffect(() => {
+    setActiveSourceId(null);
+  }, [composer?.spaceId]);
 
   function handleDividerPointerDown(event: PointerEvent<HTMLDivElement>) {
     draggingRef.current = true;
@@ -265,14 +272,24 @@ export function App() {
     );
   }
 
+  // Tile selection. While composing a move, keep the gold highlight pinned to the target
+  // being advanced/sailed into rather than letting it follow source clicks.
+  function handleSelectArea(areaId: string) {
+    if (composer?.kind === "move") {
+      return;
+    }
+    setSelectedAreaId(areaId);
+  }
+
   // A click on a glowing map tile during composition: pick the strike target, or stage a
-  // unit for a move/placement.
+  // unit for a move/placement (and mark it the active source for the stepper).
   function handleSourceClick(areaId: string) {
     if (composer?.kind === "strike") {
       selectStrikeTarget(areaId);
-    } else {
-      adjustCount(areaId, 1);
+      return;
     }
+    setActiveSourceId(areaId);
+    adjustCount(areaId, 1);
   }
 
   async function handleConfirmOrder() {
@@ -347,6 +364,13 @@ export function App() {
 
   const isViewerActive = game.view.activeSeat === game.activeSeat;
 
+  // During a move, the gold highlight stays on the target; the stepper and the solid source
+  // ring follow the active source instead.
+  const isMove = composer?.kind === "move";
+  const goldAreaId = isMove ? composer.targetAreaId : selectedAreaId;
+  const stepperAreaId = isMove ? activeSourceId : selectedAreaId;
+  const mapActiveSourceId = isMove ? activeSourceId : null;
+
   return (
     <main className="app-shell">
       <header className="top-bar">
@@ -374,20 +398,21 @@ export function App() {
           <MapBoard
             areas={game.view.areas}
             activeSeat={game.view.activeSeat}
-            selectedAreaId={selectedAreaId}
+            selectedAreaId={goldAreaId}
             actionSpaces={game.view.actionSpaces}
-            onSelectArea={setSelectedAreaId}
+            onSelectArea={handleSelectArea}
             legalTargetIds={legalTargetIds}
             sourceIds={sourceIds}
             onSourceClick={handleSourceClick}
             stagedCounts={stagedCounts}
+            activeSourceId={mapActiveSourceId}
           />
 
           <ActionBar
             composer={composer}
             isViewerActive={isViewerActive}
             busy={busy}
-            selectedAreaId={selectedAreaId}
+            selectedAreaId={stepperAreaId}
             contextualMove={contextualMove}
             contextualStrike={contextualStrike}
             placements={game.view.legal.placements}

@@ -15,6 +15,8 @@ export interface MapBoardProps {
   onSourceClick?: (areaId: string) => void;
   /** Units staged from each area for the active move/placement; drawn as on-tile badges. */
   stagedCounts?: ReadonlyMap<string, number>;
+  /** The source whose count the action-bar stepper adjusts; gets a solid (vs dashed) ring. */
+  activeSourceId?: string | null;
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -45,6 +47,9 @@ const STRIPE_PATTERNS = `
 <pattern id="stripe-black" patternUnits="userSpaceOnUse" width="26" height="26" patternTransform="rotate(45)">
   <rect width="26" height="26" fill="#d5d3c4"/>
   <rect width="13" height="26" fill="#2f343c"/>
+</pattern>
+<pattern id="stripe-source" patternUnits="userSpaceOnUse" width="22" height="22" patternTransform="rotate(45)">
+  <rect width="11" height="22" fill="#2f9e44"/>
 </pattern>`;
 
 /** Record each tile's authored fill (its inline override, else its geometry def's fill)
@@ -265,6 +270,22 @@ function makeSupplyOverlay(
   return clone;
 }
 
+/** Striped fill clone marking a tile as an eligible source/target during order
+ *  composition; the diagonal stripes read clearly over any underlying tile colour. */
+function makeSourceHighlight(svg: SVGSVGElement, tile: SVGGraphicsElement): SVGElement | null {
+  const m = localToRoot(svg, tile);
+  if (!m) {
+    return null;
+  }
+  const clone = tile.cloneNode(false) as SVGElement;
+  clone.removeAttribute("id");
+  clone.setAttribute("transform", `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
+  clone.style.fill = "url(#stripe-source)";
+  clone.style.opacity = "0.55";
+  clone.style.stroke = "none";
+  return clone;
+}
+
 /** Selection outline for a tile, drawn in the overlay so it paints above every
  *  other tile and decoration (SVG paints in document order, and the source tile
  *  sits beneath the later order/feature groups). Clones the tile geometry and pins
@@ -300,6 +321,7 @@ interface DecorateInput {
   sourceIds?: ReadonlySet<string>;
   onSourceClick?: (areaId: string) => void;
   stagedCounts?: ReadonlyMap<string, number>;
+  activeSourceId?: string | null;
 }
 
 /** Apply per-tile fill, selection stroke, and click handler. */
@@ -313,7 +335,8 @@ function decorate(
     legalTargetIds,
     sourceIds,
     onSourceClick,
-    stagedCounts
+    stagedCounts,
+    activeSourceId
   }: DecorateInput
 ): void {
   const overlay = resetOverlay(svg);
@@ -362,6 +385,14 @@ function decorate(
         overlay.appendChild(supplyOverlay);
       }
     }
+
+    // Eligible sources/targets get a striped highlight, painted over any supply tint.
+    if (isSource) {
+      const stripes = makeSourceHighlight(svg, tile);
+      if (stripes) {
+        overlay.appendChild(stripes);
+      }
+    }
   }
 
   // Pass 2: selection outlines, glow rings, unit stacks — always above supply overlays.
@@ -383,7 +414,9 @@ function decorate(
       }
     }
     if (isSource) {
-      const glow = makeOutline(svg, tile, "tile-source");
+      const ringClass =
+        area.id === activeSourceId ? "tile-source tile-source-active" : "tile-source";
+      const glow = makeOutline(svg, tile, ringClass);
       if (glow) {
         overlay.appendChild(glow);
       }
@@ -452,7 +485,8 @@ export function MapBoard({
   legalTargetIds,
   sourceIds,
   onSourceClick,
-  stagedCounts
+  stagedCounts,
+  activeSourceId
 }: MapBoardProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
@@ -481,7 +515,8 @@ export function MapBoard({
         legalTargetIds,
         sourceIds,
         onSourceClick,
-        stagedCounts
+        stagedCounts,
+        activeSourceId
       });
     }
   }, [
@@ -492,7 +527,8 @@ export function MapBoard({
     legalTargetIds,
     sourceIds,
     onSourceClick,
-    stagedCounts
+    stagedCounts,
+    activeSourceId
   ]);
 
   return (
