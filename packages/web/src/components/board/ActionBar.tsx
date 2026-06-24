@@ -42,11 +42,21 @@ function Stepper({
     <span className="action-bar-stepper">
       <span className="stepper-label">Selected area</span>
       <span className="stepper">
-        <button type="button" onClick={() => onAdjust(-1)} disabled={!canDecrement} aria-label="Fewer">
+        <button
+          type="button"
+          onClick={() => onAdjust(-1)}
+          disabled={!canDecrement}
+          aria-label="Fewer"
+        >
           &minus;
         </button>
         <span className="stepper-count">{count}</span>
-        <button type="button" onClick={() => onAdjust(1)} disabled={!canIncrement} aria-label="More">
+        <button
+          type="button"
+          onClick={() => onAdjust(1)}
+          disabled={!canIncrement}
+          aria-label="More"
+        >
           +
         </button>
       </span>
@@ -180,8 +190,8 @@ function StrikeBar({
       <span className="action-bar-info">
         <strong>{VERB[composer.type]}</strong>
         <span className="action-bar-hint">
-          Rolls {composer.dice} {composer.dice === 1 ? "die" : "dice"}. Tap a glowing enemy area
-          to target it.
+          Rolls {composer.dice} {composer.dice === 1 ? "die" : "dice"}. Tap a glowing enemy area to
+          target it.
         </span>
         <span className="action-bar-total">{hasTarget ? "Target selected" : "No target yet"}</span>
       </span>
@@ -274,7 +284,12 @@ function IdleBar(props: ActionBarProps) {
           </button>
         ))}
         {plans.map((plan) => (
-          <button key={plan.spaceId} type="button" onClick={() => onStartPlan(plan)} disabled={busy}>
+          <button
+            key={plan.spaceId}
+            type="button"
+            onClick={() => onStartPlan(plan)}
+            disabled={busy}
+          >
             Plan {plan.initiative ? <span className="action-meta">★</span> : null}
           </button>
         ))}
