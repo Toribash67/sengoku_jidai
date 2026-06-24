@@ -10,10 +10,14 @@ import shoreStrike from "../../assets/cards/shore_strike.webp";
 import cardBackUrl from "../../assets/cards/rivers_back.webp";
 
 /**
- * Card-face artwork URL by card id. These are web-sized WebP copies (≈110KB, 500px wide) of
- * the full-resolution scans in `cards/rivers/` — regenerate with:
+ * Card-face artwork URL by card id. These are web-sized WebP copies (1000px wide, ≈0.5MB) of
+ * the full-resolution scans in `cards/rivers/` — regenerate the fronts with:
  *   pnpm dlx sharp-cli --input "cards/rivers/*.png" \
- *     --output packages/web/src/assets/cards --format webp resize 500
+ *     --output packages/web/src/assets/cards --format webp resize 1000
+ * The back scan is landscape, so rotate it upright first (two passes — rotate then resize):
+ *   pnpm dlx sharp-cli --input cards/rivers/rivers_back.png --output <tmp> --format png rotate 270
+ *   pnpm dlx sharp-cli --input <tmp>/rivers_back.png \
+ *     --output packages/web/src/assets/cards --format webp resize 1000
  * Vite emits each to dist and the browser fetches it only when the <img> renders.
  */
 const CARD_IMAGE: Record<OperationCard, string> = {
