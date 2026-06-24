@@ -340,10 +340,18 @@ button:disabled {
 
 .tile-source {
   fill: none;
-  stroke: #2f9e44;
-  stroke-width: 6px;
+  stroke: #1f7a34;
+  stroke-width: 7px;
   stroke-dasharray: 14 10;
   animation: glow-pulse 1.4s ease-in-out infinite;
+}
+
+/* The source the action-bar stepper is adjusting: a solid, steady ring. */
+.tile-source-active {
+  stroke: #2f9e44;
+  stroke-width: 9px;
+  stroke-dasharray: none;
+  animation: none;
 }
 
 @keyframes glow-pulse {
