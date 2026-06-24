@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState } from "../src/game.js";
+import type { GameState } from "../src/state.js";
 import { riversMap } from "../src/maps/riversMap.js";
 import { resolveCommand } from "../src/resolve.js";
 
@@ -13,6 +14,16 @@ function game() {
   // Neutralise bonuses so they don't perturb base arithmetic in these tests.
   s.bonuses = {};
   return s;
+}
+
+/** Trigger the roll for a paused combat, submitted by the responsible seat. */
+function rollPending(state: GameState) {
+  const pc = state.pendingCombat!;
+  return resolveCommand(
+    state,
+    { seat: pc.responsibleSeat },
+    { type: "combatRoll", pendingId: pc.id }
+  );
 }
 
 describe("reinforce", () => {
@@ -159,9 +170,17 @@ describe("advance", () => {
     );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
+    // The advance pauses for the defender to roll, holding the attackers off-board.
+    expect(r.nextState.pendingCombat).not.toBeNull();
+    expect(r.nextState.pendingCombat!.responsibleSeat).toBe("black");
+    expect(r.nextState.areas["tile1"]!.owner).toBe("black");
+    const r2 = rollPending(r.nextState);
+    expect(r2.status).toBe("accepted");
+    if (r2.status !== "accepted") return;
     // defence removes 1 -> 2 attackers vs 1 defender; attrition -> 1 vs 0. red wins.
-    expect(r.nextState.areas["tile1"]!.owner).toBe("red");
-    expect(r.nextState.areas["tile1"]!.units.troop).toBe(1);
+    expect(r2.nextState.pendingCombat).toBeNull();
+    expect(r2.nextState.areas["tile1"]!.owner).toBe("red");
+    expect(r2.nextState.areas["tile1"]!.units.troop).toBe(1);
   });
 
   it("Hidden Base adds +1 troop at move-in before conflict", () => {
@@ -182,8 +201,11 @@ describe("advance", () => {
     );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
+    const r2 = rollPending(r.nextState);
+    expect(r2.status).toBe("accepted");
+    if (r2.status !== "accepted") return;
     // 3 attackers, defence -1 -> 2 vs 2 defenders -> tie -> area emptied.
-    expect(r.nextState.areas["tile1"]!.owner).toBeNull();
+    expect(r2.nextState.areas["tile1"]!.owner).toBeNull();
   });
 });
 
@@ -225,8 +247,11 @@ describe("sail", () => {
     );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
+    const r2 = rollPending(r.nextState);
+    expect(r2.status).toBe("accepted");
+    if (r2.status !== "accepted") return;
     // 3 attackers, defence -1 -> 2 vs 2 -> tie -> emptied.
-    expect(r.nextState.areas["tile11"]!.owner).toBeNull();
+    expect(r2.nextState.areas["tile11"]!.owner).toBeNull();
   });
 });
 
@@ -247,9 +272,15 @@ describe("bombard", () => {
     );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
+    // Bombard pauses for the attacker to roll.
+    expect(r.nextState.pendingCombat).not.toBeNull();
+    expect(r.nextState.pendingCombat!.responsibleSeat).toBe("red");
+    const r2 = rollPending(r.nextState);
+    expect(r2.status).toBe("accepted");
+    if (r2.status !== "accepted") return;
     // 2 ships -> 2 dice -> 2 pips -> remove 2 troops; 1 remains.
-    expect(r.nextState.areas["tile16"]!.units.troop).toBe(1);
-    expect(r.nextState.players.black.reserve.troop).toBeGreaterThan(0);
+    expect(r2.nextState.areas["tile16"]!.units.troop).toBe(1);
+    expect(r2.nextState.players.black.reserve.troop).toBeGreaterThan(0);
   });
 
   it("Pirate Haven adds +1 die", () => {
@@ -269,8 +300,11 @@ describe("bombard", () => {
     );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
+    const r2 = rollPending(r.nextState);
+    expect(r2.status).toBe("accepted");
+    if (r2.status !== "accepted") return;
     // 1 ship + 1 pirate haven = 2 dice -> remove 2; 1 remains.
-    expect(r.nextState.areas["tile16"]!.units.troop).toBe(1);
+    expect(r2.nextState.areas["tile16"]!.units.troop).toBe(1);
   });
 });
 
@@ -293,8 +327,11 @@ describe("shell", () => {
     );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
+    const r2 = rollPending(r.nextState);
+    expect(r2.status).toBe("accepted");
+    if (r2.status !== "accepted") return;
     // two dice of 1 -> remove 2 ships; 1 remains.
-    expect(r.nextState.areas["tile11"]!.units.ship).toBe(1);
-    expect(r.nextState.players.black.reserve.ship).toBeGreaterThan(0);
+    expect(r2.nextState.areas["tile11"]!.units.ship).toBe(1);
+    expect(r2.nextState.players.black.reserve.ship).toBeGreaterThan(0);
   });
 });

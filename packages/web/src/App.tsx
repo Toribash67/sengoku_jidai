@@ -12,6 +12,7 @@ import { getMap } from "@sengoku-jidai/engine";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ActionBar } from "./components/board/ActionBar.js";
 import { AreaDetails } from "./components/board/AreaDetails.js";
+import { CombatPanel } from "./components/board/CombatPanel.js";
 import { describeArea } from "./components/board/areaLabel.js";
 import {
   type ComposerState,
@@ -359,6 +360,36 @@ export function App() {
     }
   }
 
+  // Trigger the paused combat's roll (defence die for advance/sail; attacker dice for
+  // bombard/shell). Submitted by the viewer, who must be the responsible seat.
+  async function handleCombatRoll() {
+    if (!game || !game.view.pendingCombat) {
+      return;
+    }
+    const token = game.seats.find((seat) => seat.seat === game.activeSeat)?.token;
+    if (!token) {
+      setError("Missing seat token.");
+      return;
+    }
+    const pendingId = game.view.pendingCombat.id;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await submitCommand(game.gameId, token, game.revision, {
+        type: "combatRoll",
+        pendingId
+      });
+      if (response.view) {
+        setGame({ ...game, revision: response.revision, view: response.view });
+      }
+      setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!game) {
     return (
       <main className="app-shell app-empty">
@@ -374,6 +405,12 @@ export function App() {
   }
 
   const isViewerActive = game.view.activeSeat === game.activeSeat;
+
+  // A paused combat replaces the order bar with the roll step.
+  const pendingCombat = game.view.pendingCombat;
+  const combatAreaLabel = pendingCombat
+    ? describeArea(getMap(game.view.mapId).areas[pendingCombat.area]!)
+    : "";
 
   // During a move, the gold highlight stays on the target; the stepper and the solid source
   // ring follow the active source instead.
@@ -419,25 +456,35 @@ export function App() {
             activeSourceId={mapActiveSourceId}
           />
 
-          <ActionBar
-            composer={composer}
-            isViewerActive={isViewerActive}
-            busy={busy}
-            selectedAreaId={stepperAreaId}
-            contextualMove={contextualMove}
-            contextualStrike={contextualStrike}
-            placements={placements}
-            plans={game.view.legal.plans}
-            canPass={game.view.legal.canPass}
-            onStartOrder={startOrder}
-            onStartStrike={startStrike}
-            onStartPlacement={startPlacement}
-            onStartPlan={startPlan}
-            onPass={handlePass}
-            onAdjust={adjustCount}
-            onConfirm={handleConfirmOrder}
-            onCancel={() => setComposer(null)}
-          />
+          {pendingCombat ? (
+            <CombatPanel
+              pendingCombat={pendingCombat}
+              areaLabel={combatAreaLabel}
+              canRoll={game.view.legal.canRollCombat}
+              busy={busy}
+              onRoll={handleCombatRoll}
+            />
+          ) : (
+            <ActionBar
+              composer={composer}
+              isViewerActive={isViewerActive}
+              busy={busy}
+              selectedAreaId={stepperAreaId}
+              contextualMove={contextualMove}
+              contextualStrike={contextualStrike}
+              placements={placements}
+              plans={game.view.legal.plans}
+              canPass={game.view.legal.canPass}
+              onStartOrder={startOrder}
+              onStartStrike={startStrike}
+              onStartPlacement={startPlacement}
+              onStartPlan={startPlan}
+              onPass={handlePass}
+              onAdjust={adjustCount}
+              onConfirm={handleConfirmOrder}
+              onCancel={() => setComposer(null)}
+            />
+          )}
         </div>
 
         <div
@@ -544,10 +591,23 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function eventLabel(event: PlayerGameEvent): string {
-  if ("seat" in event && typeof event.seat === "string") {
-    return `${event.seat}: ${event.type}`;
+  switch (event.type) {
+    case "diceRolled":
+      return `${event.seat} rolled [${event.rolls.join(", ")}] = ${event.total} (${event.purpose})`;
+    case "unitsRemoved":
+      return `${event.seat} lost ${event.count} ${event.unit}${event.count === 1 ? "" : "s"}`;
+    case "unitsMoved":
+      return `${event.seat} moved ${event.count} ${event.unit}${event.count === 1 ? "" : "s"}`;
+    case "unitsPlaced":
+      return `${event.seat} placed ${event.count} ${event.unit}${event.count === 1 ? "" : "s"}`;
+    case "areaCaptured":
+      return `${event.seat} captured an area`;
+    default:
+      if ("seat" in event && typeof event.seat === "string") {
+        return `${event.seat}: ${event.type}`;
+      }
+      return event.type;
   }
-  return event.type;
 }
 
 function errorMessage(caught: unknown): string {

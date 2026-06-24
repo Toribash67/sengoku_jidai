@@ -128,7 +128,7 @@ export function applyAdvance(
     });
   }
 
-  events.push(...resolveMoveIn(state, seat, target, "troop", attackers));
+  events.push(...resolveMoveIn(state, seat, "advance", target, "troop", attackers));
   return events;
 }
 
@@ -168,12 +168,14 @@ export function applySail(
     });
   }
 
-  events.push(...resolveMoveIn(state, seat, target, "ship", attackers));
+  events.push(...resolveMoveIn(state, seat, "sail", target, "ship", attackers));
   return events;
 }
 
-/** Bombard: roll one die per ship in the linked water (+1 for Pirate Haven); remove that
- *  many enemy land units from the target (-> owner reserve). */
+const enemyOf = (seat: SeatId): SeatId => (seat === "red" ? "black" : "red");
+
+/** Bombard: stage an attacker dice roll — one die per ship in the linked water (+1 for
+ *  Pirate Haven). The roll is triggered later by the attacker via combatRoll. */
 export function applyBombard(
   state: GameState,
   seat: SeatId,
@@ -193,38 +195,37 @@ export function applyBombard(
       area: bonusArea(state, "pirateHaven")!
     });
   }
-  const rolls: number[] = [];
-  let total = 0;
-  for (let i = 0; i < dice; i++) {
-    const roll = rollDie(state.rngState, state.rules.diceFaces);
-    state.rngState = roll.state;
-    rolls.push(roll.value);
-    total += roll.value;
-  }
-  events.push({ type: "diceRolled", seat, purpose: "bombard", rolls, total });
-  events.push(...removeUnits(state, targetAreaId, "troop", total));
+  state.pendingCombat = {
+    id: `combat-${targetAreaId}`,
+    kind: "bombard",
+    attacker: seat,
+    defender: enemyOf(seat),
+    responsibleSeat: seat,
+    area: targetAreaId,
+    unit: "troop",
+    dice
+  };
   return events;
 }
 
-/** Shell: roll two dice; remove that many enemy ships from the target water (-> owner reserve). */
+/** Shell: stage an attacker two-dice roll, triggered later by the attacker via combatRoll. */
 export function applyShell(
   state: GameState,
   seat: SeatId,
   _spaceId: string,
   targetAreaId: string
 ): GameEvent[] {
-  const events: GameEvent[] = [];
-  const rolls: number[] = [];
-  let total = 0;
-  for (let i = 0; i < 2; i++) {
-    const roll = rollDie(state.rngState, state.rules.diceFaces);
-    state.rngState = roll.state;
-    rolls.push(roll.value);
-    total += roll.value;
-  }
-  events.push({ type: "diceRolled", seat, purpose: "shell", rolls, total });
-  events.push(...removeUnits(state, targetAreaId, "ship", total));
-  return events;
+  state.pendingCombat = {
+    id: `combat-${targetAreaId}`,
+    kind: "shell",
+    attacker: seat,
+    defender: enemyOf(seat),
+    responsibleSeat: seat,
+    area: targetAreaId,
+    unit: "ship",
+    dice: 2
+  };
+  return [];
 }
 
 /** Remove up to `count` units of `unit` from `area`, returning them to the owner's reserve. */
@@ -247,18 +248,20 @@ function removeUnits(
 }
 
 /**
- * Shared move-in + conflict for Advance/Sail. `attackers` units of `unit` arrive in
- * `target`; resolve against any enemy garrison and set ownership.
+ * Shared move-in for Advance/Sail. `attackers` units of `unit` arrive at `target`. A
+ * peaceful move-in (empty or own area) captures immediately; an enemy-held target stages a
+ * `pendingCombat` instead — the attackers are held in the pending record (off-board) until
+ * the defender triggers the defence roll via `resolvePendingCombat`.
  */
 export function resolveMoveIn(
   state: GameState,
   seat: SeatId,
+  kind: "advance" | "sail",
   target: string,
   unit: "troop" | "ship",
   attackers: number
 ): GameEvent[] {
   const rt = state.areas[target]!;
-  const enemy: SeatId = seat === "red" ? "black" : "red";
   const events: GameEvent[] = [];
 
   if (rt.owner == null || rt.owner === seat) {
@@ -270,40 +273,95 @@ export function resolveMoveIn(
     return events;
   }
 
-  // Enemy-controlled: conflict.
-  const defenders = rt.units[unit];
-  const outcome = resolveConflict(state.rngState, state.rules.diceFaces, attackers, defenders);
-  state.rngState = outcome.rngState;
-  events.push({
-    type: "diceRolled",
-    seat,
-    purpose: "defence",
-    rolls: [outcome.defenceRoll],
-    total: outcome.defenceRoll
-  });
+  // Enemy-controlled: pause for the defender to roll. The board is frozen while pending,
+  // so the defender snapshot stays valid until resolution.
+  state.pendingCombat = {
+    id: `combat-${target}`,
+    kind,
+    attacker: seat,
+    defender: rt.owner,
+    responsibleSeat: rt.owner,
+    area: target,
+    unit,
+    attackers,
+    defenders: rt.units[unit]
+  };
+  return events;
+}
 
-  state.players[seat].reserve[unit] += outcome.attackerLosses;
-  state.players[enemy].reserve[unit] += outcome.defenderLosses;
-  if (outcome.attackerLosses > 0)
-    events.push({ type: "unitsRemoved", seat, area: target, unit, count: outcome.attackerLosses });
-  if (outcome.defenderLosses > 0)
+/**
+ * Resolve the paused combat once its roll is triggered. Advance/Sail run the defence-die
+ * conflict (`resolveConflict`) on the held attackers vs the defender garrison; Bombard/Shell
+ * roll the attacker's dice and remove enemy units. Clears `pendingCombat`.
+ */
+export function resolvePendingCombat(state: GameState): GameEvent[] {
+  const pc = state.pendingCombat!;
+  const rt = state.areas[pc.area]!;
+  const events: GameEvent[] = [];
+
+  if (pc.kind === "advance" || pc.kind === "sail") {
+    const outcome = resolveConflict(
+      state.rngState,
+      state.rules.diceFaces,
+      pc.attackers!,
+      pc.defenders!
+    );
+    state.rngState = outcome.rngState;
     events.push({
-      type: "unitsRemoved",
-      seat: enemy,
-      area: target,
-      unit,
-      count: outcome.defenderLosses
+      type: "diceRolled",
+      seat: pc.responsibleSeat,
+      purpose: "defence",
+      rolls: [outcome.defenceRoll],
+      total: outcome.defenceRoll
     });
 
-  if (outcome.attackersLeft > 0) {
-    rt.owner = seat;
-    rt.units[unit] = outcome.attackersLeft;
-    events.push({ type: "areaCaptured", seat, area: target, previousOwner: enemy });
-  } else if (outcome.defendersLeft > 0) {
-    rt.units[unit] = outcome.defendersLeft; // defender holds
+    state.players[pc.attacker].reserve[pc.unit] += outcome.attackerLosses;
+    state.players[pc.defender].reserve[pc.unit] += outcome.defenderLosses;
+    if (outcome.attackerLosses > 0)
+      events.push({
+        type: "unitsRemoved",
+        seat: pc.attacker,
+        area: pc.area,
+        unit: pc.unit,
+        count: outcome.attackerLosses
+      });
+    if (outcome.defenderLosses > 0)
+      events.push({
+        type: "unitsRemoved",
+        seat: pc.defender,
+        area: pc.area,
+        unit: pc.unit,
+        count: outcome.defenderLosses
+      });
+
+    if (outcome.attackersLeft > 0) {
+      rt.owner = pc.attacker;
+      rt.units[pc.unit] = outcome.attackersLeft;
+      events.push({
+        type: "areaCaptured",
+        seat: pc.attacker,
+        area: pc.area,
+        previousOwner: pc.defender
+      });
+    } else if (outcome.defendersLeft > 0) {
+      rt.units[pc.unit] = outcome.defendersLeft; // defender holds
+    } else {
+      rt.owner = null; // mutual annihilation
+      rt.units[pc.unit] = 0;
+    }
   } else {
-    rt.owner = null; // mutual annihilation
-    rt.units[unit] = 0;
+    const rolls: number[] = [];
+    let total = 0;
+    for (let i = 0; i < pc.dice!; i++) {
+      const roll = rollDie(state.rngState, state.rules.diceFaces);
+      state.rngState = roll.state;
+      rolls.push(roll.value);
+      total += roll.value;
+    }
+    events.push({ type: "diceRolled", seat: pc.responsibleSeat, purpose: pc.kind, rolls, total });
+    events.push(...removeUnits(state, pc.area, pc.unit, total));
   }
+
+  state.pendingCombat = null;
   return events;
 }
