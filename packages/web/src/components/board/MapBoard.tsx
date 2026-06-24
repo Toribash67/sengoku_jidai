@@ -23,9 +23,10 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
 
 const OVERLAY_ID = "map-overlay";
-/** Supply/control tints live in their own group just above the tiles, so the map's
- *  feature art (HQ/harbour/star/bonus icons) and units paint on top of them. */
-const SUPPLY_LAYER_ID = "map-supply";
+/** Supply/control tints live in a group appended to each tile group (the map splits tiles
+ *  into #tile-sea and #tile-land), so they paint just above their own tiles but below the
+ *  map's feature art (HQ/harbour/star/bonus icons) and units. */
+const SUPPLY_LAYER_CLASS = "map-supply";
 const SEAT_MARK: Record<SeatId, string> = { red: "#7b1f1a", black: "#15181d" };
 
 /** Shared tile geometry defs whose inline fill/stroke must be neutralized so each
@@ -246,11 +247,20 @@ function makeOutline(
     return null;
   }
   const outline = tile.cloneNode(false) as SVGElement;
-  outline.removeAttribute("id");
+  stripTileHooks(outline);
   outline.setAttribute("class", className);
   outline.setAttribute("transform", `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
   outline.style.fill = "none";
   return outline;
+}
+
+/** Strip a tile clone's id and the data-* hooks (selection/test markers) the source tile
+ *  carries, so decoration clones never shadow the real tiles in a query or locator. */
+function stripTileHooks(clone: SVGElement): void {
+  clone.removeAttribute("id");
+  clone.removeAttribute("data-source");
+  clone.removeAttribute("data-legal-target");
+  clone.removeAttribute("data-authored-fill");
 }
 
 /** Filled clone of a tile tinted in the seat colour at 40% opacity. It keeps the tile's
@@ -258,7 +268,7 @@ function makeOutline(
  *  coordinate space) and align without any matrix mapping. */
 function makeSupplyTint(tile: SVGGraphicsElement, seat: SeatId): SVGElement {
   const clone = tile.cloneNode(false) as SVGElement;
-  clone.removeAttribute("id");
+  stripTileHooks(clone);
   clone.style.fill = SEAT_SOLID[seat];
   clone.style.opacity = "0.4";
   clone.style.stroke = "none";
@@ -273,7 +283,7 @@ function makeSourceHighlight(svg: SVGSVGElement, tile: SVGGraphicsElement): SVGE
     return null;
   }
   const clone = tile.cloneNode(false) as SVGElement;
-  clone.removeAttribute("id");
+  stripTileHooks(clone);
   clone.setAttribute("transform", `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
   clone.style.fill = "url(#stripe-source)";
   clone.style.opacity = "0.55";
@@ -307,22 +317,29 @@ function resetOverlay(svg: SVGSVGElement): SVGGElement {
   return overlay;
 }
 
-/** Get (creating if needed) the supply-tint group, emptied for a fresh pass. It is appended
- *  as the last child of the tiles' parent group, so its tints paint directly above the tiles
- *  but below the later order/feature/unit layers. Returns null if the tiles aren't found. */
-function resetSupplyLayer(svg: SVGSVGElement): SVGGElement | null {
-  let layer = svg.querySelector<SVGGElement>(`#${SUPPLY_LAYER_ID}`);
-  if (!layer) {
-    const tilesParent = svg.querySelector<SVGElement>('use[id^="tile"]')?.parentElement;
-    if (!tilesParent) {
-      return null;
-    }
-    layer = document.createElementNS(SVG_NS, "g");
-    layer.setAttribute("id", SUPPLY_LAYER_ID);
-    layer.setAttribute("pointer-events", "none");
-    tilesParent.appendChild(layer);
+/** Empty every supply-tint group for a fresh pass (one exists per tile group). */
+function clearSupplyLayers(svg: SVGSVGElement): void {
+  for (const layer of svg.querySelectorAll<SVGGElement>(`g.${SUPPLY_LAYER_CLASS}`)) {
+    layer.replaceChildren();
   }
-  layer.replaceChildren();
+}
+
+/** Get (creating if needed) the supply-tint group for a tile, appended as the last child of
+ *  that tile's own parent group so the tint paints directly above its tiles but below the
+ *  later order/feature/unit layers. Keyed per parent because the map splits tiles into
+ *  #tile-sea and #tile-land. */
+function supplyLayerFor(tile: SVGGraphicsElement): SVGGElement | null {
+  const parent = tile.parentElement;
+  if (!parent) {
+    return null;
+  }
+  let layer = parent.querySelector<SVGGElement>(`:scope > g.${SUPPLY_LAYER_CLASS}`);
+  if (!layer) {
+    layer = document.createElementNS(SVG_NS, "g");
+    layer.setAttribute("class", SUPPLY_LAYER_CLASS);
+    layer.setAttribute("pointer-events", "none");
+    parent.appendChild(layer);
+  }
   return layer;
 }
 
@@ -354,7 +371,7 @@ function decorate(
   }: DecorateInput
 ): void {
   const overlay = resetOverlay(svg);
-  const supplyLayer = resetSupplyLayer(svg);
+  clearSupplyLayers(svg);
   let selectedTile: SVGGraphicsElement | null = null;
 
   // Pass 1: tile fills + supply tints. The tints go in the low supply layer; the source
@@ -394,8 +411,8 @@ function decorate(
       }
     };
 
-    if (isSupplied && area.owner !== null && supplyLayer) {
-      supplyLayer.appendChild(makeSupplyTint(tile, area.owner));
+    if (isSupplied && area.owner !== null) {
+      supplyLayerFor(tile)?.appendChild(makeSupplyTint(tile, area.owner));
     }
 
     // Eligible sources/targets get a striped highlight, painted over any supply tint.
