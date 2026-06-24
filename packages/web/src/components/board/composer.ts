@@ -1,3 +1,20 @@
+import type { LegalPlacement } from "@sengoku-jidai/engine";
+
+/** When several placement spaces of the same type are open (e.g. Reinforce 6 and 5), a
+ *  player always wants the largest, so the panel offers only the biggest per type. The
+ *  smaller space still surfaces once the larger is occupied — it then drops out of the
+ *  larger's slot and becomes the only legal space of its type. */
+export function largestPlacementPerType(placements: LegalPlacement[]): LegalPlacement[] {
+  const best = new Map<LegalPlacement["type"], LegalPlacement>();
+  for (const placement of placements) {
+    const current = best.get(placement.type);
+    if (!current || placement.pool > current.pool) {
+      best.set(placement.type, placement);
+    }
+  }
+  return placements.filter((placement) => best.get(placement.type) === placement);
+}
+
 /** The in-progress order being composed. One variant per action shape: movement
  *  (advance/sail) and placement (reinforce/embark) stage per-area counts; a strike
  *  (bombard/shell) picks a single enemy target; plan just deploys. The UI for these lives

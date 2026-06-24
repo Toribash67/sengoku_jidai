@@ -13,7 +13,11 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerE
 import { ActionBar } from "./components/board/ActionBar.js";
 import { AreaDetails } from "./components/board/AreaDetails.js";
 import { describeArea } from "./components/board/areaLabel.js";
-import { type ComposerState, stagedCountsFor } from "./components/board/composer.js";
+import {
+  type ComposerState,
+  largestPlacementPerType,
+  stagedCountsFor
+} from "./components/board/composer.js";
 import { MapBoard } from "./components/board/MapBoard.js";
 import { ApiError, createHotseatGame, fetchGameView, submitCommand } from "./client/api.js";
 import {
@@ -146,6 +150,13 @@ export function App() {
 
   // Staged units per area for the active move/placement, drawn as on-map badges.
   const stagedCounts = useMemo(() => stagedCountsFor(composer), [composer]);
+
+  // Offer only the largest open space per placement type (e.g. Reinforce 6 over 5) to keep
+  // the order panel uncluttered; the smaller one reappears once the larger is occupied.
+  const placements = useMemo(
+    () => largestPlacementPerType(game?.view.legal.placements ?? []),
+    [game?.view.legal.placements]
+  );
 
   async function handleCreateGame() {
     setBusy(true);
@@ -415,7 +426,7 @@ export function App() {
             selectedAreaId={stepperAreaId}
             contextualMove={contextualMove}
             contextualStrike={contextualStrike}
-            placements={game.view.legal.placements}
+            placements={placements}
             plans={game.view.legal.plans}
             canPass={game.view.legal.canPass}
             onStartOrder={startOrder}
