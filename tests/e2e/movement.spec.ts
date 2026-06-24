@@ -16,8 +16,8 @@ test("issues a movement order from the board and resolves it", async ({ page }) 
   await expect(target).toBeVisible();
   await target.click();
 
-  // Start the linked Advance/Sail order from the detail panel.
-  await page.getByRole("button", { name: /into / }).click();
+  // The selected tile reveals its order in the bottom action bar; start it.
+  await page.getByRole("button", { name: /^(Advance|Sail) here$/ }).click();
 
   // A legal source glows; click it to stage one unit, then confirm.
   const source = page.locator("[data-source='true']").first();

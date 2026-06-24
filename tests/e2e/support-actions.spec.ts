@@ -9,30 +9,29 @@ async function switchToActiveSeat(page: import("@playwright/test").Page): Promis
   return actor!;
 }
 
-test("reinforces from the support panel and resolves it", async ({ page }) => {
+test("reinforces from the action bar and resolves it", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "New hotseat game" }).click();
   await expect(page.getByTestId("board")).toBeVisible();
   await switchToActiveSeat(page);
 
-  // Open the Reinforce placement composer from the support list.
+  // Open the Reinforce placement composer from the bottom action bar.
   await page
     .getByRole("button", { name: /^Reinforce/ })
     .first()
     .click();
 
-  // Stage one troop on the (only) supplied target, then confirm.
-  await page
-    .getByRole("button", { name: /^More at / })
-    .first()
-    .click();
+  // Supplied targets glow on the map; click one to stage a troop, then confirm.
+  const target = page.locator("[data-source='true']").first();
+  await expect(target).toBeVisible();
+  await target.click();
   await page.getByRole("button", { name: /^Confirm Reinforce/ }).click();
 
   // The order resolved: a unit-placement event is logged.
   await expect(page.getByText(/unitsPlaced/)).toBeVisible();
 });
 
-test("plans from the support panel and resolves it", async ({ page }) => {
+test("plans from the action bar and resolves it", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "New hotseat game" }).click();
   await expect(page.getByTestId("board")).toBeVisible();

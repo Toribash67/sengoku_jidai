@@ -10,10 +10,11 @@ import type {
 } from "@sengoku-jidai/engine";
 import { getMap } from "@sengoku-jidai/engine";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { ActionBar } from "./components/board/ActionBar.js";
 import { AreaDetails } from "./components/board/AreaDetails.js";
+import { describeArea } from "./components/board/areaLabel.js";
+import { type ComposerState, stagedCountsFor } from "./components/board/composer.js";
 import { MapBoard } from "./components/board/MapBoard.js";
-import { OrderComposer, type ComposerState } from "./components/board/OrderComposer.js";
-import { SupportActions } from "./components/board/SupportActions.js";
 import { ApiError, createHotseatGame, fetchGameView, submitCommand } from "./client/api.js";
 import {
   clearStoredGame,
@@ -118,6 +119,26 @@ export function App() {
     }
     return new Set<string>();
   }, [composer]);
+
+  // Orders contextual to the selected tile: an advance/sail into it, or a bombard/shell
+  // linked to it. Offered as buttons in the bottom action bar (same matching as before).
+  const contextualMove = useMemo(
+    () =>
+      selectedAreaId
+        ? (game?.view.legal.moves.find((m) => m.targetAreaId === selectedAreaId) ?? null)
+        : null,
+    [game?.view.legal.moves, selectedAreaId]
+  );
+  const contextualStrike = useMemo(
+    () =>
+      selectedAreaId
+        ? (game?.view.legal.strikes.find((s) => s.linkedAreaId === selectedAreaId) ?? null)
+        : null,
+    [game?.view.legal.strikes, selectedAreaId]
+  );
+
+  // Staged units per area for the active move/placement, drawn as on-map badges.
+  const stagedCounts = useMemo(() => stagedCountsFor(composer), [composer]);
 
   async function handleCreateGame() {
     setBusy(true);
@@ -349,16 +370,39 @@ export function App() {
         ref={layoutRef}
         style={{ "--panel-width": `${panelWidth}px` } as CSSProperties}
       >
-        <MapBoard
-          areas={game.view.areas}
-          activeSeat={game.view.activeSeat}
-          selectedAreaId={selectedAreaId}
-          actionSpaces={game.view.actionSpaces}
-          onSelectArea={setSelectedAreaId}
-          legalTargetIds={legalTargetIds}
-          sourceIds={sourceIds}
-          onSourceClick={handleSourceClick}
-        />
+        <div className="board-column">
+          <MapBoard
+            areas={game.view.areas}
+            activeSeat={game.view.activeSeat}
+            selectedAreaId={selectedAreaId}
+            actionSpaces={game.view.actionSpaces}
+            onSelectArea={setSelectedAreaId}
+            legalTargetIds={legalTargetIds}
+            sourceIds={sourceIds}
+            onSourceClick={handleSourceClick}
+            stagedCounts={stagedCounts}
+          />
+
+          <ActionBar
+            composer={composer}
+            isViewerActive={isViewerActive}
+            busy={busy}
+            selectedAreaId={selectedAreaId}
+            contextualMove={contextualMove}
+            contextualStrike={contextualStrike}
+            placements={game.view.legal.placements}
+            plans={game.view.legal.plans}
+            canPass={game.view.legal.canPass}
+            onStartOrder={startOrder}
+            onStartStrike={startStrike}
+            onStartPlacement={startPlacement}
+            onStartPlan={startPlan}
+            onPass={handlePass}
+            onAdjust={adjustCount}
+            onConfirm={handleConfirmOrder}
+            onCancel={() => setComposer(null)}
+          />
+        </div>
 
         <div
           className="layout-divider"
@@ -386,46 +430,11 @@ export function App() {
           </div>
 
           <section className="panel-section">
-            {composer ? (
-              <OrderComposer
-                composer={composer}
-                busy={busy}
-                onAdjust={adjustCount}
-                onSelectTarget={selectStrikeTarget}
-                onConfirm={handleConfirmOrder}
-                onCancel={() => setComposer(null)}
-              />
+            <h2>{selectedMapArea ? describeArea(selectedMapArea) : "Select an area"}</h2>
+            {selectedArea && selectedMapArea ? (
+              <AreaDetails area={selectedArea} mapArea={selectedMapArea} view={game.view} />
             ) : (
-              <>
-                <h2>{selectedArea ? selectedArea.id : "Select an area"}</h2>
-                {selectedArea && selectedMapArea ? (
-                  <AreaDetails
-                    area={selectedArea}
-                    mapArea={selectedMapArea}
-                    view={game.view}
-                    onStartOrder={isViewerActive ? startOrder : undefined}
-                    onStartStrike={isViewerActive ? startStrike : undefined}
-                  />
-                ) : (
-                  <p className="muted">Select an area to see its details.</p>
-                )}
-                {isViewerActive ? (
-                  <SupportActions
-                    placements={game.view.legal.placements}
-                    plans={game.view.legal.plans}
-                    busy={busy}
-                    onStartPlacement={startPlacement}
-                    onStartPlan={startPlan}
-                  />
-                ) : null}
-                <button
-                  type="button"
-                  onClick={handlePass}
-                  disabled={busy || !isViewerActive || !game.view.legal.canPass}
-                >
-                  Pass
-                </button>
-              </>
+              <p className="muted">Tap an area on the map to see its details.</p>
             )}
           </section>
 

@@ -10,12 +10,10 @@ test("creates a hotseat game, renders the SVG board, and selects a tile", async 
   // The canonical map is inlined: the red HQ tile exists and is clickable.
   await expect(page.locator("#tile9")).toBeVisible();
   await page.locator("#tile9").click();
-  await expect(page.getByRole("heading", { name: "tile9" })).toBeVisible();
 
-  // Selecting a tile shows its traits and the actions linked to it.
+  // Tiles are referred to by a descriptive name, never the raw id; the panel shows traits.
+  await expect(page.getByRole("heading", { name: "Red HQ" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Traits" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Actions", exact: true })).toBeVisible();
-  await expect(page.getByText("Advance")).toBeVisible();
 
   await page.reload();
   await expect(page.getByTestId("board")).toBeVisible();

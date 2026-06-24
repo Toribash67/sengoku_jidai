@@ -295,6 +295,23 @@ button:disabled {
     padding-left: 0;
     padding-top: 16px;
   }
+
+  /* Pin the bar to the bottom of the viewport so orders stay thumb-reachable while the
+     page scrolls on small screens. */
+  .action-bar {
+    position: sticky;
+    bottom: 8px;
+    z-index: 5;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.12);
+  }
+
+  .action-bar button {
+    min-height: 44px;
+  }
+
+  .action-bar-support {
+    margin-left: 0;
+  }
 }
 
 .tile-units {
@@ -339,32 +356,75 @@ button:disabled {
   }
 }
 
-.start-order {
-  margin-top: 12px;
-  width: 100%;
-}
-
-.order-composer .source-list {
-  list-style: none;
-  margin: 12px 0;
-  padding: 0;
+/* Bottom action bar: contextual + support actions when idle, compose controls when an
+   order is being built. Sits under the map in the board column. */
+.board-column {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
-.order-composer .source-list li {
+.action-bar {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #c7d4ce;
+  border-radius: 8px;
+  background: #ffffff;
+  min-height: 60px;
+}
+
+.action-bar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-bar-support {
+  margin-left: auto;
+}
+
+.action-bar-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.action-bar-info strong {
+  font-size: 1.05rem;
+}
+
+.action-bar-total {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.action-bar-hint {
+  color: #65716c;
+}
+
+.action-bar-stepper {
+  display: inline-flex;
   align-items: center;
   gap: 10px;
 }
 
-.order-composer .source-name {
-  flex: 1;
-  font-weight: 600;
+.stepper-label {
+  color: #65716c;
+  font-size: 0.85rem;
 }
 
-.order-composer .source-max {
+.action-bar-buttons {
+  display: inline-flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.action-meta {
   color: #8a8577;
   font-variant-numeric: tabular-nums;
 }
@@ -376,8 +436,8 @@ button:disabled {
 }
 
 .stepper button {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   line-height: 1;
 }
@@ -385,55 +445,19 @@ button:disabled {
 .stepper-count {
   min-width: 1.5ch;
   text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.composer-total {
   font-weight: 600;
-}
-
-.composer-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.order-composer .target-list {
-  list-style: none;
-  margin: 12px 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.target-option {
   font-variant-numeric: tabular-nums;
 }
 
-.target-option.is-selected {
-  outline: 2px solid #f0b429;
-  outline-offset: 1px;
+/* Staged-units badge drawn on the map during composition. */
+.tile-staged-badge circle {
+  fill: #f0b429;
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 2px;
 }
 
-.support-actions {
-  margin-top: 16px;
-}
-
-.support-list {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.support-option {
-  width: 100%;
-  text-align: left;
-}
-
-.support-meta {
-  color: #8a8577;
-  font-variant-numeric: tabular-nums;
+.tile-staged-badge-text {
+  fill: #1d1500;
+  stroke: none;
+  font-size: 20px;
 }
