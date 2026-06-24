@@ -1,16 +1,21 @@
 import type { OperationCard } from "@sengoku-jidai/engine";
-import ambush from "../../../../../cards/rivers/ambush.png?url";
-import commandeer from "../../../../../cards/rivers/commandeer.png?url";
-import counterattack from "../../../../../cards/rivers/counterattack.png?url";
-import groundAssault from "../../../../../cards/rivers/ground_assault.png?url";
-import mobilise from "../../../../../cards/rivers/mobilise.png?url";
-import riverAssault from "../../../../../cards/rivers/river_assault.png?url";
-import shipStrike from "../../../../../cards/rivers/ship_strike.png?url";
-import shoreStrike from "../../../../../cards/rivers/shore_strike.png?url";
-import cardBackUrl from "../../../../../cards/rivers/rivers_back.png?url";
+import ambush from "../../assets/cards/ambush.webp";
+import commandeer from "../../assets/cards/commandeer.webp";
+import counterattack from "../../assets/cards/counterattack.webp";
+import groundAssault from "../../assets/cards/ground_assault.webp";
+import mobilise from "../../assets/cards/mobilise.webp";
+import riverAssault from "../../assets/cards/river_assault.webp";
+import shipStrike from "../../assets/cards/ship_strike.webp";
+import shoreStrike from "../../assets/cards/shore_strike.webp";
+import cardBackUrl from "../../assets/cards/rivers_back.webp";
 
-/** Card-face artwork URL by card id. Vite emits each PNG to dist and the browser fetches it
- *  only when the <img> renders, so the JS bundle stays small. */
+/**
+ * Card-face artwork URL by card id. These are web-sized WebP copies (≈110KB, 500px wide) of
+ * the full-resolution scans in `cards/rivers/` — regenerate with:
+ *   pnpm dlx sharp-cli --input "cards/rivers/*.png" \
+ *     --output packages/web/src/assets/cards --format webp resize 500
+ * Vite emits each to dist and the browser fetches it only when the <img> renders.
+ */
 const CARD_IMAGE: Record<OperationCard, string> = {
   ambush,
   commandeer,

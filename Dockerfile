@@ -4,10 +4,9 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages ./packages
-# The web build references root assets: the canonical map (cloned_map.svg?raw) and the
-# operation-card art (cards/rivers/*.png?url). Both must be in the build context.
+# The web build inlines the canonical map (packages/web imports ../../../../../cloned_map.svg?raw).
+# Card art lives under packages/web/src/assets (web-sized webp), copied via `COPY packages`.
 COPY cloned_map.svg ./
-COPY cards ./cards
 
 RUN corepack enable
 RUN corepack pnpm install --frozen-lockfile
