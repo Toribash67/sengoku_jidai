@@ -387,6 +387,63 @@ button:disabled {
   min-height: 60px;
 }
 
+/* Combat step: replaces the order bar while a roll is pending. */
+.combat-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 2px solid #b03a32;
+  border-radius: 8px;
+  background: #fff6f4;
+  min-height: 60px;
+}
+
+.combat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.combat-info strong {
+  font-size: 1.05rem;
+}
+
+.combat-detail {
+  color: #65716c;
+}
+
+.combat-dice {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.die {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: #ffffff;
+  border: 2px solid #b03a32;
+}
+
+.die-pending {
+  color: #b03a32;
+  border-style: dashed;
+}
+
+.combat-buttons {
+  display: inline-flex;
+  gap: 8px;
+  margin-left: auto;
+  align-items: center;
+}
+
 .action-bar-group {
   display: flex;
   flex-wrap: wrap;

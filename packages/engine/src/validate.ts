@@ -27,6 +27,24 @@ export function validateCommand(
   actor: CommandActor,
   command: Command
 ): RejectionReason | null {
+  // Pending-combat gate: while a combat awaits its roll, only the responsible seat's
+  // combatRoll is legal.
+  if (state.pendingCombat) {
+    if (command.type !== "combatRoll") {
+      return reject("pendingDecisionRequired", "Resolve the pending combat first.");
+    }
+    if (state.pendingCombat.id !== command.pendingId) {
+      return reject("pendingDecisionNotFound", "No such pending combat.");
+    }
+    if (state.pendingCombat.responsibleSeat !== actor.seat) {
+      return reject("notActiveSeat", "This seat cannot roll for this combat.");
+    }
+    return null;
+  }
+  if (command.type === "combatRoll") {
+    return reject("pendingDecisionNotFound", "No combat is awaiting a roll.");
+  }
+
   // Pending-decision gate (future cards seam).
   if (state.pendingDecision && command.type !== "choosePendingDecision") {
     return reject("pendingDecisionRequired", "A pending decision must be answered first.");

@@ -14,7 +14,8 @@ import {
   applyAdvance,
   applySail,
   applyBombard,
-  applyShell
+  applyShell,
+  resolvePendingCombat
 } from "./actions.js";
 
 const other = (seat: SeatId): SeatId => (seat === "red" ? "black" : "red");
@@ -39,6 +40,9 @@ export function resolveCommand(
   // deployCommander: occupy the chosen space (support/linked) — pass goes to standby.
   if (command.type === "pass") {
     events.push(...applyPass(next, seat));
+  } else if (command.type === "combatRoll") {
+    // Resume a paused combat: roll, apply casualties, then fall through to the turn tail.
+    events.push(...resolvePendingCombat(next));
   } else if (command.type === "choosePendingDecision") {
     // v1 seam: never reached (pendingDecision is always null), but resolve harmlessly.
     next.pendingDecision = null;
@@ -48,10 +52,16 @@ export function resolveCommand(
     events.push(...dispatchAction(next, seat, command));
   }
 
+  next.revision = state.revision + 1;
+
+  // An action that moved into an enemy area or fired a strike pauses here for the
+  // responsible seat to roll. Defer caps/end-check/turn until combatRoll resolves it.
+  if (next.pendingCombat) {
+    return { status: "accepted", nextState: next, events };
+  }
+
   // enforceCaps: land <= 5, water <= 3; excess -> owner reserve.
   events.push(...enforceCaps(next));
-
-  next.revision = state.revision + 1;
 
   // checkGameEnd (immediate): an emptied HQ loses now.
   const ended = checkHqElimination(next);

@@ -16,7 +16,14 @@ import { suppliesBonus } from "./validate.js";
 import { buildActionSpaces } from "./actionSpaces.js";
 import type { ActionSpace } from "./actionSpaces.js";
 import type { AreaKind, MapDefinition } from "./maps/riversMap.js";
-import type { EndReason, GameState, PendingDecision, Phase, UnitCounts } from "./state.js";
+import type {
+  EndReason,
+  GameState,
+  PendingCombat,
+  PendingDecision,
+  Phase,
+  UnitCounts
+} from "./state.js";
 import type { GameMode, GameStatus, SeatId } from "./types.js";
 import type { ActionType, BonusType } from "./rules.js";
 import type { GameEvent } from "./commands.js";
@@ -109,6 +116,8 @@ export interface LegalCommandSummary {
   placements: LegalPlacement[];
   /** Plan deployments. */
   plans: LegalPlan[];
+  /** True when a combat is paused and this seat is the one who must roll. */
+  canRollCombat: boolean;
 }
 
 export interface PlayerGameView {
@@ -128,6 +137,9 @@ export interface PlayerGameView {
   actionSpaces: Record<string, SeatId | null>;
   victoryPoints: Record<SeatId, number>;
   pendingDecision: PendingDecision | null;
+  /** A combat awaiting its roll, if any. Public to both seats (the matchup is not hidden);
+   *  `responsibleSeat` says who rolls. Null when no combat is pending. */
+  pendingCombat: PendingCombat | null;
   winner: SeatId | null;
   endReason: EndReason | null;
   legal: LegalCommandSummary;
@@ -183,6 +195,7 @@ export function playerView(state: GameState, viewerSeat: SeatId): PlayerGameView
       state.pendingDecision && state.pendingDecision.seat === viewerSeat
         ? state.pendingDecision
         : null,
+    pendingCombat: state.pendingCombat,
     winner: state.winner,
     endReason: state.endReason,
     legal: legalCommandsForState(state, viewerSeat)
@@ -198,6 +211,7 @@ export function legalCommandsForState(state: GameState, seat: SeatId): LegalComm
     state.phase === "deploy" &&
     state.activeSeat === seat &&
     state.pendingDecision === null &&
+    state.pendingCombat === null &&
     available(state, seat) > 0;
 
   const spaces: LegalSpace[] = catalog.map((space) => ({
@@ -214,7 +228,8 @@ export function legalCommandsForState(state: GameState, seat: SeatId): LegalComm
     moves: canDeploy ? enumerateMoves(state, seat, map, catalog) : [],
     strikes: canDeploy ? enumerateStrikes(state, seat, map, catalog) : [],
     placements: canDeploy ? enumeratePlacements(state, seat, map, catalog) : [],
-    plans: canDeploy ? enumeratePlans(state, seat, map, catalog) : []
+    plans: canDeploy ? enumeratePlans(state, seat, map, catalog) : [],
+    canRollCombat: state.pendingCombat !== null && state.pendingCombat.responsibleSeat === seat
   };
 }
 
@@ -342,6 +357,15 @@ function buildPrompt(state: GameState, viewer: SeatId): string {
   }
   if (state.status === "complete") {
     return state.winner ? `Game over — ${state.winner} wins.` : "Game over.";
+  }
+  if (state.pendingCombat) {
+    const pc = state.pendingCombat;
+    if (pc.responsibleSeat !== viewer) {
+      return `Waiting for ${pc.responsibleSeat} to resolve combat.`;
+    }
+    return pc.kind === "advance" || pc.kind === "sail"
+      ? "Roll the defence die."
+      : `Roll to ${pc.kind}.`;
   }
   if (state.pendingDecision) {
     return state.pendingDecision.seat === viewer

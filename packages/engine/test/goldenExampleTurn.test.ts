@@ -68,17 +68,36 @@ describe("golden: Rulebook Example of Bombard (page 19)", () => {
     // --- Issue the Bombard command ---
     // Action space: "bombard-tile7" (Bombard in tile7 water area).
     // Target: "tile10" (adjacent land area with black troops).
-    const result = resolveCommand(
+    const staged = resolveCommand(
       s,
       { seat: "red" },
       { type: "bombard", spaceId: "bombard-tile7", targetAreaId: "tile10" }
     );
 
-    // --- Assert the command was accepted ---
+    // --- Bombard pauses for the attacker (red) to roll ---
+    expect(staged.status).toBe("accepted");
+    if (staged.status !== "accepted") return;
+    expect(staged.nextState.pendingCombat).not.toBeNull();
+    expect(staged.nextState.pendingCombat!.responsibleSeat).toBe("red");
+    // The action space is occupied immediately and the revision bumped at staging.
+    expect(staged.nextState.actionSpaces["bombard-tile7"]).toBe("red");
+    expect(staged.nextState.revision).toBe(s.revision + 1);
+
+    // --- Red triggers the dice roll, resolving the bombard ---
+    const pc = staged.nextState.pendingCombat!;
+    const result = resolveCommand(
+      staged.nextState,
+      { seat: "red" },
+      {
+        type: "combatRoll",
+        pendingId: pc.id
+      }
+    );
     expect(result.status).toBe("accepted");
     if (result.status !== "accepted") return;
 
     const next = result.nextState;
+    expect(next.pendingCombat).toBeNull();
 
     // --- Assert the rulebook outcome ---
     // Rulebook p.19: "Bo (black) removes his two troops, leaving none remaining.
@@ -97,11 +116,11 @@ describe("golden: Rulebook Example of Bombard (page 19)", () => {
     expect(next.areas["tile7"]!.units.ship).toBe(2);
     expect(next.areas["tile7"]!.owner).toBe("red");
 
-    // The action space is now occupied by red's commander.
+    // The action space is still occupied by red's commander.
     expect(next.actionSpaces["bombard-tile7"]).toBe("red");
 
-    // Revision was bumped.
-    expect(next.revision).toBe(s.revision + 1);
+    // Revision bumped again by the roll command (staging was s.revision + 1).
+    expect(next.revision).toBe(s.revision + 2);
 
     // The diceRolled event was emitted with purpose "bombard" and total of 4 pips
     // (2 dice × 2 faces = 4), which is >= 2 troops and explains the full removal.
