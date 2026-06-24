@@ -39,6 +39,7 @@ describe("pending combat lifecycle", () => {
     expect(paused.pendingCombat).not.toBeNull();
     expect(paused.pendingCombat!.kind).toBe("advance");
     expect(paused.pendingCombat!.responsibleSeat).toBe("black");
+    expect(paused.pendingCombat!.phase).toBe("awaiting-roll");
     expect(paused.activeSeat).toBe("red"); // turn has NOT advanced yet
     // The defender's garrison is still on the board; attackers are held off-board.
     expect(paused.areas["tile1"]!.owner).toBe("black");
@@ -76,17 +77,53 @@ describe("pending combat lifecycle", () => {
     expect(badId.status).toBe("rejected");
   });
 
-  it("the defender's roll resolves the combat and advances the turn", () => {
+  it("the roll shows the result without removing units; continue applies it and advances the turn", () => {
     const paused = advanceIntoEnemy();
     const pendingId = paused.pendingCombat!.id;
-    const r = resolveCommand(paused, { seat: "black" }, { type: "combatRoll", pendingId });
-    expect(r.status).toBe("accepted");
-    if (r.status !== "accepted") return;
-    expect(r.nextState.pendingCombat).toBeNull();
+
+    // Roll: dice are recorded and shown, but the board is untouched and still paused.
+    const rolled = resolveCommand(paused, { seat: "black" }, { type: "combatRoll", pendingId });
+    expect(rolled.status).toBe("accepted");
+    if (rolled.status !== "accepted") return;
+    expect(rolled.nextState.pendingCombat!.phase).toBe("rolled");
+    expect(rolled.nextState.pendingCombat!.rolls).toEqual([1]);
+    expect(rolled.nextState.areas["tile1"]!.owner).toBe("black"); // no casualties yet
+    expect(rolled.nextState.activeSeat).toBe("red"); // turn still not advanced
+
+    // You cannot roll twice; you must continue (resolve).
+    const reroll = resolveCommand(
+      rolled.nextState,
+      { seat: "black" },
+      {
+        type: "combatRoll",
+        pendingId
+      }
+    );
+    expect(reroll.status).toBe("rejected");
+
+    // Continue: casualties land and the turn advances.
+    const resolved = resolveCommand(
+      rolled.nextState,
+      { seat: "black" },
+      {
+        type: "combatResolve",
+        pendingId
+      }
+    );
+    expect(resolved.status).toBe("accepted");
+    if (resolved.status !== "accepted") return;
+    expect(resolved.nextState.pendingCombat).toBeNull();
     // defence removes 1 -> 2 attackers vs 1 defender -> attrition -> red holds with 1.
-    expect(r.nextState.areas["tile1"]!.owner).toBe("red");
-    expect(r.nextState.areas["tile1"]!.units.troop).toBe(1);
-    expect(r.nextState.activeSeat).toBe("black"); // turn advanced after resolution
+    expect(resolved.nextState.areas["tile1"]!.owner).toBe("red");
+    expect(resolved.nextState.areas["tile1"]!.units.troop).toBe(1);
+    expect(resolved.nextState.activeSeat).toBe("black"); // turn advanced after resolution
+  });
+
+  it("cannot continue (resolve) before rolling", () => {
+    const paused = advanceIntoEnemy();
+    const pendingId = paused.pendingCombat!.id;
+    const early = resolveCommand(paused, { seat: "black" }, { type: "combatResolve", pendingId });
+    expect(early.status).toBe("rejected");
   });
 
   it("combatRoll with no pending combat is rejected", () => {
@@ -95,16 +132,31 @@ describe("pending combat lifecycle", () => {
     expect(r.status).toBe("rejected");
   });
 
-  it("exposes the pending combat to both seats; only the responsible seat can roll", () => {
+  it("exposes the pending combat to both seats; only the responsible seat can roll/continue", () => {
     const paused = advanceIntoEnemy();
     const defenderView = playerView(paused, "black");
     const attackerView = playerView(paused, "red");
     expect(defenderView.pendingCombat).not.toBeNull();
     expect(attackerView.pendingCombat).not.toBeNull();
     expect(defenderView.legal.canRollCombat).toBe(true);
+    expect(defenderView.legal.canResolveCombat).toBe(false); // not rolled yet
     expect(attackerView.legal.canRollCombat).toBe(false);
     // Deploys are blocked for both while pending.
     expect(defenderView.legal.canPass).toBe(false);
     expect(attackerView.legal.canPass).toBe(false);
+
+    // After rolling, the defender may continue (not roll again).
+    const rolled = resolveCommand(
+      paused,
+      { seat: "black" },
+      {
+        type: "combatRoll",
+        pendingId: paused.pendingCombat!.id
+      }
+    );
+    if (rolled.status !== "accepted") throw new Error("roll rejected");
+    const afterRoll = playerView(rolled.nextState, "black");
+    expect(afterRoll.legal.canRollCombat).toBe(false);
+    expect(afterRoll.legal.canResolveCombat).toBe(true);
   });
 });

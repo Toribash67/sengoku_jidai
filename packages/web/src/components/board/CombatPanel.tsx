@@ -4,10 +4,13 @@ interface CombatPanelProps {
   pendingCombat: PendingCombat;
   /** Human label for the contested area (never a raw tile id). */
   areaLabel: string;
-  /** True when the viewer is the seat that must roll. */
+  /** True when the viewer may roll (dice not yet thrown). */
   canRoll: boolean;
+  /** True when the dice are shown and the viewer may continue (apply casualties). */
+  canResolve: boolean;
   busy: boolean;
   onRoll: () => void;
+  onResolve: () => void;
 }
 
 /** Headline + sub-text describing a pending combat, with no tile ids. Pure + exported for
@@ -32,44 +35,62 @@ export function describeCombat(
   };
 }
 
-/** A row of placeholder dice glyphs for the dice about to be rolled. */
-function DiceRow({ count }: { count: number }) {
+/** A row of dice: the rolled faces once thrown, else placeholders for the count to come. */
+function DiceRow({ count, values }: { count: number; values?: number[] }) {
+  const faces: (number | null)[] = values ?? Array.from({ length: count }, () => null);
   return (
     <span className="combat-dice" aria-hidden="true">
-      {Array.from({ length: count }, (_, i) => (
-        <span key={i} className="die die-pending">
-          ?
+      {faces.map((face, i) => (
+        <span key={i} className={face === null ? "die die-pending" : "die die-rolled"}>
+          {face === null ? "?" : face}
         </span>
       ))}
     </span>
   );
 }
 
-/** The interactive combat step: shows the matchup and lets the responsible seat roll. The
- *  disabled "Play card" control is the seam for future card-driven reroll/extra dice. The
- *  rolled values and casualties appear in the event log once resolved. */
-export function CombatPanel({ pendingCombat, areaLabel, canRoll, busy, onRoll }: CombatPanelProps) {
+/** The interactive combat step. Phase `awaiting-roll`: show the matchup and let the
+ *  responsible seat roll. Phase `rolled`: show the dice and let them continue (apply
+ *  casualties) — the disabled "Reroll" control is the seam for future card-driven rerolls. */
+export function CombatPanel({
+  pendingCombat,
+  areaLabel,
+  canRoll,
+  canResolve,
+  busy,
+  onRoll,
+  onResolve
+}: CombatPanelProps) {
   const { headline, detail, diceCount } = describeCombat(pendingCombat, areaLabel);
+  const rolled = pendingCombat.phase === "rolled";
+  const responsible = canRoll || canResolve;
   return (
     <div className="combat-panel" aria-label="Combat">
       <div className="combat-info">
         <strong>{headline}</strong>
         <span className="combat-detail">{detail}</span>
       </div>
-      <DiceRow count={diceCount} />
+      <DiceRow count={diceCount} values={rolled ? pendingCombat.rolls : undefined} />
+      {rolled ? <span className="combat-total">= {pendingCombat.total}</span> : null}
       <span className="combat-buttons">
-        {canRoll ? (
-          <button type="button" onClick={onRoll} disabled={busy}>
+        {!responsible ? (
+          <span className="action-bar-hint">
+            Waiting for {pendingCombat.responsibleSeat} to {rolled ? "continue" : "roll"}…
+          </span>
+        ) : rolled ? (
+          <>
+            <button type="button" onClick={onResolve} disabled={busy || !canResolve}>
+              Continue
+            </button>
+            <button type="button" className="secondary-action" disabled title="Cards coming soon">
+              Reroll (card)
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={onRoll} disabled={busy || !canRoll}>
             Roll
           </button>
-        ) : (
-          <span className="action-bar-hint">
-            Waiting for {pendingCombat.responsibleSeat} to roll…
-          </span>
         )}
-        <button type="button" className="secondary-action" disabled title="Cards coming soon">
-          Play card
-        </button>
       </span>
     </div>
   );

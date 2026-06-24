@@ -15,7 +15,8 @@ import {
   applySail,
   applyBombard,
   applyShell,
-  resolvePendingCombat
+  rollPendingCombat,
+  applyPendingCombat
 } from "./actions.js";
 
 const other = (seat: SeatId): SeatId => (seat === "red" ? "black" : "red");
@@ -41,8 +42,12 @@ export function resolveCommand(
   if (command.type === "pass") {
     events.push(...applyPass(next, seat));
   } else if (command.type === "combatRoll") {
-    // Resume a paused combat: roll, apply casualties, then fall through to the turn tail.
-    events.push(...resolvePendingCombat(next));
+    // Throw the dice and pause again on the `rolled` phase for the responsible seat to
+    // review (and, with cards, reroll) before casualties land on combatResolve.
+    events.push(...rollPendingCombat(next));
+  } else if (command.type === "combatResolve") {
+    // Apply the reviewed roll, then fall through to the turn tail.
+    events.push(...applyPendingCombat(next));
   } else if (command.type === "choosePendingDecision") {
     // v1 seam: never reached (pendingDecision is always null), but resolve harmlessly.
     next.pendingDecision = null;

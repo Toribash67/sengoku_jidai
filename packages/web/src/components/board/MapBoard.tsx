@@ -17,6 +17,9 @@ export interface MapBoardProps {
   stagedCounts?: ReadonlyMap<string, number>;
   /** The source whose count the action-bar stepper adjusts; gets a solid (vs dashed) ring. */
   activeSourceId?: string | null;
+  /** During advance/sail combat, the attacker's off-board units to show on the contested
+   *  tile alongside the defender. */
+  pendingAttack?: { area: string; seat: SeatId; unit: "troop" | "ship"; count: number } | null;
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -353,6 +356,7 @@ interface DecorateInput {
   onSourceClick?: (areaId: string) => void;
   stagedCounts?: ReadonlyMap<string, number>;
   activeSourceId?: string | null;
+  pendingAttack?: { area: string; seat: SeatId; unit: "troop" | "ship"; count: number } | null;
 }
 
 /** Apply per-tile fill, selection stroke, and click handler. */
@@ -367,7 +371,8 @@ function decorate(
     sourceIds,
     onSourceClick,
     stagedCounts,
-    activeSourceId
+    activeSourceId,
+    pendingAttack
   }: DecorateInput
 ): void {
   const overlay = resetOverlay(svg);
@@ -466,6 +471,20 @@ function decorate(
       }
     }
 
+    // During advance/sail combat, show the attacker's incoming stack on the contested tile
+    // (held off-board in pendingCombat), anchored above the defender's garrison so both
+    // sides are visible.
+    if (pendingAttack && pendingAttack.area === area.id && pendingAttack.count > 0) {
+      const anchor = bboxPointInRoot(svg, tile, 0.5, 0.26);
+      if (anchor) {
+        const def =
+          pendingAttack.unit === "troop"
+            ? ARMY_DEF[pendingAttack.seat]
+            : SHIP_DEF[pendingAttack.seat];
+        renderUnitStack(overlay, def, pendingAttack.count, anchor);
+      }
+    }
+
     // Staged-units badge near the top of the tile during composition (above the stack).
     const staged = stagedCounts?.get(area.id) ?? 0;
     if (staged > 0) {
@@ -515,7 +534,8 @@ export function MapBoard({
   sourceIds,
   onSourceClick,
   stagedCounts,
-  activeSourceId
+  activeSourceId,
+  pendingAttack
 }: MapBoardProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
@@ -545,7 +565,8 @@ export function MapBoard({
         sourceIds,
         onSourceClick,
         stagedCounts,
-        activeSourceId
+        activeSourceId,
+        pendingAttack
       });
     }
   }, [
@@ -557,7 +578,8 @@ export function MapBoard({
     sourceIds,
     onSourceClick,
     stagedCounts,
-    activeSourceId
+    activeSourceId,
+    pendingAttack
   ]);
 
   return (

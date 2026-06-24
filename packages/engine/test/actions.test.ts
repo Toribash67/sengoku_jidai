@@ -16,13 +16,20 @@ function game() {
   return s;
 }
 
-/** Trigger the roll for a paused combat, submitted by the responsible seat. */
+/** Roll then resolve a paused combat (both submitted by the responsible seat), returning
+ *  the final result. */
 function rollPending(state: GameState) {
   const pc = state.pendingCombat!;
-  return resolveCommand(
+  const rolled = resolveCommand(
     state,
     { seat: pc.responsibleSeat },
     { type: "combatRoll", pendingId: pc.id }
+  );
+  if (rolled.status !== "accepted") return rolled;
+  return resolveCommand(
+    rolled.nextState,
+    { seat: pc.responsibleSeat },
+    { type: "combatResolve", pendingId: pc.id }
   );
 }
 

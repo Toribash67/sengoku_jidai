@@ -116,8 +116,10 @@ export interface LegalCommandSummary {
   placements: LegalPlacement[];
   /** Plan deployments. */
   plans: LegalPlan[];
-  /** True when a combat is paused and this seat is the one who must roll. */
+  /** True when a combat is paused awaiting its roll and this seat is the one who rolls. */
   canRollCombat: boolean;
+  /** True when the dice are rolled and this seat may continue (apply the casualties). */
+  canResolveCombat: boolean;
 }
 
 export interface PlayerGameView {
@@ -229,7 +231,14 @@ export function legalCommandsForState(state: GameState, seat: SeatId): LegalComm
     strikes: canDeploy ? enumerateStrikes(state, seat, map, catalog) : [],
     placements: canDeploy ? enumeratePlacements(state, seat, map, catalog) : [],
     plans: canDeploy ? enumeratePlans(state, seat, map, catalog) : [],
-    canRollCombat: state.pendingCombat !== null && state.pendingCombat.responsibleSeat === seat
+    canRollCombat:
+      state.pendingCombat !== null &&
+      state.pendingCombat.responsibleSeat === seat &&
+      state.pendingCombat.phase === "awaiting-roll",
+    canResolveCombat:
+      state.pendingCombat !== null &&
+      state.pendingCombat.responsibleSeat === seat &&
+      state.pendingCombat.phase === "rolled"
   };
 }
 
@@ -362,6 +371,9 @@ function buildPrompt(state: GameState, viewer: SeatId): string {
     const pc = state.pendingCombat;
     if (pc.responsibleSeat !== viewer) {
       return `Waiting for ${pc.responsibleSeat} to resolve combat.`;
+    }
+    if (pc.phase === "rolled") {
+      return "Review the roll, then continue.";
     }
     return pc.kind === "advance" || pc.kind === "sail"
       ? "Roll the defence die."

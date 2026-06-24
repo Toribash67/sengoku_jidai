@@ -83,13 +83,38 @@ describe("golden: Rulebook Example of Bombard (page 19)", () => {
     expect(staged.nextState.actionSpaces["bombard-tile7"]).toBe("red");
     expect(staged.nextState.revision).toBe(s.revision + 1);
 
-    // --- Red triggers the dice roll, resolving the bombard ---
+    // --- Red rolls the dice; the result is shown but no troops are removed yet ---
     const pc = staged.nextState.pendingCombat!;
-    const result = resolveCommand(
+    const rolled = resolveCommand(
       staged.nextState,
       { seat: "red" },
       {
         type: "combatRoll",
+        pendingId: pc.id
+      }
+    );
+    expect(rolled.status).toBe("accepted");
+    if (rolled.status !== "accepted") return;
+    // Still paused on the review phase; the garrison is untouched until the player continues.
+    expect(rolled.nextState.pendingCombat!.phase).toBe("rolled");
+    expect(rolled.nextState.areas["tile10"]!.units.troop).toBe(2);
+
+    // The diceRolled event was emitted with purpose "bombard" and total of 4 pips
+    // (2 dice × 2 faces = 4), which is >= 2 troops and explains the full removal.
+    const diceEvent = rolled.events.find((e) => e.type === "diceRolled");
+    expect(diceEvent).toBeDefined();
+    if (diceEvent?.type === "diceRolled") {
+      expect(diceEvent.purpose).toBe("bombard");
+      expect(diceEvent.rolls).toHaveLength(2); // one die per ship
+      expect(diceEvent.total).toBeGreaterThanOrEqual(2); // enough to remove both troops
+    }
+
+    // --- Red continues; casualties land ---
+    const result = resolveCommand(
+      rolled.nextState,
+      { seat: "red" },
+      {
+        type: "combatResolve",
         pendingId: pc.id
       }
     );
@@ -119,17 +144,7 @@ describe("golden: Rulebook Example of Bombard (page 19)", () => {
     // The action space is still occupied by red's commander.
     expect(next.actionSpaces["bombard-tile7"]).toBe("red");
 
-    // Revision bumped again by the roll command (staging was s.revision + 1).
-    expect(next.revision).toBe(s.revision + 2);
-
-    // The diceRolled event was emitted with purpose "bombard" and total of 4 pips
-    // (2 dice × 2 faces = 4), which is >= 2 troops and explains the full removal.
-    const diceEvent = result.events.find((e) => e.type === "diceRolled");
-    expect(diceEvent).toBeDefined();
-    if (diceEvent?.type === "diceRolled") {
-      expect(diceEvent.purpose).toBe("bombard");
-      expect(diceEvent.rolls).toHaveLength(2); // one die per ship
-      expect(diceEvent.total).toBeGreaterThanOrEqual(2); // enough to remove both troops
-    }
+    // Revision bumped per command: staging (+1), roll (+2), resolve (+3).
+    expect(next.revision).toBe(s.revision + 3);
   });
 });

@@ -4,7 +4,7 @@ import type { SeatId } from "./types.js";
 import { getMap } from "./maps/registry.js";
 import { actionSpaceMap } from "./actionSpaces.js";
 import { suppliesBonus } from "./validate.js";
-import { resolveConflict } from "./conflict.js";
+import { conflictOutcome } from "./conflict.js";
 import { rollDie } from "./rng.js";
 
 /** Pass: deploy a commander to standby (unavailable until next round). */
@@ -201,6 +201,7 @@ export function applyBombard(
     attacker: seat,
     defender: enemyOf(seat),
     responsibleSeat: seat,
+    phase: "awaiting-roll",
     area: targetAreaId,
     unit: "troop",
     dice
@@ -221,6 +222,7 @@ export function applyShell(
     attacker: seat,
     defender: enemyOf(seat),
     responsibleSeat: seat,
+    phase: "awaiting-roll",
     area: targetAreaId,
     unit: "ship",
     dice: 2
@@ -281,6 +283,7 @@ export function resolveMoveIn(
     attacker: seat,
     defender: rt.owner,
     responsibleSeat: rt.owner,
+    phase: "awaiting-roll",
     area: target,
     unit,
     attackers,
@@ -290,30 +293,41 @@ export function resolveMoveIn(
 }
 
 /**
- * Resolve the paused combat once its roll is triggered. Advance/Sail run the defence-die
- * conflict (`resolveConflict`) on the held attackers vs the defender garrison; Bombard/Shell
- * roll the attacker's dice and remove enemy units. Clears `pendingCombat`.
+ * Roll the paused combat's dice (RNG happens here), record them on `pendingCombat`, and
+ * move it to the `rolled` phase WITHOUT touching the board. The responsible seat then
+ * reviews the result before `applyPendingCombat` lands the casualties. Returns the
+ * `diceRolled` event so the log/animation can show the throw.
  */
-export function resolvePendingCombat(state: GameState): GameEvent[] {
+export function rollPendingCombat(state: GameState): GameEvent[] {
+  const pc = state.pendingCombat!;
+  const count = pc.kind === "advance" || pc.kind === "sail" ? 1 : pc.dice!;
+  const rolls: number[] = [];
+  let total = 0;
+  for (let i = 0; i < count; i++) {
+    const roll = rollDie(state.rngState, state.rules.diceFaces);
+    state.rngState = roll.state;
+    rolls.push(roll.value);
+    total += roll.value;
+  }
+  pc.rolls = rolls;
+  pc.total = total;
+  pc.phase = "rolled";
+  const purpose = pc.kind === "advance" || pc.kind === "sail" ? "defence" : pc.kind;
+  return [{ type: "diceRolled", seat: pc.responsibleSeat, purpose, rolls, total }];
+}
+
+/**
+ * Apply the reviewed roll to the board and clear `pendingCombat`. Advance/Sail run the
+ * defence-die conflict math (`conflictOutcome`) on the held attackers vs the defender
+ * garrison; Bombard/Shell remove the rolled total of enemy units.
+ */
+export function applyPendingCombat(state: GameState): GameEvent[] {
   const pc = state.pendingCombat!;
   const rt = state.areas[pc.area]!;
   const events: GameEvent[] = [];
 
   if (pc.kind === "advance" || pc.kind === "sail") {
-    const outcome = resolveConflict(
-      state.rngState,
-      state.rules.diceFaces,
-      pc.attackers!,
-      pc.defenders!
-    );
-    state.rngState = outcome.rngState;
-    events.push({
-      type: "diceRolled",
-      seat: pc.responsibleSeat,
-      purpose: "defence",
-      rolls: [outcome.defenceRoll],
-      total: outcome.defenceRoll
-    });
+    const outcome = conflictOutcome(pc.rolls![0]!, pc.attackers!, pc.defenders!);
 
     state.players[pc.attacker].reserve[pc.unit] += outcome.attackerLosses;
     state.players[pc.defender].reserve[pc.unit] += outcome.defenderLosses;
@@ -350,16 +364,7 @@ export function resolvePendingCombat(state: GameState): GameEvent[] {
       rt.units[pc.unit] = 0;
     }
   } else {
-    const rolls: number[] = [];
-    let total = 0;
-    for (let i = 0; i < pc.dice!; i++) {
-      const roll = rollDie(state.rngState, state.rules.diceFaces);
-      state.rngState = roll.state;
-      rolls.push(roll.value);
-      total += roll.value;
-    }
-    events.push({ type: "diceRolled", seat: pc.responsibleSeat, purpose: pc.kind, rolls, total });
-    events.push(...removeUnits(state, pc.area, pc.unit, total));
+    events.push(...removeUnits(state, pc.area, pc.unit, pc.total!));
   }
 
   state.pendingCombat = null;
