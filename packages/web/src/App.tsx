@@ -13,6 +13,7 @@ import { getMap } from "@sengoku-jidai/engine";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ActionBar } from "./components/board/ActionBar.js";
 import { AreaDetails } from "./components/board/AreaDetails.js";
+import { CardPreview } from "./components/board/CardPreview.js";
 import { CombatPanel } from "./components/board/CombatPanel.js";
 import { Hand } from "./components/board/Hand.js";
 import { describeArea } from "./components/board/areaLabel.js";
@@ -47,6 +48,8 @@ export function App() {
   const [composer, setComposer] = useState<ComposerState | null>(null);
   // The source the stepper adjusts (the last-clicked glowing tile during a move).
   const [activeSourceId, setActiveSourceId] = useState<string | null>(null);
+  // The hand card shown in the large preview overlay, if any.
+  const [previewCard, setPreviewCard] = useState<OperationCard | null>(null);
   const [events, setEvents] = useState<PlayerGameEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -545,12 +548,8 @@ export function App() {
             <Hand
               hand={game.view.hand}
               opponentHandCount={game.view.opponentHandCount}
-              busy={busy}
-              onDiscard={
-                game.view.legal.canRerollCombat
-                  ? (card) => submitCombat({ type: "combatReroll", card })
-                  : undefined
-              }
+              canReroll={game.view.legal.canRerollCombat}
+              onPreview={setPreviewCard}
             />
           </section>
 
@@ -581,6 +580,19 @@ export function App() {
           {error ? <p className="error-text">{error}</p> : null}
         </aside>
       </section>
+
+      {previewCard ? (
+        <CardPreview
+          card={previewCard}
+          canReroll={game.view.legal.canRerollCombat}
+          busy={busy}
+          onDiscard={(card) => {
+            setPreviewCard(null);
+            void submitCombat({ type: "combatReroll", card });
+          }}
+          onClose={() => setPreviewCard(null)}
+        />
+      ) : null}
     </main>
   );
 }

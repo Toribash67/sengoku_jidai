@@ -86,7 +86,9 @@ export function CombatPanel({
               Continue
             </button>
             <span className="action-bar-hint">
-              {canReroll ? "…or discard a card below to reroll." : "No cards to reroll."}
+              {canReroll
+                ? "…or open a card below and discard it to reroll."
+                : "No cards to reroll."}
             </span>
           </>
         ) : (

@@ -6,14 +6,15 @@ interface HandProps {
   hand: OperationCard[];
   /** How many cards the opponent holds (shown face-down). */
   opponentHandCount: number;
-  busy: boolean;
-  /** When set, cards are clickable to discard for a combat reroll. */
-  onDiscard?: (card: OperationCard) => void;
+  /** True while a combat reroll is available (changes the hint shown). */
+  canReroll: boolean;
+  /** Open a large preview of the clicked card. */
+  onPreview: (card: OperationCard) => void;
 }
 
-/** The viewer's hand of operation cards, plus a face-down count of the opponent's. During a
- *  combat reroll (`onDiscard` set) each card becomes a button that discards it to reroll. */
-export function Hand({ hand, opponentHandCount, busy, onDiscard }: HandProps) {
+/** The viewer's hand of operation cards, plus a face-down count of the opponent's. Clicking a
+ *  card opens a large preview (where it can also be discarded to reroll during combat). */
+export function Hand({ hand, opponentHandCount, canReroll, onPreview }: HandProps) {
   return (
     <div className="hand-panel">
       <h3 className="detail-subhead">Your cards ({hand.length})</h3>
@@ -23,26 +24,23 @@ export function Hand({ hand, opponentHandCount, busy, onDiscard }: HandProps) {
         <ul className="hand">
           {hand.map((card, i) => (
             <li key={`${card}-${i}`}>
-              {onDiscard ? (
-                <button
-                  type="button"
-                  className="hand-card hand-card-actionable"
-                  onClick={() => onDiscard(card)}
-                  disabled={busy}
-                  title={`Discard ${cardLabel(card)} to reroll`}
-                >
-                  <img src={cardImage(card)} alt={cardLabel(card)} loading="lazy" />
-                </button>
-              ) : (
-                <span className="hand-card" title={cardLabel(card)}>
-                  <img src={cardImage(card)} alt={cardLabel(card)} loading="lazy" />
-                </span>
-              )}
+              <button
+                type="button"
+                className="hand-card hand-card-actionable"
+                onClick={() => onPreview(card)}
+                title={`Preview ${cardLabel(card)}`}
+              >
+                <img src={cardImage(card)} alt={cardLabel(card)} loading="lazy" />
+              </button>
             </li>
           ))}
         </ul>
       )}
-      {onDiscard ? <p className="muted">Tap a card to discard it and reroll.</p> : null}
+      {hand.length > 0 ? (
+        <p className="muted">
+          {canReroll ? "Tap a card to preview and discard it to reroll." : "Tap a card to preview."}
+        </p>
+      ) : null}
       <p className="muted">
         Opponent holds {opponentHandCount} {opponentHandCount === 1 ? "card" : "cards"}.
       </p>
