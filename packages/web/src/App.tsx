@@ -360,9 +360,10 @@ export function App() {
     }
   }
 
-  // Trigger the paused combat's roll (defence die for advance/sail; attacker dice for
-  // bombard/shell). Submitted by the viewer, who must be the responsible seat.
-  async function handleCombatRoll() {
+  // Drive the paused combat: "combatRoll" throws the dice (defence die for advance/sail;
+  // attacker dice for bombard/shell), then "combatResolve" applies the reviewed result.
+  // Submitted by the viewer, who must be the responsible seat.
+  async function submitCombat(type: "combatRoll" | "combatResolve") {
     if (!game || !game.view.pendingCombat) {
       return;
     }
@@ -375,10 +376,7 @@ export function App() {
     setBusy(true);
     setError(null);
     try {
-      const response = await submitCommand(game.gameId, token, game.revision, {
-        type: "combatRoll",
-        pendingId
-      });
+      const response = await submitCommand(game.gameId, token, game.revision, { type, pendingId });
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
       }
@@ -411,6 +409,17 @@ export function App() {
   const combatAreaLabel = pendingCombat
     ? describeArea(getMap(game.view.mapId).areas[pendingCombat.area]!)
     : "";
+  // For advance/sail, the attackers are held off-board; surface them on the contested tile
+  // so both sides are visible during combat (the defender is already on the board).
+  const pendingAttack =
+    pendingCombat && (pendingCombat.kind === "advance" || pendingCombat.kind === "sail")
+      ? {
+          area: pendingCombat.area,
+          seat: pendingCombat.attacker,
+          unit: pendingCombat.unit,
+          count: pendingCombat.attackers ?? 0
+        }
+      : null;
 
   // During a move, the gold highlight stays on the target; the stepper and the solid source
   // ring follow the active source instead.
@@ -454,6 +463,7 @@ export function App() {
             onSourceClick={handleSourceClick}
             stagedCounts={stagedCounts}
             activeSourceId={mapActiveSourceId}
+            pendingAttack={pendingAttack}
           />
 
           {pendingCombat ? (
@@ -461,8 +471,10 @@ export function App() {
               pendingCombat={pendingCombat}
               areaLabel={combatAreaLabel}
               canRoll={game.view.legal.canRollCombat}
+              canResolve={game.view.legal.canResolveCombat}
               busy={busy}
-              onRoll={handleCombatRoll}
+              onRoll={() => submitCombat("combatRoll")}
+              onResolve={() => submitCombat("combatResolve")}
             />
           ) : (
             <ActionBar

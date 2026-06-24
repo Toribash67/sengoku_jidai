@@ -9,6 +9,7 @@ function pending(overrides: Partial<PendingCombat>): PendingCombat {
     attacker: "red",
     defender: "black",
     responsibleSeat: "black",
+    phase: "awaiting-roll",
     area: "tile1",
     unit: "troop",
     ...overrides

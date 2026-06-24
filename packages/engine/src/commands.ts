@@ -20,6 +20,7 @@ export type Command =
   | { type: "plan"; spaceId: string }
   | { type: "pass" }
   | { type: "combatRoll"; pendingId: string }
+  | { type: "combatResolve"; pendingId: string }
   | { type: "choosePendingDecision"; pendingId: string; choice: PendingChoice };
 
 export type RejectionReason =

@@ -9,6 +9,31 @@ export interface ConflictOutcome {
   defenderLosses: number;
 }
 
+/** Casualties of a conflict given an already-thrown defence roll (pure, no RNG):
+ *  (1) the defence roll removes that many attackers; (2) any remaining attackers and
+ *  defenders trade one-for-one until a side empties. */
+export function conflictOutcome(
+  defenceRoll: number,
+  attackers: number,
+  defenders: number
+): Omit<ConflictOutcome, "rngState" | "defenceRoll"> {
+  const defenceRemoved = Math.min(defenceRoll, attackers);
+  let a = attackers - defenceRemoved;
+  let d = defenders;
+  let attrition = 0;
+  if (a > 0) {
+    attrition = Math.min(a, d);
+    a -= attrition;
+    d -= attrition;
+  }
+  return {
+    attackersLeft: a,
+    defendersLeft: d,
+    attackerLosses: defenceRemoved + attrition,
+    defenderLosses: attrition
+  };
+}
+
 /**
  * Section 3 conflict, pure: (1) defender rolls one die; attacker removes that many
  * attacking units. (2) If attackers remain, both sides remove one unit at a time
@@ -21,21 +46,9 @@ export function resolveConflict(
   defenders: number
 ): ConflictOutcome {
   const roll = rollDie(rngState, faces);
-  const defenceRemoved = Math.min(roll.value, attackers);
-  let a = attackers - defenceRemoved;
-  let d = defenders;
-  let attrition = 0;
-  if (a > 0) {
-    attrition = Math.min(a, d);
-    a -= attrition;
-    d -= attrition;
-  }
   return {
     rngState: roll.state,
     defenceRoll: roll.value,
-    attackersLeft: a,
-    defendersLeft: d,
-    attackerLosses: defenceRemoved + attrition,
-    defenderLosses: attrition
+    ...conflictOutcome(roll.value, attackers, defenders)
   };
 }

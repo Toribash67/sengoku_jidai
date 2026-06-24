@@ -41,6 +41,12 @@ export interface PendingCombat {
   defender: SeatId;
   /** Who rolls: the defender for advance/sail, the attacker for bombard/shell. */
   responsibleSeat: SeatId;
+  /**
+   * `awaiting-roll`: dice not yet thrown. `rolled`: dice are shown and the responsible seat
+   * reviews them before deciding to continue (apply casualties) or — once cards exist —
+   * reroll. Casualties only land on the combatResolve step.
+   */
+  phase: "awaiting-roll" | "rolled";
   /** Target area whose garrison is at stake. */
   area: string;
   /** Combat only ever moves troops (land) or ships (water), never siege. */
@@ -51,6 +57,9 @@ export interface PendingCombat {
   defenders?: number;
   /** bombard/shell: number of dice the attacker will roll. */
   dice?: number;
+  /** Populated once phase is `rolled`: the dice faces shown and their sum. */
+  rolls?: number[];
+  total?: number;
 }
 
 /** Full per-player unit pools in Rivers (siege unused). Frozen: it's a shared singleton. */

@@ -27,21 +27,28 @@ export function validateCommand(
   actor: CommandActor,
   command: Command
 ): RejectionReason | null {
-  // Pending-combat gate: while a combat awaits its roll, only the responsible seat's
-  // combatRoll is legal.
+  // Pending-combat gate: while a combat is paused, only the responsible seat may act, and
+  // only combatRoll (before rolling) then combatResolve (after) are legal.
   if (state.pendingCombat) {
-    if (command.type !== "combatRoll") {
+    const pc = state.pendingCombat;
+    if (command.type !== "combatRoll" && command.type !== "combatResolve") {
       return reject("pendingDecisionRequired", "Resolve the pending combat first.");
     }
-    if (state.pendingCombat.id !== command.pendingId) {
+    if (pc.id !== command.pendingId) {
       return reject("pendingDecisionNotFound", "No such pending combat.");
     }
-    if (state.pendingCombat.responsibleSeat !== actor.seat) {
-      return reject("notActiveSeat", "This seat cannot roll for this combat.");
+    if (pc.responsibleSeat !== actor.seat) {
+      return reject("notActiveSeat", "This seat cannot act on this combat.");
+    }
+    if (command.type === "combatRoll" && pc.phase !== "awaiting-roll") {
+      return reject("pendingDecisionRequired", "The dice have already been rolled.");
+    }
+    if (command.type === "combatResolve" && pc.phase !== "rolled") {
+      return reject("pendingDecisionRequired", "Roll the dice before resolving.");
     }
     return null;
   }
-  if (command.type === "combatRoll") {
+  if (command.type === "combatRoll" || command.type === "combatResolve") {
     return reject("pendingDecisionNotFound", "No combat is awaiting a roll.");
   }
 
