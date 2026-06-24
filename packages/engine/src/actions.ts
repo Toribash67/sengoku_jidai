@@ -5,7 +5,8 @@ import { getMap } from "./maps/registry.js";
 import { actionSpaceMap } from "./actionSpaces.js";
 import { suppliesBonus } from "./validate.js";
 import { conflictOutcome } from "./conflict.js";
-import { rollDie } from "./rng.js";
+import { rollDie, shuffle } from "./rng.js";
+import type { OperationCard } from "./state.js";
 
 /** Pass: deploy a commander to standby (unavailable until next round). */
 export function applyPass(state: GameState, seat: SeatId): GameEvent[] {
@@ -44,7 +45,11 @@ export function applyReinforce(
   return events;
 }
 
-/** Plan: no-op draw in v1; the initiative Plan space seizes next-round initiative. */
+/**
+ * Plan: draw cards and, for the initiative Plan space, seize next-round initiative.
+ * Draw count: 2 for a normal Plan, 1 for the initiative Plan space, +1 if the seat supplies
+ * War Room.
+ */
 export function applyPlan(state: GameState, seat: SeatId, spaceId: string): GameEvent[] {
   const map = getMap(state.mapId);
   const space = actionSpaceMap(map)[spaceId]!;
@@ -53,7 +58,8 @@ export function applyPlan(state: GameState, seat: SeatId, spaceId: string): Game
     state.initiative = seat;
     events.push({ type: "initiativeSeized", seat });
   }
-  if (suppliesBonus(state, seat, "warRoom")) {
+  const warRoom = suppliesBonus(state, seat, "warRoom");
+  if (warRoom) {
     events.push({
       type: "bonusApplied",
       seat,
@@ -61,7 +67,28 @@ export function applyPlan(state: GameState, seat: SeatId, spaceId: string): Game
       area: bonusArea(state, "warRoom")!
     });
   }
+  const draw = (space.initiative ? 1 : 2) + (warRoom ? 1 : 0);
+  events.push(...drawCards(state, seat, draw));
   return events;
+}
+
+/** Draw up to `n` cards into the seat's hand, reshuffling the discard pile into the deck
+ *  (deterministically, via `state.rngState`) when the deck runs short. */
+function drawCards(state: GameState, seat: SeatId, n: number): GameEvent[] {
+  const player = state.players[seat];
+  let drawn = 0;
+  for (let i = 0; i < n; i++) {
+    if (player.deck.length === 0) {
+      if (player.discard.length === 0) break; // nothing left to draw
+      const reshuffled = shuffle(state.rngState, player.discard);
+      state.rngState = reshuffled.state;
+      player.deck = reshuffled.value;
+      player.discard = [];
+    }
+    player.hand.push(player.deck.shift()!);
+    drawn += 1;
+  }
+  return drawn > 0 ? [{ type: "cardsDrawn", seat, count: drawn }] : [];
 }
 
 /** Embark: place ships from reserve into supplied/port-adjacent water (validated upstream). */
@@ -312,8 +339,42 @@ export function rollPendingCombat(state: GameState): GameEvent[] {
   pc.rolls = rolls;
   pc.total = total;
   pc.phase = "rolled";
-  const purpose = pc.kind === "advance" || pc.kind === "sail" ? "defence" : pc.kind;
-  return [{ type: "diceRolled", seat: pc.responsibleSeat, purpose, rolls, total }];
+  return [
+    { type: "diceRolled", seat: pc.responsibleSeat, purpose: combatPurpose(state), rolls, total }
+  ];
+}
+
+/** The diceRolled `purpose` for the active combat: "defence" for advance/sail, else the kind. */
+function combatPurpose(state: GameState): string {
+  const pc = state.pendingCombat!;
+  return pc.kind === "advance" || pc.kind === "sail" ? "defence" : pc.kind;
+}
+
+/**
+ * Discard `card` from the roller's hand and re-throw the same number of dice (the result is
+ * shown again before casualties). Validated upstream: combat is in the `rolled` phase, the
+ * actor is the responsible seat, and the card is in hand. Stays in the `rolled` phase.
+ */
+export function rerollPendingCombat(state: GameState, card: OperationCard): GameEvent[] {
+  const pc = state.pendingCombat!;
+  const player = state.players[pc.responsibleSeat];
+  player.hand.splice(player.hand.indexOf(card), 1);
+  player.discard.push(card);
+
+  const rolls: number[] = [];
+  let total = 0;
+  for (let i = 0; i < pc.rolls!.length; i++) {
+    const roll = rollDie(state.rngState, state.rules.diceFaces);
+    state.rngState = roll.state;
+    rolls.push(roll.value);
+    total += roll.value;
+  }
+  pc.rolls = rolls;
+  pc.total = total;
+  return [
+    { type: "cardDiscarded", seat: pc.responsibleSeat },
+    { type: "diceRolled", seat: pc.responsibleSeat, purpose: combatPurpose(state), rolls, total }
+  ];
 }
 
 /**

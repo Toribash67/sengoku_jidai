@@ -3,6 +3,18 @@ import { z } from "zod";
 export const seatIdSchema = z.enum(["red", "black"]);
 export const gameModeSchema = z.enum(["hotseat", "private_multiplayer", "async_multiplayer"]);
 
+/** The Rivers operation-card ids (must match the engine's OperationCard union). */
+export const operationCardSchema = z.enum([
+  "ambush",
+  "commandeer",
+  "counterattack",
+  "ground_assault",
+  "mobilise",
+  "river_assault",
+  "ship_strike",
+  "shore_strike"
+]);
+
 export const pendingChoiceSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1)
@@ -44,6 +56,11 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("plan"), spaceId: z.string().min(1) }),
   z.object({ type: z.literal("pass") }),
   z.object({ type: z.literal("combatRoll"), pendingId: z.string().min(1) }),
+  z.object({
+    type: z.literal("combatReroll"),
+    pendingId: z.string().min(1),
+    card: operationCardSchema
+  }),
   z.object({ type: z.literal("combatResolve"), pendingId: z.string().min(1) }),
   z.object({
     type: z.literal("choosePendingDecision"),

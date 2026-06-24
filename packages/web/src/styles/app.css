@@ -444,6 +444,51 @@ button:disabled {
   align-items: center;
 }
 
+/* Operation-card hand. */
+.hand {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hand-opponent {
+  opacity: 0.85;
+}
+
+.hand-card {
+  display: block;
+  width: 72px;
+  border: 1px solid #c7d4ce;
+  border-radius: 6px;
+  overflow: hidden;
+  padding: 0;
+  background: #ffffff;
+  line-height: 0;
+}
+
+.hand-card img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.hand-card-actionable {
+  cursor: pointer;
+  border-color: #b03a32;
+}
+
+.hand-card-actionable:hover:not(:disabled) {
+  outline: 2px solid #f0b429;
+  outline-offset: 1px;
+}
+
+.hand-card-back {
+  width: 56px;
+}
+
 .action-bar-group {
   display: flex;
   flex-wrap: wrap;

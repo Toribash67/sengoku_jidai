@@ -16,6 +16,7 @@ import {
   applyBombard,
   applyShell,
   rollPendingCombat,
+  rerollPendingCombat,
   applyPendingCombat
 } from "./actions.js";
 
@@ -45,6 +46,9 @@ export function resolveCommand(
     // Throw the dice and pause again on the `rolled` phase for the responsible seat to
     // review (and, with cards, reroll) before casualties land on combatResolve.
     events.push(...rollPendingCombat(next));
+  } else if (command.type === "combatReroll") {
+    // Discard a card to re-throw; stays on the `rolled` phase for another review.
+    events.push(...rerollPendingCombat(next, command.card));
   } else if (command.type === "combatResolve") {
     // Apply the reviewed roll, then fall through to the turn tail.
     events.push(...applyPendingCombat(next));

@@ -119,6 +119,71 @@ describe("pending combat lifecycle", () => {
     expect(resolved.nextState.activeSeat).toBe("black"); // turn advanced after resolution
   });
 
+  it("discards a held card to reroll, staying paused; rejects without the card", () => {
+    const paused = advanceIntoEnemy();
+    paused.players.black.hand = ["ambush", "mobilise"]; // give the defender cards to spend
+    const pendingId = paused.pendingCombat!.id;
+
+    // Must roll before rerolling.
+    const early = resolveCommand(
+      paused,
+      { seat: "black" },
+      {
+        type: "combatReroll",
+        pendingId,
+        card: "ambush"
+      }
+    );
+    expect(early.status).toBe("rejected");
+
+    const rolled = resolveCommand(paused, { seat: "black" }, { type: "combatRoll", pendingId });
+    if (rolled.status !== "accepted") throw new Error("roll rejected");
+    expect(playerView(rolled.nextState, "black").legal.canRerollCombat).toBe(true);
+
+    // Reroll with a held card: card moves to discard, dice re-thrown, still in review.
+    const reroll = resolveCommand(
+      rolled.nextState,
+      { seat: "black" },
+      {
+        type: "combatReroll",
+        pendingId,
+        card: "ambush"
+      }
+    );
+    expect(reroll.status).toBe("accepted");
+    if (reroll.status !== "accepted") return;
+    expect(reroll.nextState.pendingCombat!.phase).toBe("rolled");
+    expect(reroll.nextState.players.black.hand).toEqual(["mobilise"]);
+    expect(reroll.nextState.players.black.discard).toEqual(["ambush"]);
+    expect(reroll.nextState.areas["tile1"]!.owner).toBe("black"); // no casualties yet
+
+    // Cannot reroll a card you do not hold.
+    const notHeld = resolveCommand(
+      reroll.nextState,
+      { seat: "black" },
+      {
+        type: "combatReroll",
+        pendingId,
+        card: "ambush"
+      }
+    );
+    expect(notHeld.status).toBe("rejected");
+  });
+
+  it("canRerollCombat is false with an empty hand", () => {
+    const paused = advanceIntoEnemy(); // defender starts with no cards
+    const rolled = resolveCommand(
+      paused,
+      { seat: "black" },
+      {
+        type: "combatRoll",
+        pendingId: paused.pendingCombat!.id
+      }
+    );
+    if (rolled.status !== "accepted") throw new Error("roll rejected");
+    expect(playerView(rolled.nextState, "black").legal.canRerollCombat).toBe(false);
+  });
+
   it("cannot continue (resolve) before rolling", () => {
     const paused = advanceIntoEnemy();
     const pendingId = paused.pendingCombat!.id;

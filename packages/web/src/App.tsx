@@ -4,6 +4,7 @@ import type {
   LegalPlacement,
   LegalPlan,
   LegalStrike,
+  OperationCard,
   PlayerGameEvent,
   PlayerGameView,
   SeatId
@@ -13,6 +14,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerE
 import { ActionBar } from "./components/board/ActionBar.js";
 import { AreaDetails } from "./components/board/AreaDetails.js";
 import { CombatPanel } from "./components/board/CombatPanel.js";
+import { Hand } from "./components/board/Hand.js";
 import { describeArea } from "./components/board/areaLabel.js";
 import {
   type ComposerState,
@@ -360,10 +362,12 @@ export function App() {
     }
   }
 
-  // Drive the paused combat: "combatRoll" throws the dice (defence die for advance/sail;
-  // attacker dice for bombard/shell), then "combatResolve" applies the reviewed result.
-  // Submitted by the viewer, who must be the responsible seat.
-  async function submitCombat(type: "combatRoll" | "combatResolve") {
+  // Drive the paused combat, all submitted by the viewer (the responsible seat): "combatRoll"
+  // throws the dice, "combatReroll" discards a card to re-throw, "combatResolve" applies the
+  // reviewed result.
+  async function submitCombat(
+    action: { type: "combatRoll" | "combatResolve" } | { type: "combatReroll"; card: OperationCard }
+  ) {
     if (!game || !game.view.pendingCombat) {
       return;
     }
@@ -376,7 +380,10 @@ export function App() {
     setBusy(true);
     setError(null);
     try {
-      const response = await submitCommand(game.gameId, token, game.revision, { type, pendingId });
+      const response = await submitCommand(game.gameId, token, game.revision, {
+        ...action,
+        pendingId
+      });
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
       }
@@ -472,9 +479,10 @@ export function App() {
               areaLabel={combatAreaLabel}
               canRoll={game.view.legal.canRollCombat}
               canResolve={game.view.legal.canResolveCombat}
+              canReroll={game.view.legal.canRerollCombat}
               busy={busy}
-              onRoll={() => submitCombat("combatRoll")}
-              onResolve={() => submitCombat("combatResolve")}
+              onRoll={() => submitCombat({ type: "combatRoll" })}
+              onResolve={() => submitCombat({ type: "combatResolve" })}
             />
           ) : (
             <ActionBar
@@ -531,6 +539,19 @@ export function App() {
             ) : (
               <p className="muted">Tap an area on the map to see its details.</p>
             )}
+          </section>
+
+          <section className="panel-section">
+            <Hand
+              hand={game.view.hand}
+              opponentHandCount={game.view.opponentHandCount}
+              busy={busy}
+              onDiscard={
+                game.view.legal.canRerollCombat
+                  ? (card) => submitCombat({ type: "combatReroll", card })
+                  : undefined
+              }
+            />
           </section>
 
           <section className="panel-section">
@@ -614,6 +635,10 @@ function eventLabel(event: PlayerGameEvent): string {
       return `${event.seat} placed ${event.count} ${event.unit}${event.count === 1 ? "" : "s"}`;
     case "areaCaptured":
       return `${event.seat} captured an area`;
+    case "cardsDrawn":
+      return `${event.seat} drew ${event.count} ${event.count === 1 ? "card" : "cards"}`;
+    case "cardDiscarded":
+      return `${event.seat} discarded a card to reroll`;
     default:
       if ("seat" in event && typeof event.seat === "string") {
         return `${event.seat}: ${event.type}`;
