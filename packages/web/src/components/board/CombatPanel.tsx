@@ -8,6 +8,8 @@ interface CombatPanelProps {
   canRoll: boolean;
   /** True when the dice are shown and the viewer may continue (apply casualties). */
   canResolve: boolean;
+  /** True when the viewer holds a card they could discard to reroll. */
+  canReroll: boolean;
   busy: boolean;
   onRoll: () => void;
   onResolve: () => void;
@@ -57,6 +59,7 @@ export function CombatPanel({
   areaLabel,
   canRoll,
   canResolve,
+  canReroll,
   busy,
   onRoll,
   onResolve
@@ -82,9 +85,9 @@ export function CombatPanel({
             <button type="button" onClick={onResolve} disabled={busy || !canResolve}>
               Continue
             </button>
-            <button type="button" className="secondary-action" disabled title="Cards coming soon">
-              Reroll (card)
-            </button>
+            <span className="action-bar-hint">
+              {canReroll ? "…or discard a card below to reroll." : "No cards to reroll."}
+            </span>
           </>
         ) : (
           <button type="button" onClick={onRoll} disabled={busy || !canRoll}>

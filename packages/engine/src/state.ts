@@ -11,8 +11,18 @@ export type Phase = "deploy" | "recall";
 /** Why the game ended (null while active). */
 export type EndReason = "hqEliminated" | "victoryPoints";
 
-/** Operation card — no effects ship until the cards phase. */
-export type OperationCard = never;
+/** An operation card, identified by its artwork id (= filename in `cards/rivers/`). Card
+ *  abilities are not yet implemented; for now a card can only be discarded to reroll combat
+ *  dice. The full deck lives in `cards.ts` (`RIVERS_CARDS`). */
+export type OperationCard =
+  | "ambush"
+  | "commandeer"
+  | "counterattack"
+  | "ground_assault"
+  | "mobilise"
+  | "river_assault"
+  | "ship_strike"
+  | "shore_strike";
 
 /** A choice offered by a pending decision (future cards seam). */
 export interface PendingChoice {
@@ -93,7 +103,12 @@ export interface PlayerState {
   reserve: UnitCounts;
   /** `total` commanders; `standby` are passed-out and unavailable until next round. */
   commanders: { total: number; standby: number };
+  /** Cards held (hidden info — only the owner sees them). Drawn via Plan. */
   hand: OperationCard[];
+  /** Undrawn cards, top of deck first. */
+  deck: OperationCard[];
+  /** Spent cards; reshuffled into the deck when the deck runs short. */
+  discard: OperationCard[];
   /** Whether this seat has passed this round. */
   passed: boolean;
 }

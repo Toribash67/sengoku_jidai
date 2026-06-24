@@ -1,5 +1,5 @@
 import type { SeatId } from "./types.js";
-import type { GameState, PendingChoice, UnitType } from "./state.js";
+import type { GameState, OperationCard, PendingChoice, UnitType } from "./state.js";
 import type { BonusType } from "./rules.js";
 
 /** Who is issuing the command. */
@@ -20,6 +20,7 @@ export type Command =
   | { type: "plan"; spaceId: string }
   | { type: "pass" }
   | { type: "combatRoll"; pendingId: string }
+  | { type: "combatReroll"; pendingId: string; card: OperationCard }
   | { type: "combatResolve"; pendingId: string }
   | { type: "choosePendingDecision"; pendingId: string; choice: PendingChoice };
 
@@ -49,6 +50,8 @@ export type GameEvent =
   | { type: "unitsPlaced"; seat: SeatId; area: string; unit: UnitType; count: number }
   | { type: "bonusApplied"; seat: SeatId; bonus: BonusType; area: string }
   | { type: "diceRolled"; seat: SeatId; purpose: string; rolls: number[]; total: number }
+  | { type: "cardsDrawn"; seat: SeatId; count: number }
+  | { type: "cardDiscarded"; seat: SeatId }
   | { type: "unitsRemoved"; seat: SeatId; area: string; unit: UnitType; count: number }
   | { type: "areaCaptured"; seat: SeatId; area: string; previousOwner: SeatId | null }
   | { type: "capExceeded"; area: string; unit: UnitType; returned: number; owner: SeatId }

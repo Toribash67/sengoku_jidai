@@ -46,5 +46,5 @@ export const riversRuleset: RulesConfig = {
   enabledActions: ["advance", "sail", "bombard", "shell", "reinforce", "embark", "plan"],
   bonusSet: ["barracks", "warRoom", "pirateHaven", "shipyard", "hiddenBase"],
   fortifications: false,
-  cards: false
+  cards: true
 };

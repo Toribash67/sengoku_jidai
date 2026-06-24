@@ -31,7 +31,11 @@ export function validateCommand(
   // only combatRoll (before rolling) then combatResolve (after) are legal.
   if (state.pendingCombat) {
     const pc = state.pendingCombat;
-    if (command.type !== "combatRoll" && command.type !== "combatResolve") {
+    if (
+      command.type !== "combatRoll" &&
+      command.type !== "combatReroll" &&
+      command.type !== "combatResolve"
+    ) {
       return reject("pendingDecisionRequired", "Resolve the pending combat first.");
     }
     if (pc.id !== command.pendingId) {
@@ -46,9 +50,21 @@ export function validateCommand(
     if (command.type === "combatResolve" && pc.phase !== "rolled") {
       return reject("pendingDecisionRequired", "Roll the dice before resolving.");
     }
+    if (command.type === "combatReroll") {
+      if (pc.phase !== "rolled") {
+        return reject("pendingDecisionRequired", "Roll the dice before rerolling.");
+      }
+      if (!state.players[actor.seat].hand.includes(command.card)) {
+        return reject("illegalChoice", "That card is not in your hand.");
+      }
+    }
     return null;
   }
-  if (command.type === "combatRoll" || command.type === "combatResolve") {
+  if (
+    command.type === "combatRoll" ||
+    command.type === "combatReroll" ||
+    command.type === "combatResolve"
+  ) {
     return reject("pendingDecisionNotFound", "No combat is awaiting a roll.");
   }
 

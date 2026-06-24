@@ -8,7 +8,7 @@ describe("rivers ruleset", () => {
     expect(riversRuleset.maxRounds).toBe(4);
     expect(riversRuleset.diceFaces).toEqual([...DEFAULT_DICE_FACES]);
     expect(riversRuleset.fortifications).toBe(false);
-    expect(riversRuleset.cards).toBe(false);
+    expect(riversRuleset.cards).toBe(true);
   });
 
   it("enables the seven Rivers actions and omits Siege", () => {

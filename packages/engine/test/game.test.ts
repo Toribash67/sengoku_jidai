@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState } from "../src/game.js";
+import { RIVERS_CARDS } from "../src/cards.js";
 import { riversMap } from "../src/maps/riversMap.js";
 import { riversRuleset } from "../src/rules.js";
 import { createRngState } from "../src/rng.js";
@@ -16,12 +17,25 @@ describe("createInitialState", () => {
   });
 
   it("produces a fixed output for a known seed (replay anchor)", () => {
-    // Pins the RNG algorithm AND the draw order (bonuses -> initiative). A change
-    // to either would shift these values and break replay of saved games.
+    // Pins the RNG algorithm AND the draw order (bonuses -> initiative -> deck shuffles).
+    // A change to any would shift these values and break replay of saved games. The deck
+    // shuffles are appended last, so bonuses + initiative are unchanged from before cards.
     const s = createInitialState(opts);
     expect(s.initiative).toBe("red");
-    expect(s.rngState).toBe("676040671");
+    expect(s.rngState).toBe("548158277");
     expect(s.bonuses).toEqual({ tile2: "pirateHaven", tile4: "hiddenBase", tile20: "warRoom" });
+  });
+
+  it("deals each player a full, empty-handed operation-card deck", () => {
+    const s = createInitialState(opts);
+    for (const seat of ["red", "black"] as const) {
+      expect(s.players[seat].hand).toEqual([]);
+      expect(s.players[seat].discard).toEqual([]);
+      expect(s.players[seat].deck).toHaveLength(8);
+      expect([...s.players[seat].deck].sort()).toEqual([...RIVERS_CARDS].sort());
+    }
+    // Independently shuffled: the two decks are not in the same order (for this seed).
+    expect(s.players.red.deck).not.toEqual(s.players.black.deck);
   });
 
   it("opens at round 1, deploy phase, active, activeSeat = initiative", () => {

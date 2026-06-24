@@ -1,4 +1,5 @@
 import { emptyActionSpaceOccupancy } from "./actionSpaces.js";
+import { RIVERS_CARDS } from "./cards.js";
 import { getMap } from "./maps/registry.js";
 import { riversMapId } from "./maps/riversMap.js";
 import { createRngState, nextFloat, shuffle } from "./rng.js";
@@ -11,6 +12,7 @@ import {
   zeroUnits,
   type AreaRuntime,
   type GameState,
+  type OperationCard,
   type PlayerState,
   type UnitCounts,
   type UnitType
@@ -74,6 +76,17 @@ export function createInitialState(options: GameSetupOptions): GameState {
   rngState = draw.state;
   const initiative: SeatId = draw.value < 0.5 ? "red" : "black";
 
+  // (3) shuffle each player's operation-card deck (only when the ruleset uses cards).
+  // Appended AFTER the bonus + initiative draws so those outcomes are unchanged.
+  const decks: Record<SeatId, OperationCard[]> = { red: [], black: [] };
+  if (rules.cards) {
+    for (const seat of ["red", "black"] as const) {
+      const shuffledDeck = shuffle(rngState, RIVERS_CARDS);
+      rngState = shuffledDeck.state;
+      decks[seat] = shuffledDeck.value;
+    }
+  }
+
   // Build areas, garrisoning each HQ and the starting navy above each base.
   const areas: Record<string, AreaRuntime> = {};
   for (const area of Object.values(map.areas)) {
@@ -110,6 +123,8 @@ export function createInitialState(options: GameSetupOptions): GameState {
       },
       commanders: { total: rules.commandersPerPlayer, standby: 0 },
       hand: [],
+      deck: decks[seat],
+      discard: [],
       passed: false
     };
   };

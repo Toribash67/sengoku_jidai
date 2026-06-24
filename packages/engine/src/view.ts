@@ -19,6 +19,7 @@ import type { AreaKind, MapDefinition } from "./maps/riversMap.js";
 import type {
   EndReason,
   GameState,
+  OperationCard,
   PendingCombat,
   PendingDecision,
   Phase,
@@ -120,6 +121,8 @@ export interface LegalCommandSummary {
   canRollCombat: boolean;
   /** True when the dice are rolled and this seat may continue (apply the casualties). */
   canResolveCombat: boolean;
+  /** True when this seat may discard a card to reroll (dice rolled and hand non-empty). */
+  canRerollCombat: boolean;
 }
 
 export interface PlayerGameView {
@@ -134,6 +137,10 @@ export interface PlayerGameView {
   activeSeat: SeatId;
   viewerSeat: SeatId;
   prompt: string;
+  /** The viewer's own cards (hidden from the opponent). */
+  hand: OperationCard[];
+  /** How many cards the opponent holds (count only — identities are hidden). */
+  opponentHandCount: number;
   areas: PlayerAreaView[];
   bonuses: Record<string, BonusType>;
   actionSpaces: Record<string, SeatId | null>;
@@ -186,6 +193,8 @@ export function playerView(state: GameState, viewerSeat: SeatId): PlayerGameView
     activeSeat: state.activeSeat,
     viewerSeat,
     prompt: buildPrompt(state, viewerSeat),
+    hand: [...state.players[viewerSeat].hand],
+    opponentHandCount: state.players[viewerSeat === "red" ? "black" : "red"].hand.length,
     areas,
     bonuses: { ...state.bonuses },
     actionSpaces: { ...state.actionSpaces },
@@ -238,7 +247,12 @@ export function legalCommandsForState(state: GameState, seat: SeatId): LegalComm
     canResolveCombat:
       state.pendingCombat !== null &&
       state.pendingCombat.responsibleSeat === seat &&
-      state.pendingCombat.phase === "rolled"
+      state.pendingCombat.phase === "rolled",
+    canRerollCombat:
+      state.pendingCombat !== null &&
+      state.pendingCombat.responsibleSeat === seat &&
+      state.pendingCombat.phase === "rolled" &&
+      state.players[seat].hand.length > 0
   };
 }
 

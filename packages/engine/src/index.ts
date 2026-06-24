@@ -1,6 +1,7 @@
 export * from "./types.js";
 export * from "./rules.js";
 export * from "./state.js";
+export * from "./cards.js";
 export * from "./game.js";
 export * from "./commands.js";
 export * from "./resolve.js";
