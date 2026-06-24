@@ -21,7 +21,7 @@ describe("createInitialState", () => {
     const s = createInitialState(opts);
     expect(s.initiative).toBe("red");
     expect(s.rngState).toBe("676040671");
-    expect(s.bonuses).toEqual({ tile6: "pirateHaven", tile16: "hiddenBase", tile20: "warRoom" });
+    expect(s.bonuses).toEqual({ tile2: "pirateHaven", tile4: "hiddenBase", tile20: "warRoom" });
   });
 
   it("opens at round 1, deploy phase, active, activeSeat = initiative", () => {
