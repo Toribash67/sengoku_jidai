@@ -13,6 +13,8 @@ export interface MapBoardProps {
   legalTargetIds?: ReadonlySet<string>;
   sourceIds?: ReadonlySet<string>;
   onSourceClick?: (areaId: string) => void;
+  /** Units staged from each area for the active move/placement; drawn as on-tile badges. */
+  stagedCounts?: ReadonlyMap<string, number>;
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -113,15 +115,26 @@ function localToRoot(svg: SVGSVGElement, el: SVGGraphicsElement): DOMMatrix | nu
   return svgScreen.inverse().multiply(elScreen);
 }
 
-/** Centre of an element mapped into the root SVG (viewBox) coordinate space. */
-function centerInRoot(svg: SVGSVGElement, el: SVGGraphicsElement): Point | null {
+/** A point at fractional position (fx, fy) of an element's bbox, mapped into root space.
+ *  (0.5, 0.5) is the centre; (0.5, 0.2) is near the top edge. */
+function bboxPointInRoot(
+  svg: SVGSVGElement,
+  el: SVGGraphicsElement,
+  fx: number,
+  fy: number
+): Point | null {
   const m = localToRoot(svg, el);
   if (!m) {
     return null;
   }
   const box = el.getBBox();
-  const center = new DOMPoint(box.x + box.width / 2, box.y + box.height / 2).matrixTransform(m);
-  return { x: center.x, y: center.y };
+  const p = new DOMPoint(box.x + box.width * fx, box.y + box.height * fy).matrixTransform(m);
+  return { x: p.x, y: p.y };
+}
+
+/** Centre of an element mapped into the root SVG (viewBox) coordinate space. */
+function centerInRoot(svg: SVGSVGElement, el: SVGGraphicsElement): Point | null {
+  return bboxPointInRoot(svg, el, 0.5, 0.5);
 }
 
 function makeText(label: string, at: Point): SVGTextElement {
@@ -141,6 +154,23 @@ function makeOccupancy(at: Point, color: string): SVGCircleElement {
   circle.setAttribute("fill", color);
   circle.setAttribute("class", "slot-occupancy");
   return circle;
+}
+
+/** A staged-units badge (amber disc + count) drawn near the top of a tile during order
+ *  composition, so the player sees how many units they have committed from each area
+ *  without any tile id appearing in text. */
+function makeStagedBadge(at: Point, count: number): SVGGElement {
+  const group = document.createElementNS(SVG_NS, "g");
+  group.setAttribute("class", "tile-staged-badge");
+  const circle = document.createElementNS(SVG_NS, "circle");
+  circle.setAttribute("cx", String(at.x));
+  circle.setAttribute("cy", String(at.y));
+  circle.setAttribute("r", "18");
+  const text = makeText(String(count), at);
+  text.setAttribute("class", "tile-units tile-staged-badge-text");
+  group.appendChild(circle);
+  group.appendChild(text);
+  return group;
 }
 
 /** A `<use>` instance of a token def (army disc or ship). */
@@ -269,6 +299,7 @@ interface DecorateInput {
   legalTargetIds?: ReadonlySet<string>;
   sourceIds?: ReadonlySet<string>;
   onSourceClick?: (areaId: string) => void;
+  stagedCounts?: ReadonlyMap<string, number>;
 }
 
 /** Apply per-tile fill, selection stroke, and click handler. */
@@ -281,7 +312,8 @@ function decorate(
     onSelectArea,
     legalTargetIds,
     sourceIds,
-    onSourceClick
+    onSourceClick,
+    stagedCounts
   }: DecorateInput
 ): void {
   const overlay = resetOverlay(svg);
@@ -371,6 +403,15 @@ function decorate(
         }
       }
     }
+
+    // Staged-units badge near the top of the tile during composition (above the stack).
+    const staged = stagedCounts?.get(area.id) ?? 0;
+    if (staged > 0) {
+      const badgeAt = bboxPointInRoot(svg, tile, 0.5, 0.2);
+      if (badgeAt) {
+        overlay.appendChild(makeStagedBadge(badgeAt, staged));
+      }
+    }
   }
 
   for (const [spaceId, occupant] of Object.entries(actionSpaces)) {
@@ -410,7 +451,8 @@ export function MapBoard({
   onSelectArea,
   legalTargetIds,
   sourceIds,
-  onSourceClick
+  onSourceClick,
+  stagedCounts
 }: MapBoardProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
@@ -438,10 +480,20 @@ export function MapBoard({
         onSelectArea,
         legalTargetIds,
         sourceIds,
-        onSourceClick
+        onSourceClick,
+        stagedCounts
       });
     }
-  }, [areas, selectedAreaId, actionSpaces, onSelectArea, legalTargetIds, sourceIds, onSourceClick]);
+  }, [
+    areas,
+    selectedAreaId,
+    actionSpaces,
+    onSelectArea,
+    legalTargetIds,
+    sourceIds,
+    onSourceClick,
+    stagedCounts
+  ]);
 
   return (
     <section className="board" data-testid="board" aria-label="Sengoku Jidai battlefield">

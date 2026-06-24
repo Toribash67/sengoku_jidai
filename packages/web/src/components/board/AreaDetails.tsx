@@ -1,48 +1,15 @@
-import type {
-  LegalMove,
-  LegalStrike,
-  MapArea,
-  PlayerAreaView,
-  PlayerGameView
-} from "@sengoku-jidai/engine";
-
-/** Display names for the on-map action types that link to a board area. */
-const ACTION_LABEL: Record<string, string> = {
-  advance: "Advance",
-  sail: "Sail",
-  bombard: "Bombard",
-  shell: "Shell"
-};
+import type { MapArea, PlayerAreaView, PlayerGameView } from "@sengoku-jidai/engine";
 
 interface AreaDetailsProps {
   area: PlayerAreaView;
   mapArea: MapArea;
   view: PlayerGameView;
-  onStartOrder?: (move: LegalMove) => void;
-  onStartStrike?: (strike: LegalStrike) => void;
 }
 
-export function AreaDetails({
-  area,
-  mapArea,
-  view,
-  onStartOrder,
-  onStartStrike
-}: AreaDetailsProps) {
+/** Read-only information about the selected area. Orders are issued from the bottom action
+ *  bar, not here, so this panel carries no buttons and never shows raw tile ids. */
+export function AreaDetails({ area, mapArea, view }: AreaDetailsProps) {
   const bonus = view.bonuses[area.id] ?? null;
-  const move = view.legal.moves.find((candidate) => candidate.targetAreaId === area.id) ?? null;
-  // Bombard/Shell deploy from this area (the supplied water/land); the target is picked in
-  // the composer.
-  const strike = view.legal.strikes.find((candidate) => candidate.linkedAreaId === area.id) ?? null;
-
-  const actions = view.legal.spaces
-    .filter((space) => space.areaId === area.id)
-    .map((space) => ({
-      id: space.spaceId,
-      label: ACTION_LABEL[space.type] ?? space.type,
-      occupant: view.actionSpaces[space.spaceId] ?? null,
-      deployable: space.legal
-    }));
 
   return (
     <>
@@ -71,44 +38,11 @@ export function AreaDetails({
       <ul className="trait-list">
         <li>Terrain: {mapArea.kind}</li>
         {mapArea.hq ? <li>{mapArea.hq} HQ</li> : null}
-        {mapArea.harbor ? <li>Harbor</li> : null}
-        {mapArea.ports.length > 0 ? <li>Piers &rarr; {mapArea.ports.join(", ")}</li> : null}
+        {mapArea.harbor ? <li>Harbour</li> : null}
+        {mapArea.ports.length > 0 ? <li>Has piers</li> : null}
+        {mapArea.shellable ? <li>Coastal (can be shelled)</li> : null}
         {bonus ? <li>Bonus: {bonus}</li> : null}
       </ul>
-
-      <h3 className="detail-subhead">Actions</h3>
-      {actions.length === 0 ? (
-        <p className="muted">No actions on this area.</p>
-      ) : (
-        <ul className="action-list">
-          {actions.map((action) => (
-            <li key={action.id}>
-              <span className="action-name">{action.label}</span>
-              <span
-                className={
-                  action.occupant ? `action-used action-${action.occupant}` : "action-open"
-                }
-              >
-                {action.occupant
-                  ? `used by ${action.occupant}`
-                  : action.deployable
-                    ? "open (deployable now)"
-                    : "open"}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {move && onStartOrder ? (
-        <button type="button" className="start-order" onClick={() => onStartOrder(move)}>
-          {move.type === "advance" ? "Advance" : "Sail"} into {move.targetAreaId}
-        </button>
-      ) : null}
-      {strike && onStartStrike ? (
-        <button type="button" className="start-order" onClick={() => onStartStrike(strike)}>
-          {ACTION_LABEL[strike.type]} from {strike.linkedAreaId}
-        </button>
-      ) : null}
     </>
   );
 }
