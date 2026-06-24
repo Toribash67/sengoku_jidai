@@ -150,6 +150,7 @@ export const riversMap: MapDefinition = {
   id: riversMapId,
   name: "Rivers",
   areas: Object.fromEntries(areaList.map((area) => [area.id, area])),
-  // INTERIM placeholder slots until confirmed by the board author; change here only.
-  bonusSlots: ["tile6", "tile16", "tile20"]
+  // Bonus slots match the board art in cloned_map.svg: sunbonus-tile2,
+  // moonbonus-tile4, starbonus-tile20.
+  bonusSlots: ["tile2", "tile4", "tile20"]
 };
