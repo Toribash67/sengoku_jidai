@@ -14,6 +14,8 @@
 
 * {
   box-sizing: border-box;
+  /* Suppress iOS Safari's grey tap-flash; the selection highlight confirms the tap. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
