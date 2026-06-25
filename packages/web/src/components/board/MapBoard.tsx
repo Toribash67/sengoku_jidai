@@ -278,6 +278,23 @@ function makeSupplyTint(tile: SVGGraphicsElement, seat: SeatId): SVGElement {
   return clone;
 }
 
+/** Translucent amber fill clone marking a legal Advance/Sail/Strike (or card) target. A thin
+ *  border ring alone gets lost on a dark enemy supply tint — which is exactly where card
+ *  targets sit — so the whole tile is washed amber, painted in the overlay above the tint. */
+function makeTargetHighlight(svg: SVGSVGElement, tile: SVGGraphicsElement): SVGElement | null {
+  const m = localToRoot(svg, tile);
+  if (!m) {
+    return null;
+  }
+  const clone = tile.cloneNode(false) as SVGElement;
+  stripTileHooks(clone);
+  clone.setAttribute("transform", `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`);
+  clone.style.fill = "#f0b429";
+  clone.style.opacity = "0.32";
+  clone.style.stroke = "none";
+  return clone;
+}
+
 /** Striped fill clone marking a tile as an eligible source/target during order
  *  composition; the diagonal stripes read clearly over any underlying tile colour. */
 function makeSourceHighlight(svg: SVGSVGElement, tile: SVGGraphicsElement): SVGElement | null {
@@ -442,6 +459,12 @@ function decorate(
       selectedTile = tile;
     }
     if (isTarget) {
+      // Amber wash first, then the dashed ring on top — so the target reads clearly even over
+      // an enemy supply tint (the usual case when playing a card).
+      const fill = makeTargetHighlight(svg, tile);
+      if (fill) {
+        overlay.appendChild(fill);
+      }
       const glow = makeOutline(svg, tile, "tile-legal-target");
       if (glow) {
         overlay.appendChild(glow);
