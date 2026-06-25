@@ -13,6 +13,7 @@ import {
   type PlayerGameView,
   type SeatId
 } from "@sengoku-jidai/engine";
+import type { GameSeatInfo, SeatStatus } from "@sengoku-jidai/shared";
 import { randomUUID } from "node:crypto";
 import { issueToken } from "../sessions/tokens.js";
 import type { SqliteDatabase } from "./database.js";
@@ -34,6 +35,7 @@ export interface CreatedGame {
   revision: number;
   view: PlayerGameView;
   seats: SeatTokenRecord[];
+  seatInfo: GameSeatInfo[];
 }
 
 export interface CommandSubmission {
@@ -67,13 +69,32 @@ interface AttemptRow {
   rejection_code: string | null;
 }
 
+interface SeatInfoRow {
+  seat: SeatId;
+  display_name: string | null;
+  status: SeatStatus;
+}
+
 export class GameRepository {
   constructor(private readonly db: SqliteDatabase) {}
 
-  createGame(mode: GameMode, seed?: string): CreatedGame {
+  getSeatInfo(gameId: string): GameSeatInfo[] {
+    const rows = this.db
+      .prepare("SELECT seat, display_name, status FROM game_seats WHERE game_id = ? ORDER BY seat")
+      .all(gameId) as SeatInfoRow[];
+    return rows.map((r) => ({ seat: r.seat, name: r.display_name, status: r.status }));
+  }
+
+  createGame(
+    mode: GameMode,
+    seed?: string,
+    opts: { creatorName?: string; creatorSide?: SeatId } = {}
+  ): CreatedGame {
     const gameId = randomUUID();
     const now = new Date().toISOString();
     const state = createInitialState({ gameId, mode, seed: seed ?? randomUUID() });
+    const creatorSide: SeatId = opts.creatorSide ?? "red";
+    const named = opts.creatorName !== undefined;
     const seatTokens: SeatTokenRecord[] = [];
 
     const create = this.db.transaction(() => {
@@ -97,13 +118,17 @@ export class GameRepository {
         );
 
       for (const seat of ["red", "black"] as const) {
+        const isCreator = seat === creatorSide;
+        const status: SeatStatus = !named || isCreator ? "claimed" : "open";
+        const displayName = !named ? seat : isCreator ? opts.creatorName! : null;
+        const claimedAt = status === "claimed" ? now : null;
         this.db
           .prepare(
             `INSERT INTO game_seats
               (game_id, seat, player_id, status, display_name, claimed_at, last_seen_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`
           )
-          .run(gameId, seat, seat, "claimed", seat, now, now);
+          .run(gameId, seat, seat, status, displayName, claimedAt, now);
 
         const token = issueToken();
         seatTokens.push({ seat, token: token.token });
@@ -123,10 +148,11 @@ export class GameRepository {
 
     return {
       gameId,
-      seat: "red",
+      seat: creatorSide,
       revision: state.revision,
-      view: playerView(state, "red"),
-      seats: seatTokens
+      view: playerView(state, creatorSide),
+      seats: seatTokens,
+      seatInfo: this.getSeatInfo(gameId)
     };
   }
 
@@ -154,7 +180,10 @@ export class GameRepository {
     };
   }
 
-  getPlayerView(gameId: string, seat: SeatId): { revision: number; view: PlayerGameView } | null {
+  getPlayerView(
+    gameId: string,
+    seat: SeatId
+  ): { revision: number; view: PlayerGameView; seatInfo: GameSeatInfo[] } | null {
     const game = this.getGameRow(gameId);
     if (!game) {
       return null;
@@ -162,7 +191,38 @@ export class GameRepository {
     const state = this.loadSnapshot(gameId, game.current_revision);
     return {
       revision: game.current_revision,
-      view: playerView(state, seat)
+      view: playerView(state, seat),
+      seatInfo: this.getSeatInfo(gameId)
+    };
+  }
+
+  claimSeat(
+    gameId: string,
+    seat: SeatId,
+    name: string
+  ): { revision: number; view: PlayerGameView; seatInfo: GameSeatInfo[] } | null {
+    const game = this.getGameRow(gameId);
+    if (!game) {
+      return null;
+    }
+    const row = this.db
+      .prepare("SELECT status FROM game_seats WHERE game_id = ? AND seat = ?")
+      .get(gameId, seat) as { status: SeatStatus } | undefined;
+    if (!row) {
+      return null;
+    }
+    if (row.status === "open") {
+      this.db
+        .prepare(
+          "UPDATE game_seats SET display_name = ?, status = 'claimed', claimed_at = ? WHERE game_id = ? AND seat = ?"
+        )
+        .run(name, new Date().toISOString(), gameId, seat);
+    }
+    const state = this.loadSnapshot(gameId, game.current_revision);
+    return {
+      revision: game.current_revision,
+      view: playerView(state, seat),
+      seatInfo: this.getSeatInfo(gameId)
     };
   }
 
