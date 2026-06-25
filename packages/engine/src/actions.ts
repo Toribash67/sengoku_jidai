@@ -287,7 +287,7 @@ export function applyBombard(
 export function applyShell(
   state: GameState,
   seat: SeatId,
-  _spaceId: string,
+  spaceId: string,
   targetAreaId: string
 ): GameEvent[] {
   state.pendingCombat = {
@@ -298,10 +298,25 @@ export function applyShell(
     responsibleSeat: seat,
     phase: "awaiting-roll",
     area: targetAreaId,
+    spaceId,
     unit: "ship",
     dice: 2
   };
   return [];
+}
+
+/** Ship Strike: a second Shell from the same space, with no new commander. Discards the card,
+ *  then stages the shell exactly as the first one (which pauses for the attacker to roll). */
+export function applyShipStrike(
+  state: GameState,
+  seat: SeatId,
+  spaceId: string,
+  targetAreaId: string
+): GameEvent[] {
+  return [
+    ...playCard(state, seat, "ship_strike"),
+    ...applyShell(state, seat, spaceId, targetAreaId)
+  ];
 }
 
 /** Remove up to `count` units of `unit` from `area`, returning them to the owner's reserve. */
@@ -372,9 +387,15 @@ export function resolveMoveIn(
  * reviews the result before `applyPendingCombat` lands the casualties. Returns the
  * `diceRolled` event so the log/animation can show the throw.
  */
-export function rollPendingCombat(state: GameState): GameEvent[] {
+export function rollPendingCombat(state: GameState, card?: OperationCard): GameEvent[] {
   const pc = state.pendingCombat!;
-  const count = pc.kind === "advance" || pc.kind === "sail" ? 1 : pc.dice!;
+  const events: GameEvent[] = [];
+  const isDefence = pc.kind === "advance" || pc.kind === "sail";
+  // Ambush: the defender of an Advance-initiated land conflict throws two extra dice
+  // (validated upstream). The defence removal is the sum of all dice (see applyPendingCombat).
+  const ambush = card === "ambush";
+  if (ambush) events.push(...playCard(state, pc.responsibleSeat, card!));
+  const count = (isDefence ? 1 : pc.dice!) + (ambush ? 2 : 0);
   const rolls: number[] = [];
   let total = 0;
   for (let i = 0; i < count; i++) {
@@ -386,9 +407,14 @@ export function rollPendingCombat(state: GameState): GameEvent[] {
   pc.rolls = rolls;
   pc.total = total;
   pc.phase = "rolled";
-  return [
-    { type: "diceRolled", seat: pc.responsibleSeat, purpose: combatPurpose(state), rolls, total }
-  ];
+  events.push({
+    type: "diceRolled",
+    seat: pc.responsibleSeat,
+    purpose: combatPurpose(state),
+    rolls,
+    total
+  });
+  return events;
 }
 
 /** The diceRolled `purpose` for the active combat: "defence" for advance/sail, else the kind. */
@@ -435,7 +461,8 @@ export function applyPendingCombat(state: GameState): GameEvent[] {
   const events: GameEvent[] = [];
 
   if (pc.kind === "advance" || pc.kind === "sail") {
-    const outcome = conflictOutcome(pc.rolls![0]!, pc.attackers!, pc.defenders!);
+    // The defence removes its total pips (one die normally; three with Ambush).
+    const outcome = conflictOutcome(pc.total!, pc.attackers!, pc.defenders!);
 
     state.players[pc.attacker].reserve[pc.unit] += outcome.attackerLosses;
     state.players[pc.defender].reserve[pc.unit] += outcome.defenderLosses;
@@ -473,6 +500,30 @@ export function applyPendingCombat(state: GameState): GameEvent[] {
     }
   } else {
     events.push(...removeUnits(state, pc.area, pc.unit, pc.total!));
+  }
+
+  // Ship Strike: after a Shell resolves, if the attacker still holds the card and the target
+  // still has enemy ships, offer a second Shell from the same space (decided before the turn
+  // advances). Bombard never offers it.
+  if (
+    pc.kind === "shell" &&
+    pc.spaceId !== undefined &&
+    state.players[pc.attacker].hand.includes("ship_strike") &&
+    rt.owner === pc.defender &&
+    rt.units.ship > 0
+  ) {
+    state.pendingDecision = {
+      id: `ship-strike-${pc.area}`,
+      seat: pc.attacker,
+      prompt: "Ship Strike: take a second Shell from the same space?",
+      choices: [
+        { id: "ship_strike", label: "Shell again" },
+        { id: "decline", label: "Decline" }
+      ],
+      kind: "shipStrike",
+      spaceId: pc.spaceId,
+      targetAreaId: pc.area
+    };
   }
 
   state.pendingCombat = null;

@@ -15,6 +15,7 @@ import {
   applySail,
   applyBombard,
   applyShell,
+  applyShipStrike,
   rollPendingCombat,
   rerollPendingCombat,
   applyPendingCombat
@@ -44,8 +45,9 @@ export function resolveCommand(
     events.push(...applyPass(next, seat));
   } else if (command.type === "combatRoll") {
     // Throw the dice and pause again on the `rolled` phase for the responsible seat to
-    // review (and, with cards, reroll) before casualties land on combatResolve.
-    events.push(...rollPendingCombat(next));
+    // review (and, with cards, reroll) before casualties land on combatResolve. An Ambush
+    // card may be played here to add two defence dice.
+    events.push(...rollPendingCombat(next, command.card));
   } else if (command.type === "combatReroll") {
     // Discard a card to re-throw; stays on the `rolled` phase for another review.
     events.push(...rerollPendingCombat(next, command.card));
@@ -53,8 +55,18 @@ export function resolveCommand(
     // Apply the reviewed roll, then fall through to the turn tail.
     events.push(...applyPendingCombat(next));
   } else if (command.type === "choosePendingDecision") {
-    // v1 seam: never reached (pendingDecision is always null), but resolve harmlessly.
+    // Ship Strike: "Shell again" stages a second Shell from the same space (no commander
+    // spent); any other choice (Decline) just clears the decision and continues.
+    const decision = next.pendingDecision!;
     next.pendingDecision = null;
+    if (
+      decision.kind === "shipStrike" &&
+      command.choice.id === "ship_strike" &&
+      decision.spaceId !== undefined &&
+      decision.targetAreaId !== undefined
+    ) {
+      events.push(...applyShipStrike(next, decision.seat, decision.spaceId, decision.targetAreaId));
+    }
   } else {
     // Counterattack deploys onto the opponent's Advance space: keep their commander on the
     // space (don't overwrite) and spend one of ours via the counterattack counter instead.
@@ -72,6 +84,12 @@ export function resolveCommand(
   // An action that moved into an enemy area or fired a strike pauses here for the
   // responsible seat to roll. Defer caps/end-check/turn until combatRoll resolves it.
   if (next.pendingCombat) {
+    return { status: "accepted", nextState: next, events };
+  }
+
+  // A pending decision (Ship Strike follow-up after a Shell) likewise pauses the turn tail
+  // until the responsible seat answers it.
+  if (next.pendingDecision) {
     return { status: "accepted", nextState: next, events };
   }
 
