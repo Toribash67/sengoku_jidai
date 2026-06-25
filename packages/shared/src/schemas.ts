@@ -73,7 +73,11 @@ export const commandSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("plan"), spaceId: z.string().min(1) }),
   z.object({ type: z.literal("pass") }),
-  z.object({ type: z.literal("combatRoll"), pendingId: z.string().min(1) }),
+  z.object({
+    type: z.literal("combatRoll"),
+    pendingId: z.string().min(1),
+    card: operationCardSchema.optional()
+  }),
   z.object({
     type: z.literal("combatReroll"),
     pendingId: z.string().min(1),

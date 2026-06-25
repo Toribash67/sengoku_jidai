@@ -6,6 +6,7 @@ import type {
   LegalPlan,
   LegalStrike,
   OperationCard,
+  PendingChoice,
   PlayerGameEvent,
   PlayerGameView,
   SeatId
@@ -17,6 +18,7 @@ import { AreaDetails } from "./components/board/AreaDetails.js";
 import { CardPreview } from "./components/board/CardPreview.js";
 import { cardLabel } from "./components/board/cardImages.js";
 import { CombatPanel } from "./components/board/CombatPanel.js";
+import { PendingDecisionPanel } from "./components/board/PendingDecisionPanel.js";
 import { Hand } from "./components/board/Hand.js";
 import { describeArea } from "./components/board/areaLabel.js";
 import {
@@ -438,7 +440,10 @@ export function App() {
   // throws the dice, "combatReroll" discards a card to re-throw, "combatResolve" applies the
   // reviewed result.
   async function submitCombat(
-    action: { type: "combatRoll" | "combatResolve" } | { type: "combatReroll"; card: OperationCard }
+    action:
+      | { type: "combatRoll"; card?: OperationCard }
+      | { type: "combatResolve" }
+      | { type: "combatReroll"; card: OperationCard }
   ) {
     if (!game || !game.view.pendingCombat) {
       return;
@@ -455,6 +460,36 @@ export function App() {
       const response = await submitCommand(game.gameId, token, game.revision, {
         ...action,
         pendingId
+      });
+      if (response.view) {
+        setGame({ ...game, revision: response.revision, view: response.view });
+      }
+      setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Answer a pending decision (the Ship Strike "Shell again / Decline" follow-up).
+  async function submitDecision(choice: PendingChoice) {
+    if (!game || !game.view.pendingDecision) {
+      return;
+    }
+    const token = game.seats.find((seat) => seat.seat === game.activeSeat)?.token;
+    if (!token) {
+      setError("Missing seat token.");
+      return;
+    }
+    const pendingId = game.view.pendingDecision.id;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await submitCommand(game.gameId, token, game.revision, {
+        type: "choosePendingDecision",
+        pendingId,
+        choice
       });
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
@@ -552,9 +587,17 @@ export function App() {
               canRoll={game.view.legal.canRollCombat}
               canResolve={game.view.legal.canResolveCombat}
               canReroll={game.view.legal.canRerollCombat}
+              canAmbush={game.view.legal.canAmbush}
               busy={busy}
               onRoll={() => submitCombat({ type: "combatRoll" })}
+              onRollAmbush={() => submitCombat({ type: "combatRoll", card: "ambush" })}
               onResolve={() => submitCombat({ type: "combatResolve" })}
+            />
+          ) : game.view.pendingDecision ? (
+            <PendingDecisionPanel
+              decision={game.view.pendingDecision}
+              busy={busy}
+              onChoose={submitDecision}
             />
           ) : (
             <ActionBar

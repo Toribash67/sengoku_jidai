@@ -30,12 +30,17 @@ export interface PendingChoice {
   label: string;
 }
 
-/** A decision the engine is waiting on before any other command (future cards). */
+/** A decision the engine is waiting on before any other command. Currently only the
+ *  Ship Strike follow-up (offered after a Shell resolves) uses it. */
 export interface PendingDecision {
   id: string;
   seat: SeatId;
   prompt: string;
   choices: PendingChoice[];
+  /** Discriminates the decision; "shipStrike" carries the space/target of the second Shell. */
+  kind?: "shipStrike";
+  spaceId?: string;
+  targetAreaId?: string;
 }
 
 /**
@@ -59,6 +64,8 @@ export interface PendingCombat {
   phase: "awaiting-roll" | "rolled";
   /** Target area whose garrison is at stake. */
   area: string;
+  /** Originating action space (bombard/shell); used to stage a Ship Strike second shell. */
+  spaceId?: string;
   /** Combat only ever moves troops (land) or ships (water), never siege. */
   unit: "troop" | "ship";
   /** advance/sail: incoming attacker units held off-board until the roll resolves. */

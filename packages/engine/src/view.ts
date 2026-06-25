@@ -141,6 +141,8 @@ export interface LegalCommandSummary {
   canResolveCombat: boolean;
   /** True when this seat may discard a card to reroll (dice rolled and hand non-empty). */
   canRerollCombat: boolean;
+  /** True when this seat may play Ambush (+2 dice) on the pending defence roll. */
+  canAmbush: boolean;
 }
 
 export interface PlayerGameView {
@@ -271,7 +273,13 @@ export function legalCommandsForState(state: GameState, seat: SeatId): LegalComm
       state.pendingCombat !== null &&
       state.pendingCombat.responsibleSeat === seat &&
       state.pendingCombat.phase === "rolled" &&
-      state.players[seat].hand.length > 0
+      state.players[seat].hand.length > 0,
+    canAmbush:
+      state.pendingCombat !== null &&
+      state.pendingCombat.responsibleSeat === seat &&
+      state.pendingCombat.phase === "awaiting-roll" &&
+      state.pendingCombat.kind === "advance" &&
+      state.players[seat].hand.includes("ambush")
   };
 }
 

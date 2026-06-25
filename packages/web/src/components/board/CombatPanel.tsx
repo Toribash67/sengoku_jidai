@@ -10,8 +10,11 @@ interface CombatPanelProps {
   canResolve: boolean;
   /** True when the viewer holds a card they could discard to reroll. */
   canReroll: boolean;
+  /** True when the viewer may play Ambush (+2 dice) before this defence roll. */
+  canAmbush: boolean;
   busy: boolean;
   onRoll: () => void;
+  onRollAmbush: () => void;
   onResolve: () => void;
 }
 
@@ -60,8 +63,10 @@ export function CombatPanel({
   canRoll,
   canResolve,
   canReroll,
+  canAmbush,
   busy,
   onRoll,
+  onRollAmbush,
   onResolve
 }: CombatPanelProps) {
   const { headline, detail, diceCount } = describeCombat(pendingCombat, areaLabel);
@@ -92,9 +97,16 @@ export function CombatPanel({
             </span>
           </>
         ) : (
-          <button type="button" onClick={onRoll} disabled={busy || !canRoll}>
-            Roll
-          </button>
+          <>
+            <button type="button" onClick={onRoll} disabled={busy || !canRoll}>
+              Roll
+            </button>
+            {canAmbush ? (
+              <button type="button" onClick={onRollAmbush} disabled={busy}>
+                Roll with Ambush (+2 dice)
+              </button>
+            ) : null}
+          </>
         )}
       </span>
     </div>

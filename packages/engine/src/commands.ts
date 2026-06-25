@@ -23,7 +23,7 @@ export type Command =
   | { type: "embark"; spaceId: string; placements: Placement[]; card?: OperationCard }
   | { type: "plan"; spaceId: string }
   | { type: "pass" }
-  | { type: "combatRoll"; pendingId: string }
+  | { type: "combatRoll"; pendingId: string; card?: OperationCard }
   | { type: "combatReroll"; pendingId: string; card: OperationCard }
   | { type: "combatResolve"; pendingId: string }
   | { type: "choosePendingDecision"; pendingId: string; choice: PendingChoice };

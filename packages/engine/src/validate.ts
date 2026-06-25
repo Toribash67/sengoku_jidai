@@ -44,8 +44,23 @@ export function validateCommand(
     if (pc.responsibleSeat !== actor.seat) {
       return reject("notActiveSeat", "This seat cannot act on this combat.");
     }
-    if (command.type === "combatRoll" && pc.phase !== "awaiting-roll") {
-      return reject("pendingDecisionRequired", "The dice have already been rolled.");
+    if (command.type === "combatRoll") {
+      if (pc.phase !== "awaiting-roll") {
+        return reject("pendingDecisionRequired", "The dice have already been rolled.");
+      }
+      // Ambush is the only card playable at the roll: the defender of an Advance-initiated
+      // land conflict adds two dice.
+      if (command.card !== undefined) {
+        if (command.card !== "ambush") {
+          return reject("illegalChoice", "Only Ambush can be played on a defence roll.");
+        }
+        if (pc.kind !== "advance") {
+          return reject("illegalChoice", "Ambush applies only to a land conflict from an Advance.");
+        }
+        if (!state.players[actor.seat].hand.includes("ambush")) {
+          return reject("illegalChoice", "That card is not in your hand.");
+        }
+      }
     }
     if (command.type === "combatResolve" && pc.phase !== "rolled") {
       return reject("pendingDecisionRequired", "Roll the dice before resolving.");
