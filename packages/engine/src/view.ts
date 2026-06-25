@@ -459,8 +459,8 @@ function enumerateCardPlays(
   return plays;
 }
 
-/** Embark placements as Commandeer sees them: +1 pool and opponent-controlled port water
- *  included as targets (one such target may be contested per Embark). */
+/** Embark placements as Commandeer sees them: +1 pool and every opponent-controlled sea
+ *  included as a target (regardless of supply), so ships can be landed into enemy waters. */
 function enumerateCommandeerPlacements(
   state: GameState,
   seat: SeatId,

@@ -108,8 +108,8 @@ function drawCards(state: GameState, seat: SeatId, n: number): GameEvent[] {
 }
 
 /** Embark: place ships from reserve into supplied/port-adjacent water (validated upstream).
- *  With Commandeer the target set may include an opponent-controlled water; placing there
- *  routes through the Sail move-in (so it stages combat rather than co-occupying). */
+ *  With Commandeer the target set may include any opponent-controlled sea; placing into an
+ *  enemy-owned water routes through the Sail move-in (so it stages a battle there). */
 export function applyEmbark(
   state: GameState,
   seat: SeatId,

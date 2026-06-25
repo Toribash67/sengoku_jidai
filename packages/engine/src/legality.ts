@@ -82,15 +82,17 @@ export function reinforceTargets(
 }
 
 /**
- * Embark placement targets: water areas the seat supplies, plus water areas
- * reachable via a supplied port (harbor land the seat supplies) that contain no
- * enemy ships.
+ * Embark placement targets: water areas the seat supplies, plus water reachable via a
+ * supplied port (harbor land the seat supplies) that contains no enemy ships. With
+ * `includeEnemyWaters` (the Commandeer card), ANY sea the opponent controls is also a target,
+ * regardless of supply or port adjacency — placing there stages a sail-style battle (see
+ * applyEmbark), so a ship can be landed straight into the enemy's waters.
  */
 export function embarkTargets(
   map: MapDefinition,
   state: GameState,
   seat: SeatId,
-  includeContested = false
+  includeEnemyWaters = false
 ): Set<string> {
   const board: SupplyBoard = { ownerOf: (id) => state.areas[id]?.owner ?? null };
   const supplied = suppliedAreas(map, board, seat);
@@ -103,9 +105,12 @@ export function embarkTargets(
     for (const w of a.ports) {
       const rt = state.areas[w];
       const hasEnemyShips = rt?.owner === enemy && rt.units.ship > 0;
-      // Commandeer (includeContested) may embark into enemy-held port water; that placement
-      // stages a sail-style move-in instead of co-occupying (see applyEmbark).
-      if (includeContested || !hasEnemyShips) out.add(w);
+      if (!hasEnemyShips) out.add(w); // normal launch: own / neutral port water
+    }
+  }
+  if (includeEnemyWaters) {
+    for (const id of Object.keys(state.areas)) {
+      if (map.areas[id]?.kind === "sea" && state.areas[id]!.owner === enemy) out.add(id);
     }
   }
   return out;
