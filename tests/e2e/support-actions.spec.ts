@@ -2,8 +2,7 @@ import { expect, test } from "@playwright/test";
 
 /** Switch the view to whichever seat currently has initiative, and return its name. */
 async function switchToActiveSeat(page: import("@playwright/test").Page): Promise<string> {
-  const actText = await page.locator(".top-stats span", { hasText: "to act" }).textContent();
-  const actor = actText?.trim().split(" ")[0];
+  const actor = await page.locator(".app-shell").getAttribute("data-active-seat");
   expect(actor === "red" || actor === "black").toBe(true);
   await page.getByRole("button", { name: actor!, exact: true }).click();
   return actor!;

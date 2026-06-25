@@ -6,8 +6,7 @@ test("issues a movement order from the board and resolves it", async ({ page }) 
   await expect(page.getByTestId("board")).toBeVisible();
 
   // Switch the view to whichever seat has initiative this game.
-  const actText = await page.locator(".top-stats span", { hasText: "to act" }).textContent();
-  const actor = actText?.trim().split(" ")[0];
+  const actor = await page.locator(".app-shell").getAttribute("data-active-seat");
   expect(actor === "red" || actor === "black").toBe(true);
   await page.getByRole("button", { name: actor!, exact: true }).click();
 
