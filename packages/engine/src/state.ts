@@ -37,8 +37,10 @@ export interface PendingDecision {
   seat: SeatId;
   prompt: string;
   choices: PendingChoice[];
-  /** Discriminates the decision; "shipStrike" carries the space/target of the second Shell. */
-  kind?: "shipStrike";
+  /** Discriminates the decision: "shipStrike" carries the space/target of the second Shell;
+   *  "selectCombat" lets the attacker pick which queued sea battle to resolve next (each
+   *  `choice.id` is the contested area). */
+  kind?: "shipStrike" | "selectCombat";
   spaceId?: string;
   targetAreaId?: string;
 }
@@ -149,8 +151,11 @@ export interface GameState {
   /** Monotonic version; bumped once per accepted command. Read by server persistence. */
   revision: number;
 
-  pendingDecision: PendingDecision | null; // unused by actions in v1; populated only by future cards
+  pendingDecision: PendingDecision | null; // ship_strike follow-up / select-next-battle prompt
   pendingCombat: PendingCombat | null; // set while a combat awaits its roll; blocks all other commands
+  /** Sea battles staged by a multi-target Commandeer Embark, awaiting activation one at a time
+   *  (the attacker picks the order). Empty at rest and for every non-Commandeer combat. */
+  combatQueue: PendingCombat[];
   winner: SeatId | null;
   endReason: EndReason | null;
 }

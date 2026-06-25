@@ -148,6 +148,7 @@ export function createInitialState(options: GameSetupOptions): GameState {
     revision: 0,
     pendingDecision: null,
     pendingCombat: null,
+    combatQueue: [],
     winner: null,
     endReason: null
   };

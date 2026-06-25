@@ -306,6 +306,140 @@ describe("counterattack (advance onto an opponent-occupied Advance space)", () =
   });
 });
 
+describe("commandeer multi-battle", () => {
+  // tile9 (red HQ harbor) ports are tile14 and tile15 — both reachable embark targets.
+  function twoEnemyPorts() {
+    const s = game(["commandeer"]);
+    s.rules = { ...s.rules, diceFaces: [1, 1, 1, 1, 1, 1] };
+    s.areas["tile14"] = { owner: "black", units: { troop: 0, ship: 1, siege: 0 } };
+    s.areas["tile15"] = { owner: "black", units: { troop: 0, ship: 1, siege: 0 } };
+    return s;
+  }
+
+  it("queues a battle per enemy water and asks the attacker which to resolve first", () => {
+    const r = resolveCommand(
+      twoEnemyPorts(),
+      { seat: "red" },
+      {
+        type: "embark",
+        spaceId: "embark-a",
+        placements: [
+          { area: "tile14", count: 1 },
+          { area: "tile15", count: 1 }
+        ],
+        card: "commandeer"
+      }
+    );
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    expect(r.nextState.pendingCombat).toBeNull(); // no active battle until the attacker picks
+    expect(r.nextState.pendingDecision!.kind).toBe("selectCombat");
+    expect(r.nextState.pendingDecision!.seat).toBe("red");
+    expect(r.nextState.combatQueue.map((b) => b.area).sort()).toEqual(["tile14", "tile15"]);
+    expect(r.nextState.pendingDecision!.choices.map((c) => c.id).sort()).toEqual([
+      "tile14",
+      "tile15"
+    ]);
+    expect(r.nextState.players.red.discard).toContain("commandeer");
+    expect(r.nextState.activeSeat).toBe("red"); // turn not advanced
+  });
+
+  it("resolves battles in the chosen order, auto-activating the last, then advances the turn", () => {
+    const embarked = resolveCommand(
+      twoEnemyPorts(),
+      { seat: "red" },
+      {
+        type: "embark",
+        spaceId: "embark-a",
+        placements: [
+          { area: "tile14", count: 1 },
+          { area: "tile15", count: 1 }
+        ],
+        card: "commandeer"
+      }
+    );
+    if (embarked.status !== "accepted") throw new Error("embark rejected");
+
+    // Attacker picks tile15 first.
+    const picked = resolveCommand(
+      embarked.nextState,
+      { seat: "red" },
+      {
+        type: "choosePendingDecision",
+        pendingId: embarked.nextState.pendingDecision!.id,
+        choice: { id: "tile15", label: "Sea" }
+      }
+    );
+    expect(picked.status).toBe("accepted");
+    if (picked.status !== "accepted") return;
+    expect(picked.nextState.pendingCombat!.area).toBe("tile15");
+    expect(picked.nextState.pendingCombat!.responsibleSeat).toBe("black");
+    expect(picked.nextState.combatQueue.map((b) => b.area)).toEqual(["tile14"]);
+
+    // Defender rolls/resolves tile15 -> the lone remaining battle (tile14) activates directly.
+    const after15 = rollPending(picked.nextState);
+    expect(after15.status).toBe("accepted");
+    if (after15.status !== "accepted") return;
+    expect(after15.nextState.pendingDecision).toBeNull(); // one left -> no picker
+    expect(after15.nextState.pendingCombat!.area).toBe("tile14");
+    expect(after15.nextState.activeSeat).toBe("red"); // still resolving
+
+    // Resolve tile14 -> queue empty -> turn advances.
+    const after14 = rollPending(after15.nextState);
+    expect(after14.status).toBe("accepted");
+    if (after14.status !== "accepted") return;
+    expect(after14.nextState.pendingCombat).toBeNull();
+    expect(after14.nextState.combatQueue).toEqual([]);
+    expect(after14.nextState.pendingDecision).toBeNull();
+    expect(after14.nextState.activeSeat).toBe("black");
+  });
+
+  it("a single enemy target stages combat directly with no picker", () => {
+    const s = game(["commandeer"]);
+    s.areas["tile15"] = { owner: "black", units: { troop: 0, ship: 1, siege: 0 } };
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "embark",
+        spaceId: "embark-a",
+        placements: [{ area: "tile15", count: 1 }],
+        card: "commandeer"
+      }
+    );
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    expect(r.nextState.pendingDecision).toBeNull();
+    expect(r.nextState.pendingCombat!.area).toBe("tile15");
+    expect(r.nextState.combatQueue).toEqual([]);
+  });
+
+  it("places own/empty-water ships immediately while enemy targets queue", () => {
+    const s = game(["commandeer"]);
+    s.areas["tile14"] = { owner: "black", units: { troop: 0, ship: 1, siege: 0 } };
+    // tile15 is empty — placing there lands at once; tile14 (enemy) becomes the battle.
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "embark",
+        spaceId: "embark-a",
+        placements: [
+          { area: "tile15", count: 1 },
+          { area: "tile14", count: 1 }
+        ],
+        card: "commandeer"
+      }
+    );
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    expect(r.nextState.areas["tile15"]!.owner).toBe("red");
+    expect(r.nextState.areas["tile15"]!.units.ship).toBe(1);
+    expect(r.nextState.pendingCombat!.area).toBe("tile14"); // single enemy -> direct
+    expect(r.nextState.pendingDecision).toBeNull();
+  });
+});
+
 describe("card-play validation", () => {
   it("rejects a card that is not in hand", () => {
     const hq = hqOf("red");
