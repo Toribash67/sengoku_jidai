@@ -24,7 +24,8 @@ export type ActionDispatch = (state: GameState, seat: SeatId, command: Command) 
 export function applyReinforce(
   state: GameState,
   seat: SeatId,
-  placements: { area: string; count: number }[]
+  placements: { area: string; count: number }[],
+  card?: OperationCard
 ): GameEvent[] {
   const events: GameEvent[] = [];
   for (const p of placements) {
@@ -42,6 +43,8 @@ export function applyReinforce(
       area: bonusArea(state, "barracks")!
     });
   }
+  // Mobilise raised the placement limit by 2 (validated upstream); discard it.
+  if (card) events.push(...playCard(state, seat, card));
   return events;
 }
 
@@ -72,6 +75,19 @@ export function applyPlan(state: GameState, seat: SeatId, spaceId: string): Game
   return events;
 }
 
+/** Move a played operation card from the seat's hand to its discard pile. A played card's
+ *  effect is public (extra units/dice/occupancy show on the board), so its id is revealed —
+ *  unlike the face-down `cardDiscarded` of a combat reroll. */
+function playCard(state: GameState, seat: SeatId, card: OperationCard): GameEvent[] {
+  const player = state.players[seat];
+  const i = player.hand.indexOf(card);
+  if (i !== -1) {
+    player.hand.splice(i, 1);
+    player.discard.push(card);
+  }
+  return [{ type: "cardPlayed", seat, card }];
+}
+
 /** Draw up to `n` cards into the seat's hand, reshuffling the discard pile into the deck
  *  (deterministically, via `state.rngState`) when the deck runs short. */
 function drawCards(state: GameState, seat: SeatId, n: number): GameEvent[] {
@@ -91,20 +107,29 @@ function drawCards(state: GameState, seat: SeatId, n: number): GameEvent[] {
   return drawn > 0 ? [{ type: "cardsDrawn", seat, count: drawn }] : [];
 }
 
-/** Embark: place ships from reserve into supplied/port-adjacent water (validated upstream). */
+/** Embark: place ships from reserve into supplied/port-adjacent water (validated upstream).
+ *  With Commandeer the target set may include an opponent-controlled water; placing there
+ *  routes through the Sail move-in (so it stages combat rather than co-occupying). */
 export function applyEmbark(
   state: GameState,
   seat: SeatId,
-  placements: { area: string; count: number }[]
+  placements: { area: string; count: number }[],
+  card?: OperationCard
 ): GameEvent[] {
   const events: GameEvent[] = [];
   for (const p of placements) {
     const rt = state.areas[p.area]!;
-    rt.units.ship += p.count;
-    rt.owner = seat;
     state.players[seat].reserve.ship -= p.count;
-    events.push({ type: "unitsPlaced", seat, area: p.area, unit: "ship", count: p.count });
+    if (rt.owner != null && rt.owner !== seat) {
+      // Commandeer into opponent water: stage a sail-style move-in (peaceful capture or combat).
+      events.push(...resolveMoveIn(state, seat, "sail", p.area, "ship", p.count));
+    } else {
+      rt.units.ship += p.count;
+      rt.owner = seat;
+      events.push({ type: "unitsPlaced", seat, area: p.area, unit: "ship", count: p.count });
+    }
   }
+  if (card) events.push(...playCard(state, seat, card));
   return events;
 }
 
@@ -121,7 +146,9 @@ export function applyAdvance(
   state: GameState,
   seat: SeatId,
   spaceId: string,
-  moves: { from: string; count: number }[]
+  moves: { from: string; count: number }[],
+  card?: OperationCard,
+  cardBonus?: number
 ): GameEvent[] {
   const map = getMap(state.mapId);
   const target = actionSpaceMap(map)[spaceId]!.areaId!;
@@ -155,7 +182,14 @@ export function applyAdvance(
     });
   }
 
+  // Ground Assault: up to 2 extra troops from reserve join the move-in (validated upstream).
+  if (card === "ground_assault" && cardBonus) {
+    state.players[seat].reserve.troop -= cardBonus;
+    attackers += cardBonus;
+  }
+
   events.push(...resolveMoveIn(state, seat, "advance", target, "troop", attackers));
+  if (card) events.push(...playCard(state, seat, card));
   return events;
 }
 
@@ -164,7 +198,9 @@ export function applySail(
   state: GameState,
   seat: SeatId,
   spaceId: string,
-  moves: { from: string; count: number }[]
+  moves: { from: string; count: number }[],
+  card?: OperationCard,
+  cardBonus?: number
 ): GameEvent[] {
   const map = getMap(state.mapId);
   const target = actionSpaceMap(map)[spaceId]!.areaId!;
@@ -195,7 +231,14 @@ export function applySail(
     });
   }
 
+  // River Assault: up to 2 extra ships from reserve join the move-in (validated upstream).
+  if (card === "river_assault" && cardBonus) {
+    state.players[seat].reserve.ship -= cardBonus;
+    attackers += cardBonus;
+  }
+
   events.push(...resolveMoveIn(state, seat, "sail", target, "ship", attackers));
+  if (card) events.push(...playCard(state, seat, card));
   return events;
 }
 
@@ -207,7 +250,8 @@ export function applyBombard(
   state: GameState,
   seat: SeatId,
   spaceId: string,
-  targetAreaId: string
+  targetAreaId: string,
+  card?: OperationCard
 ): GameEvent[] {
   const map = getMap(state.mapId);
   const water = actionSpaceMap(map)[spaceId]!.areaId!;
@@ -222,6 +266,9 @@ export function applyBombard(
       area: bonusArea(state, "pirateHaven")!
     });
   }
+  // Shore Strike: two extra dice (validated upstream).
+  if (card === "shore_strike") dice += 2;
+  if (card) events.push(...playCard(state, seat, card));
   state.pendingCombat = {
     id: `combat-${targetAreaId}`,
     kind: "bombard",

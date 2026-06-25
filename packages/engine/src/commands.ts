@@ -11,12 +11,16 @@ export type Move = { from: string; count: number };
 export type Placement = { area: string; count: number };
 
 export type Command =
-  | { type: "advance"; spaceId: string; moves: Move[] }
-  | { type: "sail"; spaceId: string; moves: Move[] }
-  | { type: "bombard"; spaceId: string; targetAreaId: string }
+  // `card` (optional) is an operation card played as the commander deploys — it modifies the
+  // action (extra pool/dice, opponent-area placement, or counterattack occupancy) and is
+  // discarded. `cardBonus` (advance/sail) is the 0–2 reserve units a ground/river-assault card
+  // adds to the linked area.
+  | { type: "advance"; spaceId: string; moves: Move[]; card?: OperationCard; cardBonus?: number }
+  | { type: "sail"; spaceId: string; moves: Move[]; card?: OperationCard; cardBonus?: number }
+  | { type: "bombard"; spaceId: string; targetAreaId: string; card?: OperationCard }
   | { type: "shell"; spaceId: string; targetAreaId: string }
-  | { type: "reinforce"; spaceId: string; placements: Placement[] }
-  | { type: "embark"; spaceId: string; placements: Placement[] }
+  | { type: "reinforce"; spaceId: string; placements: Placement[]; card?: OperationCard }
+  | { type: "embark"; spaceId: string; placements: Placement[]; card?: OperationCard }
   | { type: "plan"; spaceId: string }
   | { type: "pass" }
   | { type: "combatRoll"; pendingId: string }
@@ -52,6 +56,7 @@ export type GameEvent =
   | { type: "diceRolled"; seat: SeatId; purpose: string; rolls: number[]; total: number }
   | { type: "cardsDrawn"; seat: SeatId; count: number }
   | { type: "cardDiscarded"; seat: SeatId }
+  | { type: "cardPlayed"; seat: SeatId; card: OperationCard }
   | { type: "unitsRemoved"; seat: SeatId; area: string; unit: UnitType; count: number }
   | { type: "areaCaptured"; seat: SeatId; area: string; previousOwner: SeatId | null }
   | { type: "capExceeded"; area: string; unit: UnitType; returned: number; owner: SeatId }

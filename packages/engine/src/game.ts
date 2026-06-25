@@ -121,7 +121,7 @@ export function createInitialState(options: GameSetupOptions): GameState {
         ship: RIVERS_UNIT_POOL.ship - placed.ship,
         siege: RIVERS_UNIT_POOL.siege - placed.siege
       },
-      commanders: { total: rules.commandersPerPlayer, standby: 0 },
+      commanders: { total: rules.commandersPerPlayer, standby: 0, counterattacks: 0 },
       hand: [],
       deck: decks[seat],
       discard: [],

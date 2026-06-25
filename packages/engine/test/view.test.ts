@@ -189,4 +189,27 @@ describe("playerView (v2)", () => {
     expect(summary.placements).toEqual([]);
     expect(summary.plans).toEqual([]);
   });
+
+  it("lists cardPlays only for held, currently-playable cards", () => {
+    const scenario = { ...createInitialState({ gameId: "g4", seed: "fixed" }) };
+    scenario.initiative = "red";
+    scenario.activeSeat = "red";
+    scenario.bonuses = {};
+    // Hold one playable deploy card (mobilise -> reinforce) and one combat-only card (ambush,
+    // never a deploy play).
+    scenario.players.red.hand = ["mobilise", "ambush"];
+    const cardPlays = legalCommandsForState(scenario, "red").cardPlays;
+    const mobilise = cardPlays.find((p) => p.card === "mobilise");
+    expect(mobilise).toBeDefined();
+    expect(mobilise!.action).toBe("reinforce");
+    expect(mobilise!.placements!.length).toBeGreaterThan(0);
+    // Ambush is a combat card, so it is never offered as a deploy play.
+    expect(cardPlays.some((p) => p.card === "ambush")).toBe(false);
+  });
+
+  it("omits cardPlays for the non-active seat", () => {
+    const other = state.activeSeat === "red" ? "black" : "red";
+    const scenario = { ...state, players: { ...state.players } };
+    expect(legalCommandsForState(scenario, other).cardPlays).toEqual([]);
+  });
 });

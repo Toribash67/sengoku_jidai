@@ -1,4 +1,5 @@
 import type { LegalMove, LegalPlacement, LegalPlan, LegalStrike } from "@sengoku-jidai/engine";
+import { cardLabel } from "./cardImages.js";
 import { UNIT_NOUN, VERB, sumCounts, type ComposerState } from "./composer.js";
 
 interface ActionBarProps {
@@ -7,6 +8,8 @@ interface ActionBarProps {
   busy: boolean;
   /** The gold-outlined area; in a move/placement it is the one the stepper adjusts. */
   selectedAreaId: string | null;
+  /** When a card is being played (target not yet chosen), its label drives a card-mode banner. */
+  cardModeLabel: string | null;
 
   // Idle-mode inputs (contextual to the selected tile + always-available support actions).
   contextualMove: LegalMove | null;
@@ -22,6 +25,8 @@ interface ActionBarProps {
 
   // Compose-mode inputs.
   onAdjust: (areaId: string, delta: number) => void;
+  /** Adjust the assault-card bonus (ground/river_assault) on a move composer. */
+  onAdjustBonus: (delta: number) => void;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -96,21 +101,27 @@ function MoveBar({
   selectedAreaId,
   busy,
   onAdjust,
+  onAdjustBonus,
   onConfirm,
   onCancel
 }: {
   composer: Extract<ComposerState, { kind: "move" }>;
-} & Pick<ActionBarProps, "selectedAreaId" | "busy" | "onAdjust" | "onConfirm" | "onCancel">) {
+} & Pick<
+  ActionBarProps,
+  "selectedAreaId" | "busy" | "onAdjust" | "onAdjustBonus" | "onConfirm" | "onCancel"
+>) {
   const noun = UNIT_NOUN[composer.type === "advance" ? "troop" : "ship"];
   const total = sumCounts(composer.counts);
   const source = composer.sources.find((s) => s.areaId === selectedAreaId) ?? null;
   const count = source ? (composer.counts[source.areaId] ?? 0) : 0;
+  const bonus = composer.bonus ?? 0;
   return (
     <>
       <span className="action-bar-info">
         <strong>{VERB[composer.type]}</strong>
+        {composer.card ? <span className="action-bar-card">{cardLabel(composer.card)}</span> : null}
         <span className="action-bar-total">
-          Moving {total} {noun}
+          Moving {total + bonus} {noun}
         </span>
       </span>
       {source ? (
@@ -124,6 +135,15 @@ function MoveBar({
       ) : (
         <span className="action-bar-hint">Tap a glowing area to add {noun} (each keeps one).</span>
       )}
+      {composer.bonusMax !== undefined ? (
+        <Stepper
+          label="From reserve"
+          count={bonus}
+          canDecrement={!busy && bonus > 0}
+          canIncrement={!busy && bonus < composer.bonusMax}
+          onAdjust={onAdjustBonus}
+        />
+      ) : null}
       <ComposerActions
         busy={busy}
         confirmLabel={`Confirm ${VERB[composer.type]}`}
@@ -154,6 +174,7 @@ function PlacementBar({
     <>
       <span className="action-bar-info">
         <strong>{VERB[composer.type]}</strong>
+        {composer.card ? <span className="action-bar-card">{cardLabel(composer.card)}</span> : null}
         <span className="action-bar-total">
           Placing {total} / {cap} {noun}
         </span>
@@ -193,6 +214,7 @@ function StrikeBar({
     <>
       <span className="action-bar-info">
         <strong>{VERB[composer.type]}</strong>
+        {composer.card ? <span className="action-bar-card">{cardLabel(composer.card)}</span> : null}
         <span className="action-bar-hint">
           Rolls {composer.dice} {composer.dice === 1 ? "die" : "dice"}. Tap a glowing enemy area to
           target it.
@@ -241,6 +263,7 @@ function IdleBar(props: ActionBarProps) {
   const {
     isViewerActive,
     busy,
+    cardModeLabel,
     contextualMove,
     contextualStrike,
     placements,
@@ -250,7 +273,8 @@ function IdleBar(props: ActionBarProps) {
     onStartStrike,
     onStartPlacement,
     onStartPlan,
-    onPass
+    onPass,
+    onCancel
   } = props;
 
   if (!isViewerActive) {
@@ -258,6 +282,37 @@ function IdleBar(props: ActionBarProps) {
   }
 
   const hasContextual = contextualMove !== null || contextualStrike !== null;
+
+  // Card-play mode: the user picked a card and now taps a glowing target. Only the contextual
+  // order (the card's action on the selected tile) and Cancel are offered.
+  if (cardModeLabel) {
+    return (
+      <>
+        <span className="action-bar-info">
+          <strong>{cardModeLabel}</strong>
+          <span className="action-bar-hint">
+            {hasContextual ? "Confirm the order below." : "Tap a glowing area to play this card."}
+          </span>
+        </span>
+        <span className="action-bar-group">
+          {contextualMove ? (
+            <button type="button" onClick={() => onStartOrder(contextualMove)} disabled={busy}>
+              {VERB[contextualMove.type]} here
+            </button>
+          ) : null}
+          {contextualStrike ? (
+            <button type="button" onClick={() => onStartStrike(contextualStrike)} disabled={busy}>
+              {VERB[contextualStrike.type]} from here
+            </button>
+          ) : null}
+          <button type="button" className="secondary-action" onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
+        </span>
+      </>
+    );
+  }
+
   return (
     <>
       <span className="action-bar-group">
@@ -308,7 +363,7 @@ function IdleBar(props: ActionBarProps) {
 /** The bottom command bar: contextual + support actions when idle, or the active order's
  *  compose controls. All tile reference is via the map (glow + selection), never an id. */
 export function ActionBar(props: ActionBarProps) {
-  const { composer, selectedAreaId, busy, onAdjust, onConfirm, onCancel } = props;
+  const { composer, selectedAreaId, busy, onAdjust, onAdjustBonus, onConfirm, onCancel } = props;
 
   if (!composer) {
     return (
@@ -326,6 +381,7 @@ export function ActionBar(props: ActionBarProps) {
           selectedAreaId={selectedAreaId}
           busy={busy}
           onAdjust={onAdjust}
+          onAdjustBonus={onAdjustBonus}
           onConfirm={onConfirm}
           onCancel={onCancel}
         />

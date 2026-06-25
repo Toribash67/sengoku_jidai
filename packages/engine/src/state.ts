@@ -101,8 +101,10 @@ export interface PlayerState {
   /** Self-identifying so a `PlayerState` is meaningful without its map key. */
   seat: SeatId;
   reserve: UnitCounts;
-  /** `total` commanders; `standby` are passed-out and unavailable until next round. */
-  commanders: { total: number; standby: number };
+  /** `total` commanders; `standby` are passed-out and unavailable until next round;
+   *  `counterattacks` are spent via the Counterattack card onto an opponent-occupied Advance
+   *  space (they own no space of their own, so they are counted here). All reset on recall. */
+  commanders: { total: number; standby: number; counterattacks: number };
   /** Cards held (hidden info — only the owner sees them). Drawn via Plan. */
   hand: OperationCard[];
   /** Undrawn cards, top of deck first. */

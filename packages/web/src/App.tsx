@@ -1,5 +1,6 @@
 import type {
   Command,
+  LegalCardPlay,
   LegalMove,
   LegalPlacement,
   LegalPlan,
@@ -14,6 +15,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerE
 import { ActionBar } from "./components/board/ActionBar.js";
 import { AreaDetails } from "./components/board/AreaDetails.js";
 import { CardPreview } from "./components/board/CardPreview.js";
+import { cardLabel } from "./components/board/cardImages.js";
 import { CombatPanel } from "./components/board/CombatPanel.js";
 import { Hand } from "./components/board/Hand.js";
 import { describeArea } from "./components/board/areaLabel.js";
@@ -50,6 +52,9 @@ export function App() {
   const [activeSourceId, setActiveSourceId] = useState<string | null>(null);
   // The hand card shown in the large preview overlay, if any.
   const [previewCard, setPreviewCard] = useState<OperationCard | null>(null);
+  // A card being played: the user has chosen it and now picks the target tile on the map
+  // (move/strike cards). Placement cards skip this and open their composer directly.
+  const [playingCard, setPlayingCard] = useState<LegalCardPlay | null>(null);
   const [events, setEvents] = useState<PlayerGameEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,11 +122,23 @@ export function App() {
     [game, selectedAreaId]
   );
 
-  // Glowing (non-interactive) targets: advance/sail destinations while not composing.
-  const legalTargetIds = useMemo(
-    () => new Set(composer ? [] : (game?.view.legal.moves ?? []).map((m) => m.targetAreaId)),
-    [composer, game?.view.legal.moves]
-  );
+  // Glowing (non-interactive) targets while not composing: advance/sail destinations — or, when
+  // a move/strike card is being played, the destinations / linked areas it unlocks.
+  const legalTargetIds = useMemo(() => {
+    if (composer) {
+      return new Set<string>();
+    }
+    if (playingCard?.moves) {
+      return new Set(playingCard.moves.map((m) => m.targetAreaId));
+    }
+    if (playingCard?.strikes) {
+      return new Set(playingCard.strikes.map((s) => s.linkedAreaId));
+    }
+    if (playingCard) {
+      return new Set<string>();
+    }
+    return new Set((game?.view.legal.moves ?? []).map((m) => m.targetAreaId));
+  }, [composer, playingCard, game?.view.legal.moves]);
   // Glowing, clickable tiles for the active composer: move sources, or strike/placement
   // targets. Plan has no tiles.
   const sourceIds = useMemo(() => {
@@ -139,20 +156,22 @@ export function App() {
 
   // Orders contextual to the selected tile: an advance/sail into it, or a bombard/shell
   // linked to it. Offered as buttons in the bottom action bar (same matching as before).
-  const contextualMove = useMemo(
-    () =>
-      selectedAreaId
-        ? (game?.view.legal.moves.find((m) => m.targetAreaId === selectedAreaId) ?? null)
-        : null,
-    [game?.view.legal.moves, selectedAreaId]
-  );
-  const contextualStrike = useMemo(
-    () =>
-      selectedAreaId
-        ? (game?.view.legal.strikes.find((s) => s.linkedAreaId === selectedAreaId) ?? null)
-        : null,
-    [game?.view.legal.strikes, selectedAreaId]
-  );
+  // While a card is being played, contextual orders come from the card's (modified) options
+  // rather than the base legal lists; otherwise from what the selected tile allows.
+  const contextualMove = useMemo(() => {
+    if (!selectedAreaId) {
+      return null;
+    }
+    const source = playingCard?.moves ?? game?.view.legal.moves ?? [];
+    return source.find((m) => m.targetAreaId === selectedAreaId) ?? null;
+  }, [playingCard, game?.view.legal.moves, selectedAreaId]);
+  const contextualStrike = useMemo(() => {
+    if (!selectedAreaId) {
+      return null;
+    }
+    const source = playingCard?.strikes ?? game?.view.legal.strikes ?? [];
+    return source.find((s) => s.linkedAreaId === selectedAreaId) ?? null;
+  }, [playingCard, game?.view.legal.strikes, selectedAreaId]);
 
   // Staged units per area for the active move/placement, drawn as on-map badges.
   const stagedCounts = useMemo(() => stagedCountsFor(composer), [composer]);
@@ -163,6 +182,10 @@ export function App() {
     () => largestPlacementPerType(game?.view.legal.placements ?? []),
     [game?.view.legal.placements]
   );
+
+  // Cards in hand that can be played with a deploying commander right now.
+  const cardPlays = useMemo(() => game?.view.legal.cardPlays ?? [], [game?.view.legal.cardPlays]);
+  const playableCards = useMemo(() => new Set(cardPlays.map((p) => p.card)), [cardPlays]);
 
   async function handleCreateGame() {
     setBusy(true);
@@ -178,6 +201,7 @@ export function App() {
       setGame({ ...stored, revision: created.revision, view: created.view });
       setSelectedAreaId(null);
       setComposer(null);
+      setPlayingCard(null);
       setEvents([]);
     } catch (caught) {
       setError(errorMessage(caught));
@@ -203,6 +227,7 @@ export function App() {
       setGame({ ...stored, revision: envelope.revision, view: envelope.view });
       setSelectedAreaId(null);
       setComposer(null);
+      setPlayingCard(null);
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
@@ -210,18 +235,22 @@ export function App() {
     }
   }
 
-  function startOrder(move: LegalMove) {
+  function startOrder(move: LegalMove, card?: OperationCard, bonusMax?: number) {
     setComposer({
       kind: "move",
       spaceId: move.spaceId,
       type: move.type,
       targetAreaId: move.targetAreaId,
       sources: move.sources.map((s) => ({ areaId: s.areaId, max: s.max })),
-      counts: {}
+      counts: {},
+      card,
+      bonus: bonusMax !== undefined ? 0 : undefined,
+      bonusMax
     });
+    setPlayingCard(null);
   }
 
-  function startStrike(strike: LegalStrike) {
+  function startStrike(strike: LegalStrike, card?: OperationCard) {
     setComposer({
       kind: "strike",
       spaceId: strike.spaceId,
@@ -229,11 +258,13 @@ export function App() {
       linkedAreaId: strike.linkedAreaId,
       targets: [...strike.targets],
       dice: strike.dice,
-      targetAreaId: strike.targets.length === 1 ? strike.targets[0]! : null
+      targetAreaId: strike.targets.length === 1 ? strike.targets[0]! : null,
+      card
     });
+    setPlayingCard(null);
   }
 
-  function startPlacement(placement: LegalPlacement) {
+  function startPlacement(placement: LegalPlacement, card?: OperationCard) {
     setComposer({
       kind: "placement",
       spaceId: placement.spaceId,
@@ -242,12 +273,49 @@ export function App() {
       targets: [...placement.targets],
       pool: placement.pool,
       reserve: placement.reserve,
-      counts: {}
+      counts: {},
+      card
     });
+    setPlayingCard(null);
   }
 
   function startPlan(plan: LegalPlan) {
     setComposer({ kind: "plan", spaceId: plan.spaceId, initiative: plan.initiative });
+  }
+
+  // Begin playing a card. Placement cards (mobilise/commandeer) open their composer at once;
+  // move/strike cards enter a "pick the target tile" mode driven by the card's glowing options.
+  function startCardPlay(play: LegalCardPlay) {
+    setPreviewCard(null);
+    if (play.placements && play.placements.length > 0) {
+      const best = play.placements.reduce((a, b) => (b.pool > a.pool ? b : a));
+      startPlacement(best, play.card);
+      return;
+    }
+    if (play.action === "bombard" && play.strikes && play.strikes.length === 1) {
+      startStrike(play.strikes[0]!, play.card);
+      return;
+    }
+    setComposer(null);
+    setSelectedAreaId(null);
+    setPlayingCard(play);
+  }
+
+  // Cancel any in-progress order or card play, returning to idle.
+  function cancelOrder() {
+    setComposer(null);
+    setPlayingCard(null);
+  }
+
+  // Adjust the assault bonus (ground/river_assault) on the active move composer (0..bonusMax).
+  function adjustBonus(delta: number) {
+    setComposer((prev) => {
+      if (prev?.kind !== "move" || prev.bonusMax === undefined) {
+        return prev;
+      }
+      const next = clamp((prev.bonus ?? 0) + delta, 0, prev.bonusMax);
+      return { ...prev, bonus: next };
+    });
   }
 
   // Adjust a staged count for a move source or placement target, clamped to its bound:
@@ -332,6 +400,7 @@ export function App() {
       }
       setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
       setComposer(null);
+      setPlayingCard(null);
       setSelectedAreaId(null);
     } catch (caught) {
       setError(errorMessage(caught));
@@ -493,19 +562,21 @@ export function App() {
               isViewerActive={isViewerActive}
               busy={busy}
               selectedAreaId={stepperAreaId}
+              cardModeLabel={playingCard ? cardLabel(playingCard.card) : null}
               contextualMove={contextualMove}
               contextualStrike={contextualStrike}
               placements={placements}
               plans={game.view.legal.plans}
               canPass={game.view.legal.canPass}
-              onStartOrder={startOrder}
-              onStartStrike={startStrike}
+              onStartOrder={(move) => startOrder(move, playingCard?.card, playingCard?.bonusMax)}
+              onStartStrike={(strike) => startStrike(strike, playingCard?.card)}
               onStartPlacement={startPlacement}
               onStartPlan={startPlan}
               onPass={handlePass}
               onAdjust={adjustCount}
+              onAdjustBonus={adjustBonus}
               onConfirm={handleConfirmOrder}
-              onCancel={() => setComposer(null)}
+              onCancel={cancelOrder}
             />
           )}
         </div>
@@ -549,6 +620,7 @@ export function App() {
               hand={game.view.hand}
               opponentHandCount={game.view.opponentHandCount}
               canReroll={game.view.legal.canRerollCombat}
+              playableCards={playableCards}
               onPreview={setPreviewCard}
             />
           </section>
@@ -585,10 +657,17 @@ export function App() {
         <CardPreview
           card={previewCard}
           canReroll={game.view.legal.canRerollCombat}
+          canPlay={playableCards.has(previewCard)}
           busy={busy}
           onDiscard={(card) => {
             setPreviewCard(null);
             void submitCombat({ type: "combatReroll", card });
+          }}
+          onPlay={(card) => {
+            const play = cardPlays.find((p) => p.card === card);
+            if (play) {
+              startCardPlay(play);
+            }
           }}
           onClose={() => setPreviewCard(null)}
         />
@@ -605,25 +684,40 @@ function buildCommand(composer: ComposerState): Command | null {
       const moves = composer.sources
         .map((s) => ({ from: s.areaId, count: composer.counts[s.areaId] ?? 0 }))
         .filter((m) => m.count > 0);
-      // advance and sail share the same { spaceId, moves } payload.
-      return moves.length > 0
-        ? ({ type: composer.type, spaceId: composer.spaceId, moves } as Command)
-        : null;
+      if (moves.length === 0) {
+        return null;
+      }
+      // advance and sail share the same { spaceId, moves } payload. An assault card also carries
+      // its 0–2 reserve bonus; counterattack (no bonusMax) carries only the card.
+      const cardFields = composer.card
+        ? {
+            card: composer.card,
+            ...(composer.bonusMax !== undefined ? { cardBonus: composer.bonus ?? 0 } : {})
+          }
+        : {};
+      return { type: composer.type, spaceId: composer.spaceId, moves, ...cardFields } as Command;
     }
     case "placement": {
       const placements = composer.targets
         .map((area) => ({ area, count: composer.counts[area] ?? 0 }))
         .filter((p) => p.count > 0);
-      return placements.length > 0
-        ? ({ type: composer.type, spaceId: composer.spaceId, placements } as Command)
-        : null;
+      if (placements.length === 0) {
+        return null;
+      }
+      return {
+        type: composer.type,
+        spaceId: composer.spaceId,
+        placements,
+        ...(composer.card ? { card: composer.card } : {})
+      } as Command;
     }
     case "strike":
       return composer.targetAreaId
         ? ({
             type: composer.type,
             spaceId: composer.spaceId,
-            targetAreaId: composer.targetAreaId
+            targetAreaId: composer.targetAreaId,
+            ...(composer.card ? { card: composer.card } : {})
           } as Command)
         : null;
     case "plan":
@@ -651,6 +745,8 @@ function eventLabel(event: PlayerGameEvent): string {
       return `${event.seat} drew ${event.count} ${event.count === 1 ? "card" : "cards"}`;
     case "cardDiscarded":
       return `${event.seat} discarded a card to reroll`;
+    case "cardPlayed":
+      return `${event.seat} played ${cardLabel(event.card)}`;
     default:
       if ("seat" in event && typeof event.seat === "string") {
         return `${event.seat}: ${event.type}`;

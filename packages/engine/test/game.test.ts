@@ -84,7 +84,8 @@ describe("createInitialState", () => {
       });
       expect(s.players[seat].commanders).toEqual({
         total: riversRuleset.commandersPerPlayer,
-        standby: 0
+        standby: 0,
+        counterattacks: 0
       });
       expect(s.players[seat].hand).toEqual([]);
       expect(s.players[seat].passed).toBe(false);

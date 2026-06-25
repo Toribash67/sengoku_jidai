@@ -485,6 +485,12 @@ button:disabled {
   outline-offset: 1px;
 }
 
+/* A card that can be played with a deploying commander right now. */
+.hand-card-playable {
+  border-color: #f0b429;
+  box-shadow: 0 0 0 2px rgba(240, 180, 41, 0.55);
+}
+
 .hand-card-back {
   width: 56px;
 }
@@ -545,6 +551,15 @@ button:disabled {
 .action-bar-total {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+/* The played-card label shown in a compose bar (e.g. "Ground Assault"). */
+.action-bar-card {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #b07a14;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .action-bar-hint {

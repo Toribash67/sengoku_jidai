@@ -105,6 +105,22 @@ export interface LegalSpace {
   legal: boolean;
 }
 
+/** A held operation card the seat could play right now, with the (card-modified) options it
+ *  unlocks. The web seeds an order composer from the matching field, then attaches the card to
+ *  the command. Only cards in hand with at least one legal option appear. */
+export interface LegalCardPlay {
+  card: OperationCard;
+  action: "advance" | "sail" | "reinforce" | "embark" | "bombard";
+  /** advance/sail (ground_assault, river_assault, counterattack). */
+  moves?: LegalMove[];
+  /** reinforce (mobilise: +2 pool) / embark (commandeer: +1 pool, contested targets). */
+  placements?: LegalPlacement[];
+  /** bombard (shore_strike: +2 dice). */
+  strikes?: LegalStrike[];
+  /** ground_assault/river_assault: max reserve units (0–2) addable to the move-in. */
+  bonusMax?: number;
+}
+
 export interface LegalCommandSummary {
   activeSeat: SeatId;
   spaces: LegalSpace[];
@@ -117,6 +133,8 @@ export interface LegalCommandSummary {
   placements: LegalPlacement[];
   /** Plan deployments. */
   plans: LegalPlan[];
+  /** Operation cards in hand that can be played now, with their card-modified options. */
+  cardPlays: LegalCardPlay[];
   /** True when a combat is paused awaiting its roll and this seat is the one who rolls. */
   canRollCombat: boolean;
   /** True when the dice are rolled and this seat may continue (apply the casualties). */
@@ -240,6 +258,7 @@ export function legalCommandsForState(state: GameState, seat: SeatId): LegalComm
     strikes: canDeploy ? enumerateStrikes(state, seat, map, catalog) : [],
     placements: canDeploy ? enumeratePlacements(state, seat, map, catalog) : [],
     plans: canDeploy ? enumeratePlans(state, seat, map, catalog) : [],
+    cardPlays: canDeploy ? enumerateCardPlays(state, seat, map, catalog) : [],
     canRollCombat:
       state.pendingCombat !== null &&
       state.pendingCombat.responsibleSeat === seat &&
@@ -368,6 +387,121 @@ function enumeratePlans(
     plans.push({ spaceId: space.id, initiative: space.initiative ?? false });
   }
   return plans;
+}
+
+/** Operation cards the seat holds that can be played now, each carrying its card-modified
+ *  options. Built from the same legality helpers as the base lists, with the card's modifier
+ *  applied. A card with no legal option is omitted so the UI never offers an unplayable card. */
+function enumerateCardPlays(
+  state: GameState,
+  seat: SeatId,
+  map: MapDefinition,
+  catalog: ActionSpace[]
+): LegalCardPlay[] {
+  const hand = new Set(state.players[seat].hand);
+  const plays: LegalCardPlay[] = [];
+  const reserve = state.players[seat].reserve;
+
+  if (hand.has("ground_assault") && reserve.troop > 0) {
+    const moves = enumerateMoves(state, seat, map, catalog).filter((m) => m.type === "advance");
+    if (moves.length > 0) {
+      plays.push({
+        card: "ground_assault",
+        action: "advance",
+        moves,
+        bonusMax: Math.min(2, reserve.troop)
+      });
+    }
+  }
+  if (hand.has("river_assault") && reserve.ship > 0) {
+    const moves = enumerateMoves(state, seat, map, catalog).filter((m) => m.type === "sail");
+    if (moves.length > 0) {
+      plays.push({
+        card: "river_assault",
+        action: "sail",
+        moves,
+        bonusMax: Math.min(2, reserve.ship)
+      });
+    }
+  }
+  if (hand.has("shore_strike")) {
+    const strikes = enumerateStrikes(state, seat, map, catalog)
+      .filter((s) => s.type === "bombard")
+      .map((s) => ({ ...s, dice: s.dice + 2 }));
+    if (strikes.length > 0) plays.push({ card: "shore_strike", action: "bombard", strikes });
+  }
+  if (hand.has("mobilise")) {
+    const placements = enumeratePlacements(state, seat, map, catalog)
+      .filter((p) => p.type === "reinforce")
+      .map((p) => ({ ...p, pool: p.pool + 2 }));
+    if (placements.length > 0) plays.push({ card: "mobilise", action: "reinforce", placements });
+  }
+  if (hand.has("commandeer")) {
+    const placements = enumerateCommandeerPlacements(state, seat, map, catalog);
+    if (placements.length > 0) plays.push({ card: "commandeer", action: "embark", placements });
+  }
+  if (hand.has("counterattack")) {
+    const moves = enumerateCounterattackMoves(state, seat, map, catalog);
+    if (moves.length > 0) plays.push({ card: "counterattack", action: "advance", moves });
+  }
+  return plays;
+}
+
+/** Embark placements as Commandeer sees them: +1 pool and opponent-controlled port water
+ *  included as targets (one such target may be contested per Embark). */
+function enumerateCommandeerPlacements(
+  state: GameState,
+  seat: SeatId,
+  map: MapDefinition,
+  catalog: ActionSpace[]
+): LegalPlacement[] {
+  const reserve = state.players[seat].reserve.ship;
+  if (reserve <= 0) return [];
+  if (supportTypeOccupied(map, state, seat, "embark")) return [];
+  const targets = [...embarkTargets(map, state, seat, true)];
+  if (targets.length === 0) return [];
+  const out: LegalPlacement[] = [];
+  for (const space of catalog) {
+    if (space.type !== "embark") continue;
+    if (state.actionSpaces[space.id] !== null) continue;
+    if (!state.rules.enabledActions.includes("embark")) continue;
+    out.push({
+      spaceId: space.id,
+      type: "embark",
+      unit: "ship",
+      targets,
+      pool: space.amount! + 1,
+      reserve
+    });
+  }
+  return out;
+}
+
+/** Advance moves Counterattack unlocks: into Advance spaces the opponent's commander occupies,
+ *  where a legal advance still exists. */
+function enumerateCounterattackMoves(
+  state: GameState,
+  seat: SeatId,
+  map: MapDefinition,
+  catalog: ActionSpace[]
+): LegalMove[] {
+  const board = gameBoard(state);
+  const enemy: SeatId = seat === "red" ? "black" : "red";
+  const moves: LegalMove[] = [];
+  for (const space of catalog) {
+    if (space.type !== "advance") continue;
+    if (state.actionSpaces[space.id] !== enemy) continue;
+    if (!state.rules.enabledActions.includes("advance")) continue;
+    const target = space.areaId!;
+    if (state.areas[target]?.owner === seat) continue;
+    const sources = [...advanceSources(map, board, seat, target)]
+      .map((areaId) => ({ areaId, max: (state.areas[areaId]?.units.troop ?? 0) - 1 }))
+      .filter((s) => s.max >= 1);
+    if (sources.length > 0) {
+      moves.push({ spaceId: space.id, type: "advance", targetAreaId: target, sources });
+    }
+  }
+  return moves;
 }
 
 export function playerEvents(events: GameEvent[]): PlayerGameEvent[] {

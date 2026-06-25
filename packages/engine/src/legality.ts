@@ -86,7 +86,12 @@ export function reinforceTargets(
  * reachable via a supplied port (harbor land the seat supplies) that contain no
  * enemy ships.
  */
-export function embarkTargets(map: MapDefinition, state: GameState, seat: SeatId): Set<string> {
+export function embarkTargets(
+  map: MapDefinition,
+  state: GameState,
+  seat: SeatId,
+  includeContested = false
+): Set<string> {
   const board: SupplyBoard = { ownerOf: (id) => state.areas[id]?.owner ?? null };
   const supplied = suppliedAreas(map, board, seat);
   const out = new Set<string>();
@@ -98,7 +103,9 @@ export function embarkTargets(map: MapDefinition, state: GameState, seat: SeatId
     for (const w of a.ports) {
       const rt = state.areas[w];
       const hasEnemyShips = rt?.owner === enemy && rt.units.ship > 0;
-      if (!hasEnemyShips) out.add(w);
+      // Commandeer (includeContested) may embark into enemy-held port water; that placement
+      // stages a sail-style move-in instead of co-occupying (see applyEmbark).
+      if (includeContested || !hasEnemyShips) out.add(w);
     }
   }
   return out;
@@ -119,10 +126,16 @@ export function occupiedCount(state: GameState, seat: SeatId): number {
   return Object.values(state.actionSpaces).filter((o) => o === seat).length;
 }
 
-/** Commanders the seat can still deploy this round. */
+/** Commanders the seat can still deploy this round. Counterattack deploys onto an
+ *  opponent-occupied space (so it never raises `occupiedCount`); it is tracked separately. */
 export function available(state: GameState, seat: SeatId): number {
   const p = state.players[seat];
-  return p.commanders.total - occupiedCount(state, seat) - p.commanders.standby;
+  return (
+    p.commanders.total -
+    occupiedCount(state, seat) -
+    p.commanders.standby -
+    p.commanders.counterattacks
+  );
 }
 
 /** Whether the seat already occupies a support space of the given type this round. */
