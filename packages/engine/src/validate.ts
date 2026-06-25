@@ -1,5 +1,5 @@
 import type { Command, CommandActor, Move, Placement, RejectionReason } from "./commands.js";
-import type { GameState } from "./state.js";
+import type { GameState, OperationCard } from "./state.js";
 import type { SeatId } from "./types.js";
 import { getMap } from "./maps/registry.js";
 import { actionSpaceMap, type ActionSpace } from "./actionSpaces.js";
@@ -99,34 +99,54 @@ export function validateCommand(
 
   if (command.type === "pass") return null;
 
+  const seat = actor.seat;
+  const enemy: SeatId = seat === "red" ? "black" : "red";
+  const card = "card" in command ? command.card : undefined;
+
   const spaces = actionSpaceMap(map);
   const space = spaces[command.spaceId];
   if (!space) return reject("spaceNotFound", "No such action space.");
   if (space.type !== command.type) return reject("spaceWrongType", "Wrong space type for command.");
-  if (state.actionSpaces[command.spaceId] != null) {
+
+  // Counterattack is the only deploy that may land on an occupied Advance space — and only
+  // one the OPPONENT holds. Every other command needs the space free.
+  const isCounterattack = command.type === "advance" && card === "counterattack";
+  if (isCounterattack) {
+    if (state.actionSpaces[command.spaceId] !== enemy) {
+      return reject(
+        "spaceOccupied",
+        "Counterattack requires the opponent's commander on this Advance space."
+      );
+    }
+  } else if (state.actionSpaces[command.spaceId] != null) {
     return reject("spaceOccupied", "That action space is occupied.");
   }
   if (!rules.enabledActions.includes(space.type)) {
     return reject("actionDisabled", "That action is disabled in this ruleset.");
   }
 
-  const seat = actor.seat;
+  // A played card must be held and legal for this action (ambush/ship_strike are combat-only).
+  if (card !== undefined) {
+    const cardRejection = validateCardPlay(state, seat, command.type, card);
+    if (cardRejection) return cardRejection;
+  }
+
   const board = gameBoard(state);
   const supplied = suppliedAreas(map, board, seat);
 
   switch (command.type) {
     case "advance":
-      return validateAdvance(state, seat, space, command.moves);
+      return validateAdvance(state, seat, space, command.moves, card, command.cardBonus);
     case "sail":
-      return validateSail(state, seat, space, command.moves);
+      return validateSail(state, seat, space, command.moves, card, command.cardBonus);
     case "bombard":
       return validateBombard(state, seat, space, command.targetAreaId, supplied);
     case "shell":
       return validateShell(state, seat, space, command.targetAreaId, supplied);
     case "reinforce":
-      return validateReinforce(state, seat, space, command.placements);
+      return validateReinforce(state, seat, space, command.placements, card);
     case "embark":
-      return validateEmbark(state, seat, space, command.placements);
+      return validateEmbark(state, seat, space, command.placements, card);
     case "plan":
       return supportTypeOccupied(map, state, seat, "plan")
         ? reject("supportTypeUsed", "Already used a Plan space this round.")
@@ -134,11 +154,42 @@ export function validateCommand(
   }
 }
 
+/** Which action each deploy-time card is played with; the two combat-time cards map to
+ *  undefined (they ride on combat, never a deploy command). */
+const CARD_ACTION: Record<OperationCard, Command["type"] | undefined> = {
+  mobilise: "reinforce",
+  commandeer: "embark",
+  ground_assault: "advance",
+  river_assault: "sail",
+  shore_strike: "bombard",
+  counterattack: "advance",
+  ambush: undefined,
+  ship_strike: undefined
+};
+
+/** A played card must be in the seat's hand and matched to the action it modifies. */
+function validateCardPlay(
+  state: GameState,
+  seat: SeatId,
+  action: Command["type"],
+  card: OperationCard
+): RejectionReason | null {
+  if (!state.players[seat].hand.includes(card)) {
+    return reject("illegalChoice", "That card is not in your hand.");
+  }
+  if (CARD_ACTION[card] !== action) {
+    return reject("illegalChoice", "That card cannot be played with this action.");
+  }
+  return null;
+}
+
 function validateAdvance(
   state: GameState,
   seat: SeatId,
   space: ActionSpace,
-  moves: Move[]
+  moves: Move[],
+  card?: OperationCard,
+  cardBonus?: number
 ): RejectionReason | null {
   const map = getMap(state.mapId);
   const board = gameBoard(state);
@@ -161,6 +212,28 @@ function validateAdvance(
     total += count;
   }
   if (total < 1) return reject("illegalMove", "Advance must move at least one troop.");
+  return validateCardBonus(state, seat, "troop", card, "ground_assault", cardBonus);
+}
+
+/** Ground/River Assault add 0–2 reserve units to the move-in; any other card (or none) must
+ *  carry no bonus. */
+function validateCardBonus(
+  state: GameState,
+  seat: SeatId,
+  unit: "troop" | "ship",
+  card: OperationCard | undefined,
+  assaultCard: OperationCard,
+  cardBonus: number | undefined
+): RejectionReason | null {
+  const bonus = cardBonus ?? 0;
+  if (card === assaultCard) {
+    const limit = Math.min(2, state.players[seat].reserve[unit]);
+    if (bonus < 0 || bonus > limit) {
+      return reject("illegalMove", `Assault bonus must be 0–${limit}.`);
+    }
+  } else if (bonus !== 0) {
+    return reject("illegalMove", "No assault bonus without the matching card.");
+  }
   return null;
 }
 
@@ -168,7 +241,9 @@ function validateSail(
   state: GameState,
   seat: SeatId,
   space: ActionSpace,
-  moves: Move[]
+  moves: Move[],
+  card?: OperationCard,
+  cardBonus?: number
 ): RejectionReason | null {
   const map = getMap(state.mapId);
   const board = gameBoard(state);
@@ -191,7 +266,7 @@ function validateSail(
     total += count;
   }
   if (total < 1) return reject("illegalMove", "Sail must move at least one ship.");
-  return null;
+  return validateCardBonus(state, seat, "ship", card, "river_assault", cardBonus);
 }
 
 function validateBombard(
@@ -238,7 +313,8 @@ function validateReinforce(
   state: GameState,
   seat: SeatId,
   space: ActionSpace,
-  placements: Placement[]
+  placements: Placement[],
+  card?: OperationCard
 ): RejectionReason | null {
   const map = getMap(state.mapId);
   if (supportTypeOccupied(map, state, seat, "reinforce")) {
@@ -247,7 +323,8 @@ function validateReinforce(
   const board = gameBoard(state);
   const targets = reinforceTargets(map, board, seat);
   const barracks = suppliesBonus(state, seat, "barracks");
-  const n = space.amount! + (barracks ? 2 : 0);
+  // Mobilise raises the placement limit by 2.
+  const n = space.amount! + (barracks ? 2 : 0) + (card === "mobilise" ? 2 : 0);
   return validatePlacements(state, seat, placements, targets, n, "troop");
 }
 
@@ -255,14 +332,26 @@ function validateEmbark(
   state: GameState,
   seat: SeatId,
   space: ActionSpace,
-  placements: Placement[]
+  placements: Placement[],
+  card?: OperationCard
 ): RejectionReason | null {
   const map = getMap(state.mapId);
   if (supportTypeOccupied(map, state, seat, "embark")) {
     return reject("supportTypeUsed", "Already used an Embark space this round.");
   }
-  const targets = embarkTargets(map, state, seat);
-  return validatePlacements(state, seat, placements, targets, space.amount!, "ship");
+  // Commandeer raises the limit by 1 and may target opponent-controlled water (which stages a
+  // single sail-style move-in), so only one contested target is allowed per Embark.
+  const commandeer = card === "commandeer";
+  const targets = embarkTargets(map, state, seat, commandeer);
+  const pool = space.amount! + (commandeer ? 1 : 0);
+  if (commandeer) {
+    const enemy: SeatId = seat === "red" ? "black" : "red";
+    const contested = placements.filter((p) => state.areas[p.area]?.owner === enemy);
+    if (contested.length > 1) {
+      return reject("illegalPlacement", "Commandeer may contest only one water area.");
+    }
+  }
+  return validatePlacements(state, seat, placements, targets, pool, "ship");
 }
 
 function validatePlacements(

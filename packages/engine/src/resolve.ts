@@ -56,7 +56,13 @@ export function resolveCommand(
     // v1 seam: never reached (pendingDecision is always null), but resolve harmlessly.
     next.pendingDecision = null;
   } else {
-    next.actionSpaces[command.spaceId] = seat;
+    // Counterattack deploys onto the opponent's Advance space: keep their commander on the
+    // space (don't overwrite) and spend one of ours via the counterattack counter instead.
+    if (command.type === "advance" && command.card === "counterattack") {
+      next.players[seat].commanders.counterattacks += 1;
+    } else {
+      next.actionSpaces[command.spaceId] = seat;
+    }
     events.push({ type: "commanderDeployed", seat, spaceId: command.spaceId });
     events.push(...dispatchAction(next, seat, command));
   }
@@ -88,17 +94,31 @@ export function resolveCommand(
 function dispatchAction(state: GameState, seat: SeatId, command: Command): GameEvent[] {
   switch (command.type) {
     case "reinforce":
-      return applyReinforce(state, seat, command.placements);
+      return applyReinforce(state, seat, command.placements, command.card);
     case "plan":
       return applyPlan(state, seat, command.spaceId);
     case "embark":
-      return applyEmbark(state, seat, command.placements);
+      return applyEmbark(state, seat, command.placements, command.card);
     case "advance":
-      return applyAdvance(state, seat, command.spaceId, command.moves);
+      return applyAdvance(
+        state,
+        seat,
+        command.spaceId,
+        command.moves,
+        command.card,
+        command.cardBonus
+      );
     case "sail":
-      return applySail(state, seat, command.spaceId, command.moves);
+      return applySail(
+        state,
+        seat,
+        command.spaceId,
+        command.moves,
+        command.card,
+        command.cardBonus
+      );
     case "bombard":
-      return applyBombard(state, seat, command.spaceId, command.targetAreaId);
+      return applyBombard(state, seat, command.spaceId, command.targetAreaId, command.card);
     case "shell":
       return applyShell(state, seat, command.spaceId, command.targetAreaId);
     default:
@@ -163,6 +183,7 @@ export function advanceTurn(state: GameState): GameEvent[] {
 function recall(state: GameState): void {
   for (const seat of ["red", "black"] as const) {
     state.players[seat].commanders.standby = 0;
+    state.players[seat].commanders.counterattacks = 0;
     state.players[seat].passed = false;
   }
   for (const id of Object.keys(state.actionSpaces)) state.actionSpaces[id] = null;

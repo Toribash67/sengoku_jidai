@@ -30,13 +30,29 @@ const placementSchema = z.object({
   count: z.number().int().positive()
 });
 
+/** Optional operation card played as a commander deploys (modifies the action, then discarded). */
+const cardBonusSchema = z.number().int().min(0).max(2);
+
 export const commandSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("advance"), spaceId: z.string().min(1), moves: z.array(moveSchema) }),
-  z.object({ type: z.literal("sail"), spaceId: z.string().min(1), moves: z.array(moveSchema) }),
+  z.object({
+    type: z.literal("advance"),
+    spaceId: z.string().min(1),
+    moves: z.array(moveSchema),
+    card: operationCardSchema.optional(),
+    cardBonus: cardBonusSchema.optional()
+  }),
+  z.object({
+    type: z.literal("sail"),
+    spaceId: z.string().min(1),
+    moves: z.array(moveSchema),
+    card: operationCardSchema.optional(),
+    cardBonus: cardBonusSchema.optional()
+  }),
   z.object({
     type: z.literal("bombard"),
     spaceId: z.string().min(1),
-    targetAreaId: z.string().min(1)
+    targetAreaId: z.string().min(1),
+    card: operationCardSchema.optional()
   }),
   z.object({
     type: z.literal("shell"),
@@ -46,12 +62,14 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("reinforce"),
     spaceId: z.string().min(1),
-    placements: z.array(placementSchema)
+    placements: z.array(placementSchema),
+    card: operationCardSchema.optional()
   }),
   z.object({
     type: z.literal("embark"),
     spaceId: z.string().min(1),
-    placements: z.array(placementSchema)
+    placements: z.array(placementSchema),
+    card: operationCardSchema.optional()
   }),
   z.object({ type: z.literal("plan"), spaceId: z.string().min(1) }),
   z.object({ type: z.literal("pass") }),

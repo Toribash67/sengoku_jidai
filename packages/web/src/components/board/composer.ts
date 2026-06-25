@@ -1,4 +1,4 @@
-import type { LegalPlacement } from "@sengoku-jidai/engine";
+import type { LegalPlacement, OperationCard } from "@sengoku-jidai/engine";
 
 /** When several placement spaces of the same type are open (e.g. Reinforce 6 and 5), a
  *  player always wants the largest, so the panel offers only the biggest per type. The
@@ -27,6 +27,11 @@ export type ComposerState =
       targetAreaId: string;
       sources: { areaId: string; max: number }[];
       counts: Record<string, number>;
+      /** Operation card played with this move (ground_assault/river_assault/counterattack). */
+      card?: OperationCard;
+      /** Extra reserve units the assault card adds to the move-in, and its 0–2 cap. */
+      bonus?: number;
+      bonusMax?: number;
     }
   | {
       kind: "strike";
@@ -36,6 +41,8 @@ export type ComposerState =
       targets: string[];
       dice: number;
       targetAreaId: string | null;
+      /** Operation card played with this strike (shore_strike). */
+      card?: OperationCard;
     }
   | {
       kind: "placement";
@@ -46,6 +53,8 @@ export type ComposerState =
       pool: number;
       reserve: number;
       counts: Record<string, number>;
+      /** Operation card played with this placement (mobilise/commandeer). */
+      card?: OperationCard;
     }
   | { kind: "plan"; spaceId: string; initiative: boolean };
 
