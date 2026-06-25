@@ -1,8 +1,8 @@
 import {
+  claimGameRequestSchema,
   createGameRequestSchema,
   eventQuerySchema,
   gameParamsSchema,
-  joinGameRequestSchema,
   submitCommandRequestSchema
 } from "@sengoku-jidai/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -18,7 +18,10 @@ export function registerApiRoutes(app: FastifyInstance, repository: GameReposito
       return sendError(reply, 400, "invalidRequest", "Request body is invalid.");
     }
 
-    const game = repository.createGame(parsed.data.mode, parsed.data.seed);
+    const game = repository.createGame(parsed.data.mode, parsed.data.seed, {
+      creatorName: parsed.data.name,
+      creatorSide: parsed.data.side
+    });
     return reply.send(game);
   });
 
@@ -45,23 +48,38 @@ export function registerApiRoutes(app: FastifyInstance, repository: GameReposito
       gameId: params.data.gameId,
       seat: session.seat,
       revision: view.revision,
-      view: view.view
+      view: view.view,
+      seatInfo: view.seatInfo
     });
   });
 
-  app.post("/api/games/:gameId/join", async (request, reply) => {
+  app.post("/api/games/:gameId/claim", async (request, reply) => {
     const params = gameParamsSchema.safeParse(request.params);
-    const body = joinGameRequestSchema.safeParse(request.body ?? {});
+    const body = claimGameRequestSchema.safeParse(request.body ?? {});
     if (!params.success || !body.success) {
-      return sendError(reply, 400, "invalidRequest", "Join request is invalid.");
+      return sendError(reply, 400, "invalidRequest", "Claim request is invalid.");
     }
 
-    return sendError(
-      reply,
-      501,
-      "notImplemented",
-      "Private multiplayer joining is not implemented yet."
-    );
+    const session = authenticate(request, repository);
+    if (!session) {
+      return sendError(reply, 401, "invalidSession", "A valid seat token is required.");
+    }
+    if (session.gameId !== params.data.gameId) {
+      return sendError(reply, 403, "forbidden", "That seat token does not belong to this game.");
+    }
+
+    const result = repository.claimSeat(params.data.gameId, session.seat, body.data.name);
+    if (!result) {
+      return sendError(reply, 404, "gameNotFound", "Game was not found.");
+    }
+
+    return reply.send({
+      gameId: params.data.gameId,
+      seat: session.seat,
+      revision: result.revision,
+      view: result.view,
+      seatInfo: result.seatInfo
+    });
   });
 
   app.post("/api/games/:gameId/commands", async (request, reply) => {

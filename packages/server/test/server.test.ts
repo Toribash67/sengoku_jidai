@@ -47,4 +47,34 @@ describe("server", () => {
     expect(command.json().revision).toBe(1);
     await app.close();
   });
+
+  it("creates a named game with an open invite seat and lets it be claimed", async () => {
+    const app = buildApp(testConfig());
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      payload: { mode: "private_multiplayer", seed: "named", name: "Oda", side: "red" }
+    });
+    expect(created.statusCode).toBe(200);
+    const body = created.json();
+    expect(body.seat).toBe("red");
+    const red = body.seatInfo.find((s: { seat: string }) => s.seat === "red");
+    const black = body.seatInfo.find((s: { seat: string }) => s.seat === "black");
+    expect(red).toMatchObject({ name: "Oda", status: "claimed" });
+    expect(black).toMatchObject({ name: null, status: "open" });
+
+    const blackToken = body.seats.find((s: { seat: string }) => s.seat === "black").token;
+    const claimed = await app.inject({
+      method: "POST",
+      url: `/api/games/${body.gameId}/claim`,
+      headers: { authorization: `Bearer ${blackToken}` },
+      payload: { name: "Takeda" }
+    });
+    expect(claimed.statusCode).toBe(200);
+    const claimedBlack = claimed.json().seatInfo.find((s: { seat: string }) => s.seat === "black");
+    expect(claimedBlack).toMatchObject({ name: "Takeda", status: "claimed" });
+
+    await app.close();
+  });
 });
