@@ -122,6 +122,37 @@ describe("commandeer (embark +1, opponent water)", () => {
     expect(r.nextState.pendingCombat!.responsibleSeat).toBe("black");
     expect(r.nextState.players.red.discard).toContain("commandeer");
   });
+
+  it("can land a ship in distant enemy water it neither supplies nor ports", () => {
+    // tile18 is black's starting navy — a port of black's harbour, unreachable from red.
+    const s = game(["commandeer"]);
+    // Without Commandeer the placement is illegal (not a target).
+    const plain = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "embark",
+        spaceId: "embark-a",
+        placements: [{ area: "tile18", count: 1 }]
+      }
+    );
+    expect(plain.status).toBe("rejected");
+    // With Commandeer it lands and stages a battle there.
+    const r = resolveCommand(
+      s,
+      { seat: "red" },
+      {
+        type: "embark",
+        spaceId: "embark-a",
+        placements: [{ area: "tile18", count: 1 }],
+        card: "commandeer"
+      }
+    );
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    expect(r.nextState.pendingCombat!.area).toBe("tile18");
+    expect(r.nextState.pendingCombat!.responsibleSeat).toBe("black");
+  });
 });
 
 describe("ground_assault (advance +up to 2 troops)", () => {
