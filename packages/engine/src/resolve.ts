@@ -66,6 +66,10 @@ export function resolveCommand(
       decision.targetAreaId !== undefined
     ) {
       events.push(...applyShipStrike(next, decision.seat, decision.spaceId, decision.targetAreaId));
+    } else if (decision.kind === "selectCombat") {
+      // Activate the chosen queued sea battle (its `choice.id` is the contested area).
+      const idx = next.combatQueue.findIndex((b) => b.area === command.choice.id);
+      if (idx >= 0) next.pendingCombat = next.combatQueue.splice(idx, 1)[0]!;
     }
   } else {
     // Counterattack deploys onto the opponent's Advance space: keep their commander on the

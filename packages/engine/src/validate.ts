@@ -354,18 +354,12 @@ function validateEmbark(
   if (supportTypeOccupied(map, state, seat, "embark")) {
     return reject("supportTypeUsed", "Already used an Embark space this round.");
   }
-  // Commandeer raises the limit by 1 and may target opponent-controlled water (which stages a
-  // single sail-style move-in), so only one contested target is allowed per Embark.
+  // Commandeer raises the limit by 1 and may target opponent-controlled water; ships can be
+  // spread across own/empty and any number of enemy waters (each enemy target becomes its own
+  // sail-style battle, queued and ordered by the attacker — see applyEmbark).
   const commandeer = card === "commandeer";
   const targets = embarkTargets(map, state, seat, commandeer);
   const pool = space.amount! + (commandeer ? 1 : 0);
-  if (commandeer) {
-    const enemy: SeatId = seat === "red" ? "black" : "red";
-    const contested = placements.filter((p) => state.areas[p.area]?.owner === enemy);
-    if (contested.length > 1) {
-      return reject("illegalPlacement", "Commandeer may contest only one water area.");
-    }
-  }
   return validatePlacements(state, seat, placements, targets, pool, "ship");
 }
 

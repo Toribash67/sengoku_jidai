@@ -6,7 +6,7 @@ import { actionSpaceMap } from "./actionSpaces.js";
 import { suppliesBonus } from "./validate.js";
 import { conflictOutcome } from "./conflict.js";
 import { rollDie, shuffle } from "./rng.js";
-import type { OperationCard } from "./state.js";
+import type { OperationCard, PendingCombat } from "./state.js";
 
 /** Pass: deploy a commander to standby (unavailable until next round). */
 export function applyPass(state: GameState, seat: SeatId): GameEvent[] {
@@ -117,12 +117,25 @@ export function applyEmbark(
   card?: OperationCard
 ): GameEvent[] {
   const events: GameEvent[] = [];
+  const battles: PendingCombat[] = [];
   for (const p of placements) {
     const rt = state.areas[p.area]!;
     state.players[seat].reserve.ship -= p.count;
     if (rt.owner != null && rt.owner !== seat) {
-      // Commandeer into opponent water: stage a sail-style move-in (peaceful capture or combat).
-      events.push(...resolveMoveIn(state, seat, "sail", p.area, "ship", p.count));
+      // Commandeer into opponent water: each contested target is its own sail-style battle.
+      // Stage a record now; activation/ordering happens via advanceCombatQueue.
+      battles.push({
+        id: `combat-${p.area}`,
+        kind: "sail",
+        attacker: seat,
+        defender: rt.owner,
+        responsibleSeat: rt.owner,
+        phase: "awaiting-roll",
+        area: p.area,
+        unit: "ship",
+        attackers: p.count,
+        defenders: rt.units.ship
+      });
     } else {
       rt.units.ship += p.count;
       rt.owner = seat;
@@ -130,7 +143,33 @@ export function applyEmbark(
     }
   }
   if (card) events.push(...playCard(state, seat, card));
+  if (battles.length > 0) {
+    state.combatQueue.push(...battles);
+    advanceCombatQueue(state);
+  }
   return events;
+}
+
+/**
+ * Activate the next queued sea battle (from a multi-target Commandeer). Empty queue → nothing;
+ * exactly one left → make it the active `pendingCombat`; several → ask the attacker (via a
+ * `selectCombat` pending decision) which contested area to resolve next.
+ */
+function advanceCombatQueue(state: GameState): void {
+  const queue = state.combatQueue;
+  if (queue.length === 0) return;
+  if (queue.length === 1) {
+    state.pendingCombat = queue.shift()!;
+    return;
+  }
+  const attacker = queue[0]!.attacker;
+  state.pendingDecision = {
+    id: `select-combat-${attacker}`,
+    seat: attacker,
+    prompt: "Choose which sea battle to resolve next.",
+    choices: queue.map((b) => ({ id: b.area, label: b.area })),
+    kind: "selectCombat"
+  };
 }
 
 /** Area id currently holding a given bonus, if any. */
@@ -527,5 +566,7 @@ export function applyPendingCombat(state: GameState): GameEvent[] {
   }
 
   state.pendingCombat = null;
+  // Drain the next queued Commandeer battle, if any (no-op for normal single combats).
+  advanceCombatQueue(state);
   return events;
 }

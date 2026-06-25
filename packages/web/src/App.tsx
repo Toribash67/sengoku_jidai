@@ -598,6 +598,14 @@ export function App() {
               decision={game.view.pendingDecision}
               busy={busy}
               onChoose={submitDecision}
+              renderLabel={
+                game.view.pendingDecision.kind === "selectCombat"
+                  ? (choice) => {
+                      const area = getMap(game.view.mapId).areas[choice.id];
+                      return area ? describeArea(area) : choice.label;
+                    }
+                  : undefined
+              }
             />
           ) : (
             <ActionBar

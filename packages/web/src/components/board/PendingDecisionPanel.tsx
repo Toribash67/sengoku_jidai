@@ -4,12 +4,19 @@ interface PendingDecisionPanelProps {
   decision: PendingDecision;
   busy: boolean;
   onChoose: (choice: PendingChoice) => void;
+  /** Override the button text for a choice (e.g. map a battle's area id to its name). */
+  renderLabel?: (choice: PendingChoice) => string;
 }
 
-/** Renders a pending decision (currently the Ship Strike "Shell again / Decline" follow-up)
- *  as a prompt with one button per choice. Shown in place of the order bar while the engine
- *  waits on the responsible seat. */
-export function PendingDecisionPanel({ decision, busy, onChoose }: PendingDecisionPanelProps) {
+/** Renders a pending decision (the Ship Strike "Shell again / Decline" follow-up, or the
+ *  "choose which sea battle" picker) as a prompt with one button per choice. Shown in place of
+ *  the order bar while the engine waits on the responsible seat. */
+export function PendingDecisionPanel({
+  decision,
+  busy,
+  onChoose,
+  renderLabel
+}: PendingDecisionPanelProps) {
   return (
     <div className="combat-panel" aria-label="Decision">
       <div className="combat-info">
@@ -24,7 +31,7 @@ export function PendingDecisionPanel({ decision, busy, onChoose }: PendingDecisi
             onClick={() => onChoose(choice)}
             disabled={busy}
           >
-            {choice.label}
+            {renderLabel ? renderLabel(choice) : choice.label}
           </button>
         ))}
       </span>

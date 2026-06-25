@@ -169,6 +169,9 @@ export interface PlayerGameView {
   /** A combat awaiting its roll, if any. Public to both seats (the matchup is not hidden);
    *  `responsibleSeat` says who rolls. Null when no combat is pending. */
   pendingCombat: PendingCombat | null;
+  /** Sea battles staged by a multi-target Commandeer awaiting resolution (public, like
+   *  `pendingCombat`). Empty unless several battles are queued. */
+  combatQueue: PendingCombat[];
   winner: SeatId | null;
   endReason: EndReason | null;
   legal: LegalCommandSummary;
@@ -227,6 +230,7 @@ export function playerView(state: GameState, viewerSeat: SeatId): PlayerGameView
         ? state.pendingDecision
         : null,
     pendingCombat: state.pendingCombat,
+    combatQueue: state.combatQueue,
     winner: state.winner,
     endReason: state.endReason,
     legal: legalCommandsForState(state, viewerSeat)
