@@ -20,4 +20,12 @@ describe("claimGameRequestSchema", () => {
     expect(claimGameRequestSchema.parse({ name: "Nobunaga" }).name).toBe("Nobunaga");
     expect(claimGameRequestSchema.safeParse({ name: "" }).success).toBe(false);
   });
+
+  it("trims the name", () => {
+    expect(claimGameRequestSchema.parse({ name: "  Nobunaga  " }).name).toBe("Nobunaga");
+  });
+
+  it("rejects names longer than 80 characters", () => {
+    expect(claimGameRequestSchema.safeParse({ name: "x".repeat(81) }).success).toBe(false);
+  });
 });
