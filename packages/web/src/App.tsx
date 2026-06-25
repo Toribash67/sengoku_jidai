@@ -543,19 +543,37 @@ export function App() {
   const mapActiveSourceId = isMove ? activeSourceId : null;
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-active-seat={game.view.activeSeat}>
       <header className="top-bar">
-        <div>
-          <h1>General Orders: Sengoku Jidai</h1>
-          <p>{game.view.prompt}</p>
+        <div className="title-block">
+          <h1>
+            <span className="title-mark" aria-hidden="true">
+              戦国
+            </span>
+            General Orders: Sengoku Jidai
+          </h1>
+          {/* The live instruction, promoted to the primary "general's order" line. */}
+          <p className="command-prompt">{game.view.prompt}</p>
         </div>
-        <div className="top-stats" aria-label="Game status">
-          <span>Round {game.view.round}</span>
-          <span>{game.view.phase}</span>
-          <span>Revision {game.revision}</span>
-          <span>{game.view.activeSeat} to act</span>
-          <span>
-            VP {game.view.victoryPoints.red}–{game.view.victoryPoints.black}
+        <div className="scoreboard" aria-label="Game status">
+          <span className={`score score-red${game.view.activeSeat === "red" ? " is-active" : ""}`}>
+            <span className="score-side">Red</span>
+            <span className="score-marker" aria-hidden="true" />
+            <span className="score-vp">{game.view.victoryPoints.red}</span>
+          </span>
+          <span className="score-dash" aria-hidden="true">
+            —
+          </span>
+          <span
+            className={`score score-black${game.view.activeSeat === "black" ? " is-active" : ""}`}
+          >
+            <span className="score-vp">{game.view.victoryPoints.black}</span>
+            <span className="score-marker" aria-hidden="true" />
+            <span className="score-side">Black</span>
+          </span>
+          <span className="round-meta">
+            <span className="round-no">Round {game.view.round}</span>
+            <span className="phase-name">{phaseLabel(game.view.phase)}</span>
           </span>
         </div>
       </header>
@@ -648,6 +666,7 @@ export function App() {
               <button
                 key={seat.seat}
                 type="button"
+                data-seat={seat.seat}
                 className={seat.seat === game.activeSeat ? "is-active" : ""}
                 onClick={() => handleSwitchSeat(seat.seat)}
                 disabled={busy}
@@ -657,16 +676,7 @@ export function App() {
             ))}
           </div>
 
-          <section className="panel-section">
-            <h2>{selectedMapArea ? describeArea(selectedMapArea) : "Select an area"}</h2>
-            {selectedArea && selectedMapArea ? (
-              <AreaDetails area={selectedArea} mapArea={selectedMapArea} view={game.view} />
-            ) : (
-              <p className="muted">Tap an area on the map to see its details.</p>
-            )}
-          </section>
-
-          <section className="panel-section">
+          <section className="panel-section panel-hand">
             <Hand
               hand={game.view.hand}
               opponentHandCount={game.view.opponentHandCount}
@@ -677,6 +687,15 @@ export function App() {
           </section>
 
           <section className="panel-section">
+            <h2>{selectedMapArea ? describeArea(selectedMapArea) : "Select an area"}</h2>
+            {selectedArea && selectedMapArea ? (
+              <AreaDetails area={selectedArea} mapArea={selectedMapArea} view={game.view} />
+            ) : (
+              <p className="muted">Tap an area on the map to see its details.</p>
+            )}
+          </section>
+
+          <section className="panel-section panel-log">
             <h2>Recent events</h2>
             {events.length === 0 ? (
               <p className="muted">No commands submitted yet.</p>
@@ -778,6 +797,11 @@ function buildCommand(composer: ComposerState): Command | null {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+/** Title-case a phase id ("deploy" → "Deploy") for the scoreboard's secondary line. */
+function phaseLabel(phase: string): string {
+  return phase.length === 0 ? phase : phase[0]!.toUpperCase() + phase.slice(1);
 }
 
 function eventLabel(event: PlayerGameEvent): string {

@@ -1,15 +1,36 @@
 :root {
   color-scheme: light;
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
+
+  /* Sengoku palette: washi paper grounds, sumi ink text, vermilion/indigo faction colours. */
+  --sumi: #211b16; /* warm ink: primary text + primary buttons */
+  --sumi-soft: #4a4036; /* secondary text */
+  --washi: #e8ddc6; /* page ground */
+  --washi-raised: #f4ecd8; /* panels / cards */
+  --shu: #a8322a; /* vermilion: red faction + combat accent */
+  --shu-deep: #7c241d; /* vermilion pressed / border */
+  --ai: #2c3e50; /* indigo: black faction */
+  --kin: #b3852e; /* gold: initiative + small accents */
+  --hairline: rgba(33, 27, 22, 0.16);
+
+  /* Faction colour for the active seat, recoloured per [data-active-seat]. */
+  --active-faction: var(--sumi);
+
+  --font-display: "Shippori Mincho", Georgia, "Times New Roman", serif;
+  --font-body:
+    "Zen Kaku Gothic New", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  background: #eef2f1;
-  color: #17201d;
+
+  font-family: var(--font-body);
+  background: var(--washi);
+  color: var(--sumi);
+}
+
+[data-active-seat="red"] {
+  --active-faction: var(--shu);
+}
+
+[data-active-seat="black"] {
+  --active-faction: var(--ai);
 }
 
 * {
@@ -26,14 +47,21 @@ body {
 
 button {
   min-height: 40px;
-  border: 1px solid #1e4037;
-  border-radius: 6px;
+  border: 1px solid var(--sumi);
+  border-radius: 4px;
   padding: 0 14px;
-  background: #1e4037;
-  color: #f7fbf7;
+  background: var(--sumi);
+  color: var(--washi-raised);
   font: inherit;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+button:hover:not(:disabled) {
+  background: #34291f;
 }
 
 button:disabled {
@@ -53,49 +81,146 @@ button:disabled {
 
 .start-panel {
   width: min(520px, 100%);
-  border: 1px solid #c7d4ce;
-  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
   padding: 28px;
-  background: #ffffff;
-  box-shadow: 0 20px 50px rgb(26 45 39 / 12%);
+  background: var(--washi-raised);
+  box-shadow: 0 20px 50px rgb(33 27 22 / 14%);
 }
 
 .start-panel h1,
 .top-bar h1 {
   margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
   font-size: clamp(1.4rem, 3vw, 2rem);
-  letter-spacing: 0;
+  letter-spacing: 0.01em;
 }
 
+/* Command header: a single banner replacing the old five-pill status row. A faction-coloured
+   rule on the leading edge (recoloured by [data-active-seat]) makes whose-turn unmissable. */
 .top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid #c7d4ce;
-  padding-bottom: 14px;
-}
-
-.top-bar p {
-  margin: 6px 0 0;
-  color: #56635f;
-}
-
-.top-stats {
-  display: flex;
+  gap: 18px 24px;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--hairline);
+  border-left: 5px solid var(--active-faction);
+  border-radius: 6px;
+  background: var(--washi-raised);
 }
 
-.top-stats span {
-  border: 1px solid #c7d4ce;
+.top-bar h1 {
+  font-size: clamp(1.15rem, 2.2vw, 1.55rem);
+}
+
+.title-block {
+  min-width: 0;
+}
+
+.title-mark {
+  color: var(--shu);
+  font-family: var(--font-display);
+  margin-right: 8px;
+}
+
+/* The live prompt, promoted to the primary "general's order" line. */
+.command-prompt {
+  margin: 6px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+  color: var(--sumi);
+}
+
+.command-prompt::before {
+  content: "❯";
+  margin-right: 8px;
+  color: var(--active-faction);
+  font-weight: 700;
+}
+
+.scoreboard {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+/* RED ● n — n ○ BLACK : the active side's marker is lit in its faction colour. */
+.score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-side {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sumi-soft);
+}
+
+.score-vp {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--sumi);
+}
+
+.score-dash {
+  color: var(--sumi-soft);
+}
+
+.score-marker {
+  width: 11px;
+  height: 11px;
   border-radius: 999px;
-  padding: 7px 10px;
-  background: #ffffff;
-  color: #24312d;
-  font-size: 0.9rem;
+  border: 1.5px solid currentcolor;
+  background: transparent;
+}
+
+.score-red {
+  color: var(--shu);
+}
+
+.score-black {
+  color: var(--ai);
+}
+
+/* The active side gets a filled, slightly larger marker + ink-strong VP. */
+.score.is-active .score-marker {
+  background: currentcolor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentcolor 22%, transparent);
+}
+
+.score:not(.is-active) {
+  opacity: 0.5;
+}
+
+.round-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding-left: 16px;
+  border-left: 1px solid var(--hairline);
+  font-variant-numeric: tabular-nums;
+}
+
+.round-meta .round-no {
+  font-weight: 700;
+}
+
+.round-meta .phase-name {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sumi-soft);
 }
 
 .game-layout {
@@ -109,20 +234,20 @@ button:disabled {
   align-self: stretch;
   width: 10px;
   border-radius: 5px;
-  background: #c7d4ce;
+  background: var(--hairline);
   cursor: col-resize;
   touch-action: none;
 }
 
 .layout-divider:hover {
-  background: #9fb3aa;
+  background: var(--sumi-soft);
 }
 
 .board {
   width: 100%;
-  border: 1px solid #becbc5;
-  border-radius: 8px;
-  background: #dfe8df;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: #ddd0b4;
 }
 
 .map-host {
@@ -136,7 +261,7 @@ button:disabled {
 }
 
 .board-status {
-  color: #24312d;
+  color: var(--sumi);
   font-size: 20px;
   font-weight: 700;
 }
@@ -146,7 +271,7 @@ button:disabled {
   flex-direction: column;
   gap: 14px;
   min-width: 0;
-  border-left: 1px solid #c7d4ce;
+  border-left: 1px solid var(--hairline);
   padding-left: 18px;
 }
 
@@ -157,26 +282,55 @@ button:disabled {
 }
 
 .seat-switcher button {
-  background: #ffffff;
-  color: #1e4037;
+  background: var(--washi-raised);
+  color: var(--sumi);
+  border-color: var(--hairline);
+  text-transform: capitalize;
 }
 
-.seat-switcher button.is-active {
-  background: #1e4037;
-  color: #ffffff;
+/* The active seat is lit in its faction colour — this is the hotseat "you are X" cue. */
+.seat-switcher button.is-active[data-seat="red"] {
+  background: var(--shu);
+  border-color: var(--shu-deep);
+  color: var(--washi-raised);
+}
+
+.seat-switcher button.is-active[data-seat="black"] {
+  background: var(--ai);
+  border-color: var(--ai);
+  color: var(--washi-raised);
 }
 
 .panel-section {
-  border: 1px solid #c7d4ce;
-  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
   padding: 14px;
-  background: #ffffff;
+  background: var(--washi-raised);
 }
 
 .panel-section h2 {
   margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-weight: 700;
   font-size: 1.05rem;
-  letter-spacing: 0;
+  letter-spacing: 0.01em;
+}
+
+/* The Hand is a key resource: give it a touch more presence than the other panels. */
+.panel-hand {
+  border-color: color-mix(in srgb, var(--kin) 45%, var(--hairline));
+  background: color-mix(in srgb, var(--kin) 6%, var(--washi-raised));
+}
+
+/* The event log is reference-only: recede it. */
+.panel-log {
+  background: transparent;
+  border-style: dashed;
+}
+
+.panel-log h2 {
+  font-size: 0.9rem;
+  color: var(--sumi-soft);
 }
 
 .area-details {
@@ -192,7 +346,7 @@ button:disabled {
 }
 
 .area-details dt {
-  color: #65716c;
+  color: var(--sumi-soft);
   font-size: 0.88rem;
 }
 
@@ -206,7 +360,7 @@ button:disabled {
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #65716c;
+  color: var(--sumi-soft);
 }
 
 .trait-list {
@@ -235,7 +389,7 @@ button:disabled {
 }
 
 .action-open {
-  color: #65716c;
+  color: var(--sumi-soft);
 }
 
 .action-used {
@@ -243,38 +397,43 @@ button:disabled {
 }
 
 .action-red {
-  color: #b03a32;
+  color: var(--shu);
 }
 
 .action-black {
-  color: #2f343c;
+  color: var(--ai);
 }
 
 .event-log {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
   padding-left: 20px;
+  font-size: 0.85rem;
+  color: var(--sumi-soft);
 }
 
 .muted {
   margin: 0;
-  color: #65716c;
+  color: var(--sumi-soft);
 }
 
 .error-text {
   margin: 10px 0 0;
-  color: #a3352f;
+  color: var(--shu);
   font-weight: 650;
 }
 
 .secondary-action {
-  background: #ffffff;
-  color: #1e4037;
+  background: transparent;
+  color: var(--sumi);
+}
+
+.secondary-action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--sumi) 8%, transparent);
 }
 
 @media (max-width: 900px) {
-  .top-bar,
   .game-layout {
     grid-template-columns: 1fr;
   }
@@ -283,17 +442,13 @@ button:disabled {
     display: none;
   }
 
-  .top-bar {
-    display: grid;
-  }
-
-  .top-stats {
-    justify-content: flex-start;
+  .scoreboard {
+    margin-left: 0;
   }
 
   .side-panel {
     border-left: 0;
-    border-top: 1px solid #c7d4ce;
+    border-top: 1px solid var(--hairline);
     padding-left: 0;
     padding-top: 16px;
   }
@@ -381,22 +536,23 @@ button:disabled {
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border: 1px solid #c7d4ce;
-  border-radius: 8px;
-  background: #ffffff;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--washi-raised);
   min-height: 60px;
 }
 
-/* Combat step: replaces the order bar while a roll is pending. */
+/* Combat step: replaces the order bar while a roll is pending. Vermilion = bloodshed (not a
+   faction cue here). */
 .combat-panel {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 14px;
   padding: 12px 14px;
-  border: 2px solid #b03a32;
-  border-radius: 8px;
-  background: #fff6f4;
+  border: 2px solid var(--shu);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--shu) 8%, var(--washi-raised));
   min-height: 60px;
 }
 
@@ -407,11 +563,13 @@ button:disabled {
 }
 
 .combat-info strong {
-  font-size: 1.05rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
 }
 
 .combat-detail {
-  color: #65716c;
+  color: var(--sumi-soft);
 }
 
 .combat-dice {
@@ -425,16 +583,24 @@ button:disabled {
   justify-content: center;
   width: 34px;
   height: 34px;
-  border-radius: 7px;
+  border-radius: 6px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  background: #ffffff;
-  border: 2px solid #b03a32;
+  background: var(--washi-raised);
+  border: 2px solid var(--shu);
 }
 
 .die-pending {
-  color: #b03a32;
+  color: var(--shu);
   border-style: dashed;
+}
+
+.combat-total {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--shu);
 }
 
 .combat-buttons {
@@ -461,11 +627,11 @@ button:disabled {
 .hand-card {
   display: block;
   width: 72px;
-  border: 1px solid #c7d4ce;
-  border-radius: 6px;
+  border: 1px solid var(--hairline);
+  border-radius: 5px;
   overflow: hidden;
   padding: 0;
-  background: #ffffff;
+  background: var(--washi-raised);
   line-height: 0;
 }
 
@@ -477,18 +643,18 @@ button:disabled {
 
 .hand-card-actionable {
   cursor: pointer;
-  border-color: #b03a32;
+  border-color: var(--shu);
 }
 
 .hand-card-actionable:hover:not(:disabled) {
-  outline: 2px solid #f0b429;
+  outline: 2px solid var(--kin);
   outline-offset: 1px;
 }
 
 /* A card that can be played with a deploying commander right now. */
 .hand-card-playable {
-  border-color: #f0b429;
-  box-shadow: 0 0 0 2px rgba(240, 180, 41, 0.55);
+  border-color: var(--kin);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--kin) 55%, transparent);
 }
 
 .hand-card-back {
@@ -545,7 +711,9 @@ button:disabled {
 }
 
 .action-bar-info strong {
-  font-size: 1.05rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
 }
 
 .action-bar-total {
@@ -557,13 +725,13 @@ button:disabled {
 .action-bar-card {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #b07a14;
+  color: var(--kin);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .action-bar-hint {
-  color: #65716c;
+  color: var(--sumi-soft);
 }
 
 .action-bar-stepper {
@@ -573,7 +741,7 @@ button:disabled {
 }
 
 .stepper-label {
-  color: #65716c;
+  color: var(--sumi-soft);
   font-size: 0.85rem;
 }
 
@@ -584,7 +752,7 @@ button:disabled {
 }
 
 .action-meta {
-  color: #8a8577;
+  color: var(--sumi-soft);
   font-variant-numeric: tabular-nums;
 }
 
