@@ -546,13 +546,8 @@ export function App() {
     <main className="app-shell" data-active-seat={game.view.activeSeat}>
       <header className="top-bar">
         <div className="title-block">
-          <h1>
-            <span className="title-mark" aria-hidden="true">
-              戦国
-            </span>
-            General Orders: Sengoku Jidai
-          </h1>
-          {/* The live instruction, promoted to the primary "general's order" line. */}
+          {/* The live instruction, promoted to the primary "general's order" line. The game
+              title lives in the browser tab + start screen, kept out of the bar to save height. */}
           <p className="command-prompt">{game.view.prompt}</p>
         </div>
         <div className="scoreboard" aria-label="Game status">
