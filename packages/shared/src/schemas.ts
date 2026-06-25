@@ -93,7 +93,13 @@ export const commandSchema = z.discriminatedUnion("type", [
 
 export const createGameRequestSchema = z.object({
   mode: gameModeSchema.default("hotseat"),
-  seed: z.string().optional()
+  seed: z.string().optional(),
+  name: z.string().trim().min(1).max(80).optional(),
+  side: seatIdSchema.optional()
+});
+
+export const claimGameRequestSchema = z.object({
+  name: z.string().trim().min(1).max(80)
 });
 
 export const joinGameRequestSchema = z.object({
@@ -125,3 +131,4 @@ export type CommandDto = z.infer<typeof commandSchema>;
 export type CreateGameRequest = z.infer<typeof createGameRequestSchema>;
 export type JoinGameRequest = z.infer<typeof joinGameRequestSchema>;
 export type SubmitCommandRequest = z.infer<typeof submitCommandRequestSchema>;
+export type ClaimGameRequest = z.infer<typeof claimGameRequestSchema>;

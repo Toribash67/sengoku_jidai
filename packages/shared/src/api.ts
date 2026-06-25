@@ -5,11 +5,20 @@ export type SeatId = z.infer<typeof seatIdSchema>;
 export type GameMode = z.infer<typeof gameModeSchema>;
 export type Command = z.infer<typeof commandSchema>;
 
+export type SeatStatus = "open" | "claimed";
+
+export interface GameSeatInfo {
+  seat: SeatId;
+  name: string | null;
+  status: SeatStatus;
+}
+
 export interface PlayerGameViewEnvelope<View = unknown> {
   gameId: string;
   seat: SeatId;
   revision: number;
   view: View;
+  seatInfo: GameSeatInfo[];
 }
 
 export interface SeatToken {
