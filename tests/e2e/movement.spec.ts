@@ -20,8 +20,10 @@ test("issues a movement order from the board and resolves it", async ({ page }) 
   // Order-first: click a movement verb in the palette (whichever of Advance/Sail is usable).
   const advance = page.locator('button[data-order-verb="advance"]');
   const sail = page.locator('button[data-order-verb="sail"]');
-  // Wait for the palette to mount so isEnabled() reflects real availability, not a pending render.
-  await expect(advance.or(sail)).toBeEnabled();
+  // Wait for the palette to mount so isEnabled() reflects real availability, not a pending
+  // render. Both verbs always render (greyed when unusable), so wait on Advance's presence —
+  // not an .or() of both, which would match two elements.
+  await expect(advance).toBeVisible();
   const moveVerb = (await advance.isEnabled()) ? advance : sail;
   await moveVerb.click();
 
