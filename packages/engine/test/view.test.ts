@@ -17,7 +17,7 @@ describe("playerView (v2)", () => {
     const hq = view.areas.find((area) => area.id === "tile9");
     expect(hq).toBeDefined();
     expect(hq?.owner).toBe("red");
-    expect(hq?.units.troop).toBe(5);
+    expect(hq?.units.troop).toBe(3);
     expect(hq?.kind).toBe("land");
   });
 
@@ -49,18 +49,18 @@ describe("playerView (v2)", () => {
   });
 
   it("enumerates advance/sail moves for the active seat with max = units - 1", () => {
-    // seed "fixed": active = red; HQ tile9 has 5 troops; navy tile14 has 3 ships.
+    // seed "fixed": active = red; tile19 has 3 troops; navy tile14 has 3 ships.
     expect(state.activeSeat).toBe("red");
     const summary = legalCommandsForState(state, state.activeSeat);
 
     expect(summary.moves.some((m) => m.type === "advance")).toBe(true);
     expect(summary.moves.some((m) => m.type === "sail")).toBe(true);
 
-    // tile9 (5 troops) feeds an advance into adjacent tile1, capped at 4.
-    expect(summary.moves.find((m) => m.targetAreaId === "tile1")).toMatchObject({
-      spaceId: "advance-tile1",
+    // tile19 (3 troops) feeds an advance into adjacent empty tile16, capped at 2.
+    expect(summary.moves.find((m) => m.targetAreaId === "tile16")).toMatchObject({
+      spaceId: "advance-tile16",
       type: "advance",
-      sources: [{ areaId: "tile9", max: 4 }]
+      sources: [{ areaId: "tile19", max: 2 }]
     });
 
     // tile14 (3 ships) feeds a sail into adjacent tile15, capped at 2.
@@ -106,8 +106,8 @@ describe("playerView (v2)", () => {
     expect(legalCommandsForState(recall, "red").moves).toEqual([]);
   });
 
-  // At setup red supplies exactly {tile9 (HQ), tile14 (navy)} and no bonus slot, so
-  // Barracks/Pirate Haven never apply here — pools and dice are exact.
+  // At setup red supplies {tile1, tile9 (HQ), tile10, tile19} (land) + tile14 (navy) and no
+  // bonus slot, so Barracks/Pirate Haven never apply here — pools and dice are exact.
 
   it("enumerates reinforce/embark placements with unit, reserve, pool and targets", () => {
     const summary = legalCommandsForState(state, "red");
@@ -116,8 +116,8 @@ describe("playerView (v2)", () => {
     expect(reinforce.map((p) => p.spaceId).sort()).toEqual(["reinforce-a", "reinforce-b"]);
     for (const p of reinforce) {
       expect(p.unit).toBe("troop");
-      expect(p.reserve).toBe(20); // 25 pool - 5 on the HQ
-      expect(p.targets).toEqual(["tile9"]); // only supplied land at setup
+      expect(p.reserve).toBe(15); // 25 pool - 10 deployed troops
+      expect(p.targets).toEqual(["tile9", "tile1", "tile10", "tile19"]); // supplied land at setup
     }
     expect(reinforce.find((p) => p.spaceId === "reinforce-a")!.pool).toBe(6);
     expect(reinforce.find((p) => p.spaceId === "reinforce-b")!.pool).toBe(5);

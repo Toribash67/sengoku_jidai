@@ -88,9 +88,6 @@ export const RIVERS_UNIT_POOL: Readonly<UnitCounts> = Object.freeze({
   siege: 0
 });
 
-/** Interim starting garrison: troops placed in each player's HQ at setup. */
-export const HQ_STARTING_TROOPS = 5;
-
 /** A fresh, independent all-zero unit-counts object. */
 export function zeroUnits(): UnitCounts {
   return { troop: 0, ship: 0, siege: 0 };

@@ -7,7 +7,6 @@ import { riversRuleset } from "./rules.js";
 import type { BonusType, RulesConfig } from "./rules.js";
 import type { GameMode, SeatId } from "./types.js";
 import {
-  HQ_STARTING_TROOPS,
   RIVERS_UNIT_POOL,
   zeroUnits,
   type AreaRuntime,
@@ -19,14 +18,25 @@ import {
 } from "./state.js";
 
 /**
- * Interim starting navies: ships placed in the sea tile above each player's base on
- * the Rivers map. Like {@link HQ_STARTING_TROOPS} this is interim setup hardcoded to
- * the Rivers tile ids; a future map-driven field can supersede it. Areas not present
- * on the active map are simply skipped.
+ * Interim starting deployment for the Rivers map: the units each player begins with on the
+ * board, keyed by tile id. Black mirrors Red across the board's 180° symmetry
+ * (tile1↔tile5, tile9↔tile13 HQ, tile10↔tile12, tile14↔tile18, tile19↔tile21). Hardcoded to
+ * the Rivers tile ids; a future map-driven field can supersede it. Areas absent from the
+ * active map are skipped, and each player's reserve is derived from this (pool − deployed).
  */
-const STARTING_NAVIES: Record<string, { seat: SeatId; ships: number }> = {
-  tile14: { seat: "red", ships: 3 },
-  tile18: { seat: "black", ships: 3 }
+const RIVERS_STARTING_UNITS: Record<string, { seat: SeatId; troop?: number; ship?: number }> = {
+  // Red
+  tile1: { seat: "red", troop: 2 },
+  tile9: { seat: "red", troop: 3 }, // Red HQ
+  tile10: { seat: "red", troop: 2 },
+  tile14: { seat: "red", ship: 3 },
+  tile19: { seat: "red", troop: 3 },
+  // Black — mirror of Red
+  tile5: { seat: "black", troop: 2 },
+  tile13: { seat: "black", troop: 3 }, // Black HQ
+  tile12: { seat: "black", troop: 2 },
+  tile18: { seat: "black", ship: 3 },
+  tile21: { seat: "black", troop: 3 }
 };
 
 export interface GameSetupOptions {
@@ -87,17 +97,17 @@ export function createInitialState(options: GameSetupOptions): GameState {
     }
   }
 
-  // Build areas, garrisoning each HQ and the starting navy above each base.
+  // Build areas from the starting deployment. An HQ tile is owned by its faction even if a
+  // future deployment leaves it ungarrisoned; otherwise ownership follows the deploying seat.
   const areas: Record<string, AreaRuntime> = {};
   for (const area of Object.values(map.areas)) {
-    const navy = STARTING_NAVIES[area.id];
-    if (area.hq !== null) {
-      areas[area.id] = { owner: area.hq, units: { ...zeroUnits(), troop: HQ_STARTING_TROOPS } };
-    } else if (navy) {
-      areas[area.id] = { owner: navy.seat, units: { ...zeroUnits(), ship: navy.ships } };
-    } else {
-      areas[area.id] = { owner: null, units: zeroUnits() };
+    const start = RIVERS_STARTING_UNITS[area.id];
+    const units = zeroUnits();
+    if (start) {
+      units.troop = start.troop ?? 0;
+      units.ship = start.ship ?? 0;
     }
+    areas[area.id] = { owner: area.hq ?? start?.seat ?? null, units };
   }
 
   // Reserve = the full pool minus whatever was placed on the board for that seat.

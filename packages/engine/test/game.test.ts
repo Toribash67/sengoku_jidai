@@ -4,12 +4,28 @@ import { RIVERS_CARDS } from "../src/cards.js";
 import { riversMap } from "../src/maps/riversMap.js";
 import { riversRuleset } from "../src/rules.js";
 import { createRngState } from "../src/rng.js";
-import { HQ_STARTING_TROOPS, RIVERS_UNIT_POOL } from "../src/state.js";
+import { RIVERS_UNIT_POOL } from "../src/state.js";
+import type { SeatId } from "../src/types.js";
 
 const opts = { gameId: "g1", seed: "seed-A" };
 
 const hqOf = (seat: "red" | "black") =>
   Object.values(riversMap.areas).find((a) => a.hq === seat)!.id;
+
+// The Rivers starting deployment: Black mirrors Red across the board's 180° symmetry.
+// 2+3+2+3 = 10 troops and 3 ships per side.
+const STARTING_DEPLOYMENT: Record<string, { owner: SeatId; troop?: number; ship?: number }> = {
+  tile1: { owner: "red", troop: 2 },
+  tile9: { owner: "red", troop: 3 },
+  tile10: { owner: "red", troop: 2 },
+  tile14: { owner: "red", ship: 3 },
+  tile19: { owner: "red", troop: 3 },
+  tile5: { owner: "black", troop: 2 },
+  tile13: { owner: "black", troop: 3 },
+  tile12: { owner: "black", troop: 2 },
+  tile18: { owner: "black", ship: 3 },
+  tile21: { owner: "black", troop: 3 }
+};
 
 describe("createInitialState", () => {
   it("is deterministic for a given seed", () => {
@@ -55,17 +71,18 @@ describe("createInitialState", () => {
     expect(s.endReason).toBeNull();
   });
 
-  it("garrisons each HQ with troops, gives each base a starting navy, leaves the rest empty", () => {
+  it("deploys each side's starting units (Black mirrors Red), leaves the rest empty", () => {
     const s = createInitialState(opts);
-    const redHq = hqOf("red");
-    const blackHq = hqOf("black");
-    const garrison = { troop: HQ_STARTING_TROOPS, ship: 0, siege: 0 };
-    expect(s.areas[redHq]).toEqual({ owner: "red", units: garrison });
-    expect(s.areas[blackHq]).toEqual({ owner: "black", units: garrison });
-    // Starting navy in the sea tile above each base.
-    expect(s.areas.tile14).toEqual({ owner: "red", units: { troop: 0, ship: 3, siege: 0 } });
-    expect(s.areas.tile18).toEqual({ owner: "black", units: { troop: 0, ship: 3, siege: 0 } });
-    const occupied = new Set([redHq, blackHq, "tile14", "tile18"]);
+    // The red and black HQs are the deployment's 3-troop tiles.
+    expect(hqOf("red")).toBe("tile9");
+    expect(hqOf("black")).toBe("tile13");
+    for (const [id, e] of Object.entries(STARTING_DEPLOYMENT)) {
+      expect(s.areas[id], id).toEqual({
+        owner: e.owner,
+        units: { troop: e.troop ?? 0, ship: e.ship ?? 0, siege: 0 }
+      });
+    }
+    const occupied = new Set(Object.keys(STARTING_DEPLOYMENT));
     for (const [id, a] of Object.entries(s.areas)) {
       if (occupied.has(id)) continue;
       expect(a, id).toEqual({ owner: null, units: { troop: 0, ship: 0, siege: 0 } });
@@ -79,7 +96,7 @@ describe("createInitialState", () => {
       expect(s.players[seat].seat).toBe(seat);
       expect(s.players[seat].reserve).toEqual({
         ...RIVERS_UNIT_POOL,
-        troop: RIVERS_UNIT_POOL.troop - HQ_STARTING_TROOPS,
+        troop: RIVERS_UNIT_POOL.troop - 10, // 2 + 3 + 2 + 3 deployed troops
         ship: RIVERS_UNIT_POOL.ship - 3
       });
       expect(s.players[seat].commanders).toEqual({

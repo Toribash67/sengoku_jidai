@@ -21,12 +21,12 @@ describe("gameBoard", () => {
     expect(gameBoard(s).ownerOf("nope")).toBeNull();
   });
 
-  it("drives suppliedAreas over live state (HQ + its starting navy at setup)", () => {
+  it("drives suppliedAreas over live state (the starting deployment at setup)", () => {
     const s = createInitialState({ gameId: "g", seed: "seed-A" });
     const supplied = suppliedAreas(riversMap, gameBoard(s), "red");
     expect(supplied.has(hqOf("red"))).toBe(true);
-    // Red controls its HQ and the starting navy on tile14 (adjacent to the HQ); both supplied.
-    expect(supplied.has("tile14")).toBe(true);
-    expect(supplied.size).toBe(2);
+    // Red starts on tile1/tile9(HQ)/tile10/tile19 (land) and the navy on tile14, all supplied.
+    expect([...supplied].sort()).toEqual(["tile1", "tile10", "tile14", "tile19", "tile9"]);
+    expect(supplied.size).toBe(5);
   });
 });
