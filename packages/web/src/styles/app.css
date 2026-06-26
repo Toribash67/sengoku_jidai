@@ -689,6 +689,16 @@ button:disabled {
   gap: 8px;
 }
 
+/* The order-first verb palette: a stable row of order buttons, greyed when unusable. */
+.order-palette {
+  flex-wrap: wrap;
+}
+
+.order-palette button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .action-bar-support {
   margin-left: auto;
 }

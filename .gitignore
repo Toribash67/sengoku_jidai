@@ -12,3 +12,6 @@ source-material/
 
 # Visual brainstorming companion
 .superpowers/
+
+# Local screenshot helper (untracked dev artifact)
+.shot.mjs

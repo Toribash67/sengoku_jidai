@@ -9,20 +9,28 @@ test("issues a movement order from the board and resolves it", async ({ page }) 
   // Switch the view to whichever seat has initiative this game.
   const actor = await page.locator(".app-shell").getAttribute("data-active-seat");
   expect(actor === "red" || actor === "black").toBe(true);
-  // Switch to view as the seat with initiative — unless we already are (its button is
-  // disabled when it's the current view).
   const actorSeat = page.locator(`button[data-seat="${actor}"]`);
   if (await actorSeat.isEnabled()) {
     await actorSeat.click();
   }
 
-  // A legal movement target glows; select the first one.
+  // Idle board is calm: no candidate tiles glow until a verb is armed.
+  await expect(page.locator("[data-legal-target='true']")).toHaveCount(0);
+
+  // Order-first: click a movement verb in the palette (whichever of Advance/Sail is usable).
+  const advance = page.locator('button[data-order-verb="advance"]');
+  const sail = page.locator('button[data-order-verb="sail"]');
+  // Wait for the palette to mount so isEnabled() reflects real availability, not a pending
+  // render. Both verbs always render (greyed when unusable), so wait on Advance's presence —
+  // not an .or() of both, which would match two elements.
+  await expect(advance).toBeVisible();
+  const moveVerb = (await advance.isEnabled()) ? advance : sail;
+  await moveVerb.click();
+
+  // Candidate destinations now glow; pick the first one.
   const target = page.locator("[data-legal-target='true']").first();
   await expect(target).toBeVisible();
   await target.click();
-
-  // The selected tile reveals its order in the bottom action bar; start it.
-  await page.getByRole("button", { name: /^(Advance|Sail) here$/ }).click();
 
   // A legal source glows; click it to stage one unit, then confirm.
   const source = page.locator("[data-source='true']").first();
