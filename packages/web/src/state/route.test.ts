@@ -23,7 +23,11 @@ describe("parseRoute", () => {
   });
 
   it("decodes an encoded game id", () => {
-    expect(parseRoute({ pathname: "/g/a%2Fb", hash: "#t" }).gameId).toBe("a/b");
+    const route = parseRoute({ pathname: "/g/a%2Fb", hash: "#t" });
+    expect(route.kind).toBe("game");
+    if (route.kind === "game") {
+      expect(route.gameId).toBe("a/b");
+    }
   });
 });
 
