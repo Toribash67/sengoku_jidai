@@ -165,6 +165,12 @@ export function App() {
       });
     return () => {
       cancelled = true;
+      // Release the key if this load was torn down before it finished (e.g. React
+      // StrictMode's mount→unmount→remount in dev), so the remount re-fetches instead
+      // of seeing the key already claimed and skipping the load.
+      if (loadedKeyRef.current === key) {
+        loadedKeyRef.current = null;
+      }
     };
   }, [route]);
 

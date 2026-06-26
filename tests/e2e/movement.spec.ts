@@ -9,7 +9,7 @@ test("issues a movement order from the board and resolves it", async ({ page }) 
   // Switch the view to whichever seat has initiative this game.
   const actor = await page.locator(".app-shell").getAttribute("data-active-seat");
   expect(actor === "red" || actor === "black").toBe(true);
-  await page.locator(`[data-seat="${actor}"]`).click();
+  await page.locator(`button[data-seat="${actor}"]`).click();
 
   // A legal movement target glows; select the first one.
   const target = page.locator("[data-legal-target='true']").first();

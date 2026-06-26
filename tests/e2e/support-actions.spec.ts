@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 async function switchToActiveSeat(page: import("@playwright/test").Page): Promise<string> {
   const actor = await page.locator(".app-shell").getAttribute("data-active-seat");
   expect(actor === "red" || actor === "black").toBe(true);
-  await page.locator(`[data-seat="${actor}"]`).click();
+  await page.locator(`button[data-seat="${actor}"]`).click();
   return actor!;
 }
 
