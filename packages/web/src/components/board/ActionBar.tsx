@@ -1,6 +1,7 @@
-import type { LegalMove, LegalPlacement, LegalPlan, LegalStrike } from "@sengoku-jidai/engine";
+import type { LegalPlacement, LegalPlan } from "@sengoku-jidai/engine";
 import { cardLabel } from "./cardImages.js";
 import { UNIT_NOUN, VERB, sumCounts, type ComposerState } from "./composer.js";
+import type { VerbAvailability } from "./orders.js";
 
 interface ActionBarProps {
   composer: ComposerState | null;
@@ -8,17 +9,14 @@ interface ActionBarProps {
   busy: boolean;
   /** The gold-outlined area; in a move/placement it is the one the stepper adjusts. */
   selectedAreaId: string | null;
-  /** When a card is being played (target not yet chosen), its label drives a card-mode banner. */
-  cardModeLabel: string | null;
-
-  // Idle-mode inputs (contextual to the selected tile + always-available support actions).
-  contextualMove: LegalMove | null;
-  contextualStrike: LegalStrike | null;
+  // Idle-mode inputs: the fixed verb palette + the active targeting banner.
+  /** Which palette verbs are usable this turn (others render greyed). */
+  availability: VerbAvailability;
+  /** Banner shown while a move/strike verb is armed: its label + glow hint. Null when idle. */
+  armedLabel: string | null;
   placements: LegalPlacement[];
   plans: LegalPlan[];
-  canPass: boolean;
-  onStartOrder: (move: LegalMove) => void;
-  onStartStrike: (strike: LegalStrike) => void;
+  onArmVerb: (verb: "advance" | "sail" | "bombard" | "shell") => void;
   onStartPlacement: (placement: LegalPlacement) => void;
   onStartPlan: (plan: LegalPlan) => void;
   onPass: () => void;
@@ -259,18 +257,23 @@ function PlanBar({
   );
 }
 
+/** A move/strike verb in the palette. Placement/Plan/Pass have their own handlers below. */
+const MOVE_STRIKE_VERBS: { verb: "advance" | "sail" | "bombard" | "shell" }[] = [
+  { verb: "advance" },
+  { verb: "sail" },
+  { verb: "bombard" },
+  { verb: "shell" }
+];
+
 function IdleBar(props: ActionBarProps) {
   const {
     isViewerActive,
     busy,
-    cardModeLabel,
-    contextualMove,
-    contextualStrike,
+    availability,
+    armedLabel,
     placements,
     plans,
-    canPass,
-    onStartOrder,
-    onStartStrike,
+    onArmVerb,
     onStartPlacement,
     onStartPlan,
     onPass,
@@ -281,30 +284,15 @@ function IdleBar(props: ActionBarProps) {
     return <span className="action-bar-hint">Waiting for the other player…</span>;
   }
 
-  const hasContextual = contextualMove !== null || contextualStrike !== null;
-
-  // Card-play mode: the user picked a card and now taps a glowing target. Only the contextual
-  // order (the card's action on the selected tile) and Cancel are offered.
-  if (cardModeLabel) {
+  // Targeting mode: a move/strike verb is armed and its candidate tiles glow on the map.
+  if (armedLabel) {
     return (
       <>
         <span className="action-bar-info">
-          <strong>{cardModeLabel}</strong>
-          <span className="action-bar-hint">
-            {hasContextual ? "Confirm the order below." : "Tap a glowing area to play this card."}
-          </span>
+          <strong>{armedLabel}</strong>
+          <span className="action-bar-hint">Tap a glowing area to choose its target.</span>
         </span>
-        <span className="action-bar-group">
-          {contextualMove ? (
-            <button type="button" onClick={() => onStartOrder(contextualMove)} disabled={busy}>
-              {VERB[contextualMove.type]} here
-            </button>
-          ) : null}
-          {contextualStrike ? (
-            <button type="button" onClick={() => onStartStrike(contextualStrike)} disabled={busy}>
-              {VERB[contextualStrike.type]} from here
-            </button>
-          ) : null}
+        <span className="action-bar-buttons">
           <button type="button" className="secondary-action" onClick={onCancel} disabled={busy}>
             Cancel
           </button>
@@ -313,28 +301,26 @@ function IdleBar(props: ActionBarProps) {
     );
   }
 
+  // The fixed verb palette. Layout is stable; unusable verbs render disabled.
   return (
     <>
-      <span className="action-bar-group">
-        {contextualMove ? (
-          <button type="button" onClick={() => onStartOrder(contextualMove)} disabled={busy}>
-            {VERB[contextualMove.type]} here
+      <span className="action-bar-group order-palette">
+        {MOVE_STRIKE_VERBS.map(({ verb }) => (
+          <button
+            key={verb}
+            type="button"
+            data-order-verb={verb}
+            onClick={() => onArmVerb(verb)}
+            disabled={busy || !availability[verb]}
+          >
+            {VERB[verb]}
           </button>
-        ) : null}
-        {contextualStrike ? (
-          <button type="button" onClick={() => onStartStrike(contextualStrike)} disabled={busy}>
-            {VERB[contextualStrike.type]} from here
-          </button>
-        ) : null}
-        {!hasContextual ? (
-          <span className="action-bar-hint">Select an area to see its orders.</span>
-        ) : null}
-      </span>
-      <span className="action-bar-group action-bar-support">
+        ))}
         {placements.map((placement) => (
           <button
             key={placement.spaceId}
             type="button"
+            data-order-verb={placement.type}
             onClick={() => onStartPlacement(placement)}
             disabled={busy}
           >
@@ -346,13 +332,19 @@ function IdleBar(props: ActionBarProps) {
           <button
             key={plan.spaceId}
             type="button"
+            data-order-verb="plan"
             onClick={() => onStartPlan(plan)}
             disabled={busy}
           >
             Plan {plan.initiative ? <span className="action-meta">★</span> : null}
           </button>
         ))}
-        <button type="button" onClick={onPass} disabled={busy || !canPass}>
+        <button
+          type="button"
+          data-order-verb="pass"
+          onClick={onPass}
+          disabled={busy || !availability.pass}
+        >
           Pass
         </button>
       </span>

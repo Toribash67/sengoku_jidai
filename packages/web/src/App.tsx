@@ -11,6 +11,14 @@ import type {
   PlayerGameView,
   SeatId
 } from "@sengoku-jidai/engine";
+import {
+  type ArmedOrder,
+  armMove,
+  armStrike,
+  candidateTiles,
+  resolveArmedTile,
+  verbAvailability
+} from "./components/board/orders.js";
 import { getMap } from "@sengoku-jidai/engine";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ActionBar } from "./components/board/ActionBar.js";
@@ -23,6 +31,7 @@ import { Hand } from "./components/board/Hand.js";
 import { describeArea } from "./components/board/areaLabel.js";
 import {
   type ComposerState,
+  VERB,
   largestPlacementPerType,
   stagedCountsFor
 } from "./components/board/composer.js";
@@ -70,9 +79,9 @@ export function App() {
   const [activeSourceId, setActiveSourceId] = useState<string | null>(null);
   // The hand card shown in the large preview overlay, if any.
   const [previewCard, setPreviewCard] = useState<OperationCard | null>(null);
-  // A card being played: the user has chosen it and now picks the target tile on the map
-  // (move/strike cards). Placement cards skip this and open their composer directly.
-  const [playingCard, setPlayingCard] = useState<LegalCardPlay | null>(null);
+  // A move/strike order being targeted: the player armed a verb (or played a move/strike card)
+  // and now picks a candidate tile on the map. Placement/Plan open their composer directly.
+  const [armedOrder, setArmedOrder] = useState<ArmedOrder | null>(null);
   const [events, setEvents] = useState<PlayerGameEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -150,7 +159,7 @@ export function App() {
         });
         setSelectedAreaId(null);
         setComposer(null);
-        setPlayingCard(null);
+        setArmedOrder(null);
         setEvents([]);
       })
       .catch((caught) => {
@@ -234,23 +243,13 @@ export function App() {
     [game, selectedAreaId]
   );
 
-  // Glowing (non-interactive) targets while not composing: advance/sail destinations — or, when
-  // a move/strike card is being played, the destinations / linked areas it unlocks.
+  // Candidate tiles to glow while a move/strike verb is armed. Nothing glows when idle.
   const legalTargetIds = useMemo(() => {
-    if (composer) {
+    if (composer || !armedOrder) {
       return new Set<string>();
     }
-    if (playingCard?.moves) {
-      return new Set(playingCard.moves.map((m) => m.targetAreaId));
-    }
-    if (playingCard?.strikes) {
-      return new Set(playingCard.strikes.map((s) => s.linkedAreaId));
-    }
-    if (playingCard) {
-      return new Set<string>();
-    }
-    return new Set((game?.view.legal.moves ?? []).map((m) => m.targetAreaId));
-  }, [composer, playingCard, game?.view.legal.moves]);
+    return candidateTiles(armedOrder);
+  }, [composer, armedOrder]);
   // Glowing, clickable tiles for the active composer: move sources, or strike/placement
   // targets. Plan has no tiles.
   const sourceIds = useMemo(() => {
@@ -266,25 +265,6 @@ export function App() {
     return new Set<string>();
   }, [composer]);
 
-  // Orders contextual to the selected tile: an advance/sail into it, or a bombard/shell
-  // linked to it. Offered as buttons in the bottom action bar (same matching as before).
-  // While a card is being played, contextual orders come from the card's (modified) options
-  // rather than the base legal lists; otherwise from what the selected tile allows.
-  const contextualMove = useMemo(() => {
-    if (!selectedAreaId) {
-      return null;
-    }
-    const source = playingCard?.moves ?? game?.view.legal.moves ?? [];
-    return source.find((m) => m.targetAreaId === selectedAreaId) ?? null;
-  }, [playingCard, game?.view.legal.moves, selectedAreaId]);
-  const contextualStrike = useMemo(() => {
-    if (!selectedAreaId) {
-      return null;
-    }
-    const source = playingCard?.strikes ?? game?.view.legal.strikes ?? [];
-    return source.find((s) => s.linkedAreaId === selectedAreaId) ?? null;
-  }, [playingCard, game?.view.legal.strikes, selectedAreaId]);
-
   // Staged units per area for the active move/placement, drawn as on-map badges.
   const stagedCounts = useMemo(() => stagedCountsFor(composer), [composer]);
 
@@ -293,6 +273,23 @@ export function App() {
   const placements = useMemo(
     () => largestPlacementPerType(game?.view.legal.placements ?? []),
     [game?.view.legal.placements]
+  );
+
+  const availability = useMemo(
+    () =>
+      game
+        ? verbAvailability(game.view.legal)
+        : {
+            advance: false,
+            sail: false,
+            bombard: false,
+            shell: false,
+            reinforce: false,
+            embark: false,
+            plan: false,
+            pass: false
+          },
+    [game]
   );
 
   // Cards in hand that can be played with a deploying commander right now.
@@ -317,7 +314,7 @@ export function App() {
       });
       setSelectedAreaId(null);
       setComposer(null);
-      setPlayingCard(null);
+      setArmedOrder(null);
       setEvents([]);
       navigateTo(gameUrl(created.gameId, myToken));
     } catch (caught) {
@@ -369,7 +366,7 @@ export function App() {
       });
       setSelectedAreaId(null);
       setComposer(null);
-      setPlayingCard(null);
+      setArmedOrder(null);
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
@@ -389,7 +386,7 @@ export function App() {
       bonus: bonusMax !== undefined ? 0 : undefined,
       bonusMax
     });
-    setPlayingCard(null);
+    setArmedOrder(null);
   }
 
   function startStrike(strike: LegalStrike, card?: OperationCard) {
@@ -403,7 +400,7 @@ export function App() {
       targetAreaId: strike.targets.length === 1 ? strike.targets[0]! : null,
       card
     });
-    setPlayingCard(null);
+    setArmedOrder(null);
   }
 
   function startPlacement(placement: LegalPlacement, card?: OperationCard) {
@@ -418,15 +415,47 @@ export function App() {
       counts: {},
       card
     });
-    setPlayingCard(null);
+    setArmedOrder(null);
   }
 
   function startPlan(plan: LegalPlan) {
     setComposer({ kind: "plan", spaceId: plan.spaceId, initiative: plan.initiative });
   }
 
-  // Begin playing a card. Placement cards (mobilise/commandeer) open their composer at once;
-  // move/strike cards enter a "pick the target tile" mode driven by the card's glowing options.
+  // Arm a move/strike verb from the palette: glow its candidate tiles, await a tile click.
+  function armVerb(verb: "advance" | "sail" | "bombard" | "shell") {
+    if (!game) {
+      return;
+    }
+    const armed =
+      verb === "advance" || verb === "sail"
+        ? armMove(game.view.legal, verb)
+        : armStrike(game.view.legal, verb);
+    if (armed) {
+      setComposer(null);
+      setArmedOrder(armed);
+    }
+  }
+
+  // Open the composer for the order the clicked candidate tile resolves to.
+  function resolveArmed(areaId: string) {
+    if (!armedOrder) {
+      return;
+    }
+    const resolved = resolveArmedTile(armedOrder, areaId);
+    if (!resolved) {
+      return;
+    }
+    if (resolved.kind === "move" && armedOrder.kind === "move") {
+      startOrder(resolved.move, armedOrder.card, armedOrder.bonusMax);
+    } else if (resolved.kind === "strike") {
+      startStrike(resolved.strike, armedOrder.card);
+    }
+  }
+
+  // Begin playing a card. Placement cards (mobilise/commandeer) open their composer at once; a
+  // single-target bombard card opens its strike composer directly; other move/strike cards arm
+  // targeting mode (glow the card's options, await a tile click) carrying the card context.
   function startCardPlay(play: LegalCardPlay) {
     setPreviewCard(null);
     if (play.placements && play.placements.length > 0) {
@@ -440,13 +469,23 @@ export function App() {
     }
     setComposer(null);
     setSelectedAreaId(null);
-    setPlayingCard(play);
+    if (play.moves && play.moves.length > 0) {
+      setArmedOrder({
+        kind: "move",
+        type: play.action === "sail" ? "sail" : "advance",
+        moves: play.moves,
+        card: play.card,
+        bonusMax: play.bonusMax
+      });
+    } else if (play.strikes && play.strikes.length > 0) {
+      setArmedOrder({ kind: "strike", type: "bombard", strikes: play.strikes, card: play.card });
+    }
   }
 
-  // Cancel any in-progress order or card play, returning to idle.
+  // Cancel any in-progress order or targeting, returning to the palette.
   function cancelOrder() {
     setComposer(null);
-    setPlayingCard(null);
+    setArmedOrder(null);
   }
 
   // Adjust the assault bonus (ground/river_assault) on the active move composer (0..bonusMax).
@@ -499,13 +538,16 @@ export function App() {
     );
   }
 
-  // Tile selection. While composing a move, keep the gold highlight pinned to the target
-  // being advanced/sailed into rather than letting it follow source clicks.
+  // Tile selection. Inspection always updates AreaDetails. While composing a move, keep the gold
+  // highlight pinned to the target rather than letting it follow source clicks. While a verb is
+  // armed, a click on a candidate tile also resolves the order and opens its composer.
   function handleSelectArea(areaId: string) {
-    if (composer?.kind === "move") {
-      return;
+    if (composer?.kind !== "move") {
+      setSelectedAreaId(areaId);
     }
-    setSelectedAreaId(areaId);
+    if (armedOrder) {
+      resolveArmed(areaId);
+    }
   }
 
   // A click on a glowing map tile during composition: pick the strike target, or stage a
@@ -538,7 +580,7 @@ export function App() {
       }
       setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
       setComposer(null);
-      setPlayingCard(null);
+      setArmedOrder(null);
       setSelectedAreaId(null);
     } catch (caught) {
       setError(errorMessage(caught));
@@ -690,6 +732,12 @@ export function App() {
   const stepperAreaId = isMove ? activeSourceId : selectedAreaId;
   const mapActiveSourceId = isMove ? activeSourceId : null;
 
+  const armedLabel = armedOrder
+    ? armedOrder.card
+      ? cardLabel(armedOrder.card)
+      : VERB[armedOrder.type]
+    : null;
+
   const openSeat = game.seatInfo.find((s) => s.status === "open");
   const openSeatToken = openSeat
     ? game.heldSeats.find((held) => held.seat === openSeat.seat)?.token
@@ -782,14 +830,11 @@ export function App() {
               isViewerActive={isViewerActive}
               busy={busy}
               selectedAreaId={stepperAreaId}
-              cardModeLabel={playingCard ? cardLabel(playingCard.card) : null}
-              contextualMove={contextualMove}
-              contextualStrike={contextualStrike}
+              availability={availability}
+              armedLabel={armedLabel}
               placements={placements}
               plans={game.view.legal.plans}
-              canPass={game.view.legal.canPass}
-              onStartOrder={(move) => startOrder(move, playingCard?.card, playingCard?.bonusMax)}
-              onStartStrike={(strike) => startStrike(strike, playingCard?.card)}
+              onArmVerb={armVerb}
               onStartPlacement={startPlacement}
               onStartPlan={startPlan}
               onPass={handlePass}
