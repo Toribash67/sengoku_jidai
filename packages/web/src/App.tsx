@@ -28,7 +28,14 @@ import {
 } from "./components/board/composer.js";
 import { MapBoard } from "./components/board/MapBoard.js";
 import type { GameSeatInfo, SeatToken } from "@sengoku-jidai/shared";
-import { ApiError, claimSeat, createGame, fetchGameView, submitCommand } from "./client/api.js";
+import {
+  ApiError,
+  claimSeat,
+  createGame,
+  fetchEvents,
+  fetchGameView,
+  submitCommand
+} from "./client/api.js";
 import {
   forgetGame,
   loadPanelWidth,
@@ -37,6 +44,7 @@ import {
   savePanelWidth
 } from "./state/localGame.js";
 import { gameUrl, inviteUrl, navigateTo, useRoute } from "./state/route.js";
+import { shouldPoll } from "./state/polling.js";
 import { CreateGameScreen } from "./components/CreateGameScreen.js";
 import { ClaimSeatPrompt } from "./components/ClaimSeatPrompt.js";
 import { PlayersPanel } from "./components/PlayersPanel.js";
@@ -159,6 +167,53 @@ export function App() {
       cancelled = true;
     };
   }, [route]);
+
+  const gameRef = useRef<LoadedGame | null>(null);
+  useEffect(() => {
+    gameRef.current = game;
+  }, [game]);
+
+  useEffect(() => {
+    if (!game || busy) {
+      return;
+    }
+    if (!shouldPoll(game.view, game.seatInfo)) {
+      return;
+    }
+    const interval = window.setInterval(() => {
+      const current = gameRef.current;
+      if (!current) {
+        return;
+      }
+      void fetchGameView(current.gameId, current.token)
+        .then(async (envelope) => {
+          if (gameRef.current?.token !== current.token) {
+            return; // seat switched mid-poll; drop this result
+          }
+          let newEvents: PlayerGameEvent[] = [];
+          if (envelope.revision > current.revision) {
+            newEvents = (await fetchEvents(current.gameId, current.token, current.revision)).events;
+          }
+          setGame((prev) =>
+            prev && prev.token === current.token
+              ? {
+                  ...prev,
+                  revision: envelope.revision,
+                  view: envelope.view,
+                  seatInfo: envelope.seatInfo
+                }
+              : prev
+          );
+          if (newEvents.length > 0) {
+            setEvents((previous) => [...newEvents.reverse(), ...previous].slice(0, 8));
+          }
+        })
+        .catch(() => {
+          // transient poll failure: ignore and let the next tick retry
+        });
+    }, 3000);
+    return () => window.clearInterval(interval);
+  }, [game, busy]);
 
   const selectedArea = useMemo(
     () => game?.view.areas.find((area) => area.id === selectedAreaId) ?? null,
