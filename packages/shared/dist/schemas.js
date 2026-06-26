@@ -1,0 +1,108 @@
+import { z } from "zod";
+export const seatIdSchema = z.enum(["red", "black"]);
+export const gameModeSchema = z.enum(["hotseat", "private_multiplayer", "async_multiplayer"]);
+/** The Rivers operation-card ids (must match the engine's OperationCard union). */
+export const operationCardSchema = z.enum([
+    "ambush",
+    "commandeer",
+    "counterattack",
+    "ground_assault",
+    "mobilise",
+    "river_assault",
+    "ship_strike",
+    "shore_strike"
+]);
+export const pendingChoiceSchema = z.object({
+    id: z.string().min(1),
+    label: z.string().min(1)
+});
+const moveSchema = z.object({
+    from: z.string().min(1),
+    count: z.number().int().positive()
+});
+const placementSchema = z.object({
+    area: z.string().min(1),
+    count: z.number().int().positive()
+});
+/** Optional operation card played as a commander deploys (modifies the action, then discarded). */
+const cardBonusSchema = z.number().int().min(0).max(2);
+export const commandSchema = z.discriminatedUnion("type", [
+    z.object({
+        type: z.literal("advance"),
+        spaceId: z.string().min(1),
+        moves: z.array(moveSchema),
+        card: operationCardSchema.optional(),
+        cardBonus: cardBonusSchema.optional()
+    }),
+    z.object({
+        type: z.literal("sail"),
+        spaceId: z.string().min(1),
+        moves: z.array(moveSchema),
+        card: operationCardSchema.optional(),
+        cardBonus: cardBonusSchema.optional()
+    }),
+    z.object({
+        type: z.literal("bombard"),
+        spaceId: z.string().min(1),
+        targetAreaId: z.string().min(1),
+        card: operationCardSchema.optional()
+    }),
+    z.object({
+        type: z.literal("shell"),
+        spaceId: z.string().min(1),
+        targetAreaId: z.string().min(1)
+    }),
+    z.object({
+        type: z.literal("reinforce"),
+        spaceId: z.string().min(1),
+        placements: z.array(placementSchema),
+        card: operationCardSchema.optional()
+    }),
+    z.object({
+        type: z.literal("embark"),
+        spaceId: z.string().min(1),
+        placements: z.array(placementSchema),
+        card: operationCardSchema.optional()
+    }),
+    z.object({ type: z.literal("plan"), spaceId: z.string().min(1) }),
+    z.object({ type: z.literal("pass") }),
+    z.object({
+        type: z.literal("combatRoll"),
+        pendingId: z.string().min(1),
+        card: operationCardSchema.optional()
+    }),
+    z.object({
+        type: z.literal("combatReroll"),
+        pendingId: z.string().min(1),
+        card: operationCardSchema
+    }),
+    z.object({ type: z.literal("combatResolve"), pendingId: z.string().min(1) }),
+    z.object({
+        type: z.literal("choosePendingDecision"),
+        pendingId: z.string().min(1),
+        choice: pendingChoiceSchema
+    })
+]);
+export const createGameRequestSchema = z.object({
+    mode: gameModeSchema.default("hotseat"),
+    seed: z.string().optional(),
+    name: z.string().trim().min(1).max(80).optional(),
+    side: seatIdSchema.optional()
+});
+export const claimGameRequestSchema = z.object({
+    name: z.string().trim().min(1).max(80)
+});
+export const submitCommandRequestSchema = z.object({
+    baseRevision: z.number().int().nonnegative(),
+    clientCommandId: z.string().min(1).max(120),
+    command: commandSchema
+});
+export const eventQuerySchema = z.object({
+    after: z.coerce.number().int().nonnegative().default(0)
+});
+export const gameParamsSchema = z.object({
+    gameId: z.string().min(1)
+});
+export const authHeaderSchema = z.object({
+    authorization: z.string().optional()
+});
