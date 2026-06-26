@@ -3,12 +3,44 @@ import type {
   PlayerGameViewEnvelope,
   SubmitCommandResponse
 } from "@sengoku-jidai/shared";
-import type { Command, PlayerGameEvent, PlayerGameView } from "@sengoku-jidai/engine";
+import type { Command, PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
 
 export async function createHotseatGame(): Promise<CreateGameResponse<PlayerGameView>> {
   return request("/api/games", {
     method: "POST",
     body: JSON.stringify({ mode: "hotseat" })
+  });
+}
+
+export async function createGame(input: {
+  name: string;
+  side: SeatId;
+}): Promise<CreateGameResponse<PlayerGameView>> {
+  return request("/api/games", {
+    method: "POST",
+    body: JSON.stringify({ mode: "private_multiplayer", name: input.name, side: input.side })
+  });
+}
+
+export async function claimSeat(
+  gameId: string,
+  token: string,
+  name: string
+): Promise<PlayerGameViewEnvelope<PlayerGameView>> {
+  return request(`/api/games/${gameId}/claim`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ name })
+  });
+}
+
+export async function fetchEvents(
+  gameId: string,
+  token: string,
+  after: number
+): Promise<{ events: PlayerGameEvent[] }> {
+  return request(`/api/games/${gameId}/events?after=${after}`, {
+    headers: authHeaders(token)
   });
 }
 
