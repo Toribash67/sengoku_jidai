@@ -2,13 +2,14 @@ import { expect, test } from "@playwright/test";
 
 test("issues a movement order from the board and resolves it", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "New hotseat game" }).click();
+  await page.getByLabel("Your name").fill("Oda");
+  await page.getByRole("button", { name: "Create game" }).click();
   await expect(page.getByTestId("board")).toBeVisible();
 
   // Switch the view to whichever seat has initiative this game.
   const actor = await page.locator(".app-shell").getAttribute("data-active-seat");
   expect(actor === "red" || actor === "black").toBe(true);
-  await page.getByRole("button", { name: actor!, exact: true }).click();
+  await page.locator(`[data-seat="${actor}"]`).click();
 
   // A legal movement target glows; select the first one.
   const target = page.locator("[data-legal-target='true']").first();

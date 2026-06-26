@@ -18,10 +18,7 @@ describe("mergeSeatTokens", () => {
   });
 
   it("orders red before black regardless of input order", () => {
-    const merged = mergeSeatTokens(
-      [{ seat: "black", token: "b" }],
-      [{ seat: "red", token: "r" }]
-    );
+    const merged = mergeSeatTokens([{ seat: "black", token: "b" }], [{ seat: "red", token: "r" }]);
     expect(merged.map((s) => s.seat)).toEqual(["red", "black"]);
   });
 });

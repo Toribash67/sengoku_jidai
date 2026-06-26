@@ -4,13 +4,14 @@ import { expect, test } from "@playwright/test";
 async function switchToActiveSeat(page: import("@playwright/test").Page): Promise<string> {
   const actor = await page.locator(".app-shell").getAttribute("data-active-seat");
   expect(actor === "red" || actor === "black").toBe(true);
-  await page.getByRole("button", { name: actor!, exact: true }).click();
+  await page.locator(`[data-seat="${actor}"]`).click();
   return actor!;
 }
 
 test("reinforces from the action bar and resolves it", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "New hotseat game" }).click();
+  await page.getByLabel("Your name").fill("Oda");
+  await page.getByRole("button", { name: "Create game" }).click();
   await expect(page.getByTestId("board")).toBeVisible();
   await switchToActiveSeat(page);
 
@@ -32,7 +33,8 @@ test("reinforces from the action bar and resolves it", async ({ page }) => {
 
 test("plans from the action bar and resolves it", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "New hotseat game" }).click();
+  await page.getByLabel("Your name").fill("Oda");
+  await page.getByRole("button", { name: "Create game" }).click();
   await expect(page.getByTestId("board")).toBeVisible();
   await switchToActiveSeat(page);
 

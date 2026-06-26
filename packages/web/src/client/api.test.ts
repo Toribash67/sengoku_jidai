@@ -20,7 +20,7 @@ describe("createGame", () => {
     const fetchMock = stubFetch({ gameId: "g1" });
     await createGame({ name: "Oda", side: "black" });
 
-    const [url, init] = (fetchMock.mock.calls[0]! as unknown) as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0]! as unknown as [string, RequestInit];
     expect(url).toBe("/api/games");
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body as string)).toEqual({
@@ -36,7 +36,7 @@ describe("claimSeat", () => {
     const fetchMock = stubFetch({ gameId: "g1", seat: "black" });
     await claimSeat("g1", "tok", "Tokugawa");
 
-    const [url, init] = (fetchMock.mock.calls[0]! as unknown) as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0]! as unknown as [string, RequestInit];
     expect(url).toBe("/api/games/g1/claim");
     expect(init.method).toBe("POST");
     expect(new Headers(init.headers).get("authorization")).toBe("Bearer tok");

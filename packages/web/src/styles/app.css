@@ -777,3 +777,84 @@ button:disabled {
   stroke: none;
   font-size: 20px;
 }
+
+/* Create / claim screens */
+.create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 22rem;
+  text-align: left;
+}
+.create-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-family: var(--font-display, inherit);
+}
+.create-form .field input {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--washi-raised);
+  color: var(--sumi);
+  font-size: 1rem;
+}
+.create-form .field input:focus-visible {
+  outline: 2px solid var(--kin);
+  outline-offset: 1px;
+}
+.side-toggle {
+  display: flex;
+  gap: 0.5rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.side-toggle legend {
+  margin-bottom: 0.35rem;
+  color: var(--sumi-soft);
+}
+.side-toggle button {
+  flex: 1;
+  padding: 0.5rem 0;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--washi-raised);
+  color: var(--sumi-soft);
+  cursor: pointer;
+}
+.side-toggle button[data-side="red"].is-active {
+  background: var(--shu);
+  border-color: var(--shu);
+  color: var(--washi-raised);
+}
+.side-toggle button[data-side="black"].is-active {
+  background: var(--ai);
+  border-color: var(--ai);
+  color: var(--washi-raised);
+}
+.primary-action {
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--sumi);
+  color: var(--washi-raised);
+  font-size: 1rem;
+  cursor: pointer;
+}
+.primary-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.claim-intro {
+  color: var(--sumi-soft);
+  max-width: 22rem;
+}
+.claim-intro strong[data-seat="red"] {
+  color: var(--shu);
+}
+.claim-intro strong[data-seat="black"] {
+  color: var(--ai);
+}
