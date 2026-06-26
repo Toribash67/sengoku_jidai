@@ -54,7 +54,14 @@ describe("verbAvailability", () => {
         moves: [advance],
         strikes: [bombard],
         placements: [
-          { spaceId: "reinforce-a", type: "reinforce", unit: "troop", targets: ["tile2"], pool: 6, reserve: 4 }
+          {
+            spaceId: "reinforce-a",
+            type: "reinforce",
+            unit: "troop",
+            targets: ["tile2"],
+            pool: 6,
+            reserve: 4
+          }
         ],
         plans: [{ spaceId: "plan-a", initiative: true }],
         canPass: true
@@ -131,6 +138,8 @@ describe("resolveArmedTile", () => {
   });
 
   it("returns null for a non-candidate tile", () => {
-    expect(resolveArmedTile({ kind: "move", type: "advance", moves: [advance] }, "tile9")).toBeNull();
+    expect(
+      resolveArmedTile({ kind: "move", type: "advance", moves: [advance] }, "tile9")
+    ).toBeNull();
   });
 });

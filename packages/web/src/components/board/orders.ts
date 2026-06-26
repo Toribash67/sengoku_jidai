@@ -61,7 +61,10 @@ export function armMove(legal: LegalCommandSummary, type: "advance" | "sail"): A
 }
 
 /** Arm a strike verb (bombard/shell) from the base legal strikes. Null when none are legal. */
-export function armStrike(legal: LegalCommandSummary, type: "bombard" | "shell"): ArmedOrder | null {
+export function armStrike(
+  legal: LegalCommandSummary,
+  type: "bombard" | "shell"
+): ArmedOrder | null {
   const strikes = legal.strikes.filter((s) => s.type === type);
   return strikes.length > 0 ? { kind: "strike", type, strikes } : null;
 }
