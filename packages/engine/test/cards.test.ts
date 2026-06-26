@@ -13,14 +13,14 @@ function game(): GameState {
 }
 
 describe("Plan draws cards", () => {
-  it("a normal Plan draws 2 cards from the top of the deck", () => {
+  it("a normal Plan draws 2 cards from the top of the shared deck", () => {
     const s = game();
-    const before = [...s.players.red.deck];
+    const before = [...s.deck];
     const r = resolveCommand(s, { seat: "red" }, { type: "plan", spaceId: "plan-b" });
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     expect(r.nextState.players.red.hand).toEqual(before.slice(0, 2));
-    expect(r.nextState.players.red.deck).toHaveLength(6);
+    expect(r.nextState.deck).toHaveLength(22);
     const drew = r.events.find((e) => e.type === "cardsDrawn");
     expect(drew && drew.type === "cardsDrawn" ? drew.count : 0).toBe(2);
   });
@@ -31,7 +31,7 @@ describe("Plan draws cards", () => {
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     expect(r.nextState.players.red.hand).toHaveLength(1);
-    expect(r.nextState.players.red.deck).toHaveLength(7);
+    expect(r.nextState.deck).toHaveLength(23);
   });
 
   it("War Room grants +1 card", () => {
@@ -43,17 +43,22 @@ describe("Plan draws cards", () => {
     expect(r.nextState.players.red.hand).toHaveLength(3); // 2 + 1 War Room
   });
 
-  it("reshuffles the discard pile into the deck when the deck runs short", () => {
+  it("is a shared pile: red's draw is consumed for black too", () => {
     const s = game();
-    s.players.red.deck = ["ambush"];
-    s.players.red.discard = ["mobilise", "commandeer"];
-    const r = resolveCommand(s, { seat: "red" }, { type: "plan", spaceId: "plan-b" }); // draw 2
-    expect(r.status).toBe("accepted");
-    if (r.status !== "accepted") return;
-    // Drew "ambush", then deck empty -> reshuffle the 2 discards -> draw 1 more.
-    expect(r.nextState.players.red.hand).toHaveLength(2);
-    expect(r.nextState.players.red.deck).toHaveLength(1);
-    expect(r.nextState.players.red.discard).toHaveLength(0);
+    const before = [...s.deck];
+    const r1 = resolveCommand(s, { seat: "red" }, { type: "plan", spaceId: "plan-b" });
+    expect(r1.status).toBe("accepted");
+    if (r1.status !== "accepted") return;
+    // Black draws next from the SAME pile using plan-a (plan-b is occupied by red).
+    // It gets cards starting from where red left off.
+    const s2 = r1.nextState;
+    s2.initiative = "black";
+    s2.activeSeat = "black";
+    const r2 = resolveCommand(s2, { seat: "black" }, { type: "plan", spaceId: "plan-a" });
+    expect(r2.status).toBe("accepted");
+    if (r2.status !== "accepted") return;
+    expect(r2.nextState.players.black.hand).toEqual(before.slice(2, 3));
+    expect(r2.nextState.deck).toHaveLength(21);
   });
 });
 

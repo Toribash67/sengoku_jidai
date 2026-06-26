@@ -8,9 +8,9 @@ describe("engine package exports", () => {
     expect(engine.RIVERS_UNIT_POOL).toEqual({ troop: 25, ship: 10, siege: 0 });
   });
 
-  it("createInitialState produces a schemaVersion-2 state via the index", () => {
+  it("createInitialState produces a schemaVersion-3 state via the index", () => {
     const s = engine.createInitialState({ gameId: "g", seed: "s" });
-    expect(s.schemaVersion).toBe(2);
+    expect(s.schemaVersion).toBe(3);
   });
 
   it("exposes the v2 view, command, and serialization surface", () => {

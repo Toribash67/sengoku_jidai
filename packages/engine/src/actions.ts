@@ -5,7 +5,7 @@ import { getMap } from "./maps/registry.js";
 import { actionSpaceMap } from "./actionSpaces.js";
 import { suppliesBonus } from "./validate.js";
 import { conflictOutcome } from "./conflict.js";
-import { rollDie, shuffle } from "./rng.js";
+import { rollDie } from "./rng.js";
 import type { OperationCard, PendingCombat } from "./state.js";
 
 /** Pass: deploy a commander to standby (unavailable until next round). */
@@ -83,25 +83,20 @@ function playCard(state: GameState, seat: SeatId, card: OperationCard): GameEven
   const i = player.hand.indexOf(card);
   if (i !== -1) {
     player.hand.splice(i, 1);
-    player.discard.push(card);
+    state.discard.push(card);
   }
   return [{ type: "cardPlayed", seat, card }];
 }
 
-/** Draw up to `n` cards into the seat's hand, reshuffling the discard pile into the deck
- *  (deterministically, via `state.rngState`) when the deck runs short. */
+/** Draw up to `n` cards from the top of the shared deck into the seat's hand. The deck is never
+ *  reshuffled — at most 16 cards are drawn in a game from a 24-card deck, so it cannot empty; the
+ *  length check is a guard that simply stops, never throws. */
 function drawCards(state: GameState, seat: SeatId, n: number): GameEvent[] {
   const player = state.players[seat];
   let drawn = 0;
   for (let i = 0; i < n; i++) {
-    if (player.deck.length === 0) {
-      if (player.discard.length === 0) break; // nothing left to draw
-      const reshuffled = shuffle(state.rngState, player.discard);
-      state.rngState = reshuffled.state;
-      player.deck = reshuffled.value;
-      player.discard = [];
-    }
-    player.hand.push(player.deck.shift()!);
+    if (state.deck.length === 0) break; // unreachable in a real game; never throw
+    player.hand.push(state.deck.shift()!);
     drawn += 1;
   }
   return drawn > 0 ? [{ type: "cardsDrawn", seat, count: drawn }] : [];
@@ -471,7 +466,7 @@ export function rerollPendingCombat(state: GameState, card: OperationCard): Game
   const pc = state.pendingCombat!;
   const player = state.players[pc.responsibleSeat];
   player.hand.splice(player.hand.indexOf(card), 1);
-  player.discard.push(card);
+  state.discard.push(card);
 
   const rolls: number[] = [];
   let total = 0;
