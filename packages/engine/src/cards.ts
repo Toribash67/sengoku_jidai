@@ -15,3 +15,15 @@ export const RIVERS_CARDS: readonly OperationCard[] = [
   "ship_strike",
   "shore_strike"
 ];
+
+/** Copies of each kind in the physical deck. With 8 kinds this makes a 24-card deck. */
+export const RIVERS_CARD_COPIES = 3;
+
+/**
+ * The physical Rivers deck: `RIVERS_CARD_COPIES` copies of each kind (24 cards), in a fixed
+ * unshuffled order. A game shuffles this once at setup into the shared draw pile. `RIVERS_CARDS`
+ * stays the canonical list of distinct kinds.
+ */
+export const RIVERS_DECK: readonly OperationCard[] = RIVERS_CARDS.flatMap((card) =>
+  Array.from({ length: RIVERS_CARD_COPIES }, () => card)
+);

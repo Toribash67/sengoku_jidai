@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInitialState } from "../src/game.js";
 import type { GameState } from "../src/state.js";
 import { resolveCommand } from "../src/resolve.js";
+import { RIVERS_CARD_COPIES, RIVERS_CARDS, RIVERS_DECK } from "../src/cards.js";
 
 function game(): GameState {
   const s = createInitialState({ gameId: "g", seed: "seed-A" });
@@ -53,5 +54,16 @@ describe("Plan draws cards", () => {
     expect(r.nextState.players.red.hand).toHaveLength(2);
     expect(r.nextState.players.red.deck).toHaveLength(1);
     expect(r.nextState.players.red.discard).toHaveLength(0);
+  });
+});
+
+describe("RIVERS_DECK", () => {
+  it("holds RIVERS_CARD_COPIES (3) copies of every kind, 24 cards total", () => {
+    expect(RIVERS_CARD_COPIES).toBe(3);
+    expect(RIVERS_DECK).toHaveLength(RIVERS_CARDS.length * RIVERS_CARD_COPIES);
+    expect(RIVERS_DECK).toHaveLength(24);
+    for (const kind of RIVERS_CARDS) {
+      expect(RIVERS_DECK.filter((c) => c === kind)).toHaveLength(RIVERS_CARD_COPIES);
+    }
   });
 });
