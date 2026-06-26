@@ -1,5 +1,5 @@
 import { emptyActionSpaceOccupancy } from "./actionSpaces.js";
-import { RIVERS_CARDS } from "./cards.js";
+import { RIVERS_DECK } from "./cards.js";
 import { getMap } from "./maps/registry.js";
 import { riversMapId } from "./maps/riversMap.js";
 import { createRngState, nextFloat, shuffle } from "./rng.js";
@@ -86,15 +86,13 @@ export function createInitialState(options: GameSetupOptions): GameState {
   rngState = draw.state;
   const initiative: SeatId = draw.value < 0.5 ? "red" : "black";
 
-  // (3) shuffle each player's operation-card deck (only when the ruleset uses cards).
+  // (3) shuffle the single shared operation-card deck (only when the ruleset uses cards).
   // Appended AFTER the bonus + initiative draws so those outcomes are unchanged.
-  const decks: Record<SeatId, OperationCard[]> = { red: [], black: [] };
+  let deck: OperationCard[] = [];
   if (rules.cards) {
-    for (const seat of ["red", "black"] as const) {
-      const shuffledDeck = shuffle(rngState, RIVERS_CARDS);
-      rngState = shuffledDeck.state;
-      decks[seat] = shuffledDeck.value;
-    }
+    const shuffledDeck = shuffle(rngState, RIVERS_DECK);
+    rngState = shuffledDeck.state;
+    deck = shuffledDeck.value;
   }
 
   // Build areas from the starting deployment. An HQ tile is owned by its faction even if a
@@ -133,14 +131,12 @@ export function createInitialState(options: GameSetupOptions): GameState {
       },
       commanders: { total: rules.commandersPerPlayer, standby: 0, counterattacks: 0 },
       hand: [],
-      deck: decks[seat],
-      discard: [],
       passed: false
     };
   };
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     gameId: options.gameId,
     mapId,
     rules,
@@ -152,6 +148,8 @@ export function createInitialState(options: GameSetupOptions): GameState {
     activeSeat: initiative,
     rngState,
     players: { red: makePlayer("red"), black: makePlayer("black") },
+    deck,
+    discard: [],
     areas,
     actionSpaces: emptyActionSpaceOccupancy(map),
     bonuses,

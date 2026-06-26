@@ -154,7 +154,7 @@ describe("pending combat lifecycle", () => {
     if (reroll.status !== "accepted") return;
     expect(reroll.nextState.pendingCombat!.phase).toBe("rolled");
     expect(reroll.nextState.players.black.hand).toEqual(["mobilise"]);
-    expect(reroll.nextState.players.black.discard).toEqual(["ambush"]);
+    expect(reroll.nextState.discard).toEqual(["ambush"]);
     expect(reroll.nextState.areas["tile1"]!.owner).toBe("black"); // no casualties yet
 
     // Cannot reroll a card you do not hold.
@@ -216,7 +216,7 @@ describe("pending combat lifecycle", () => {
       expect(rolled.nextState.pendingCombat!.rolls!.length).toBe(3);
       expect(rolled.nextState.pendingCombat!.total).toBe(3);
       expect(rolled.nextState.players.black.hand).toEqual([]);
-      expect(rolled.nextState.players.black.discard).toEqual(["ambush"]);
+      expect(rolled.nextState.discard).toEqual(["ambush"]);
       const resolved = resolveCommand(
         rolled.nextState,
         { seat: "black" },
@@ -343,7 +343,7 @@ describe("pending combat lifecycle", () => {
       expect(again.nextState.pendingDecision).toBeNull();
       expect(again.nextState.pendingCombat!.kind).toBe("shell"); // second shell staged
       expect(again.nextState.players.red.hand).toEqual([]); // card spent
-      expect(again.nextState.players.red.discard).toContain("ship_strike");
+      expect(again.nextState.discard).toContain("ship_strike");
 
       const done = rollResolve(again.nextState, "red");
       expect(done.pendingCombat).toBeNull();

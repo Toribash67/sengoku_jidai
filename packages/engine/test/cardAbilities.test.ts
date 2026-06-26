@@ -58,7 +58,7 @@ describe("mobilise (reinforce +2)", () => {
     expect(r.nextState.areas[hq]!.units.troop).toBe(3);
     expect(r.nextState.areas["tile10"]!.units.troop).toBe(4);
     expect(r.nextState.players.red.hand).toEqual([]);
-    expect(r.nextState.players.red.discard).toContain("mobilise");
+    expect(r.nextState.discard).toContain("mobilise");
     expect(r.events.some((e) => e.type === "cardPlayed")).toBe(true);
   });
 
@@ -98,7 +98,7 @@ describe("commandeer (embark +1, opponent water)", () => {
     );
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
-    expect(r.nextState.players.red.discard).toContain("commandeer");
+    expect(r.nextState.discard).toContain("commandeer");
   });
 
   it("may embark into opponent-controlled port water, staging combat", () => {
@@ -120,7 +120,7 @@ describe("commandeer (embark +1, opponent water)", () => {
     // The contested placement stages a sail-style combat for the defender to roll.
     expect(r.nextState.pendingCombat).not.toBeNull();
     expect(r.nextState.pendingCombat!.responsibleSeat).toBe("black");
-    expect(r.nextState.players.red.discard).toContain("commandeer");
+    expect(r.nextState.discard).toContain("commandeer");
   });
 
   it("can land a ship in distant enemy water it neither supplies nor ports", () => {
@@ -177,7 +177,7 @@ describe("ground_assault (advance +up to 2 troops)", () => {
     if (r.status !== "accepted") return;
     expect(r.nextState.areas["tile1"]!.units.troop).toBe(4); // 2 moved + 2 bonus
     expect(r.nextState.players.red.reserve.troop).toBe(before - 2);
-    expect(r.nextState.players.red.discard).toContain("ground_assault");
+    expect(r.nextState.discard).toContain("ground_assault");
   });
 
   it("rejects a bonus over 2", () => {
@@ -219,7 +219,7 @@ describe("river_assault (sail +up to 2 ships)", () => {
     if (r.status !== "accepted") return;
     expect(r.nextState.areas["tile11"]!.units.ship).toBe(3); // 1 moved + 2 bonus
     expect(r.nextState.players.red.reserve.ship).toBe(before - 2);
-    expect(r.nextState.players.red.discard).toContain("river_assault");
+    expect(r.nextState.discard).toContain("river_assault");
   });
 });
 
@@ -242,7 +242,7 @@ describe("shore_strike (bombard +2 dice)", () => {
     expect(r.status).toBe("accepted");
     if (r.status !== "accepted") return;
     expect(r.nextState.pendingCombat!.dice).toBe(3); // 1 ship + 2 shore strike
-    expect(r.nextState.players.red.discard).toContain("shore_strike");
+    expect(r.nextState.discard).toContain("shore_strike");
     const r2 = rollPending(r.nextState);
     expect(r2.status).toBe("accepted");
     if (r2.status !== "accepted") return;
@@ -278,7 +278,7 @@ describe("counterattack (advance onto an opponent-occupied Advance space)", () =
     expect(r.nextState.actionSpaces["advance-tile1"]).toBe("black"); // unchanged
     expect(r.nextState.players.red.commanders.counterattacks).toBe(1);
     expect(available(r.nextState, "red")).toBe(availBefore - 1);
-    expect(r.nextState.players.red.discard).toContain("counterattack");
+    expect(r.nextState.discard).toContain("counterattack");
     expect(r.nextState.areas["tile1"]!.owner).toBe("red");
   });
 
@@ -373,7 +373,7 @@ describe("commandeer multi-battle", () => {
       "tile14",
       "tile15"
     ]);
-    expect(r.nextState.players.red.discard).toContain("commandeer");
+    expect(r.nextState.discard).toContain("commandeer");
     expect(r.nextState.activeSeat).toBe("red"); // turn not advanced
   });
 

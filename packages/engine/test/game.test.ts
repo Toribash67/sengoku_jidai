@@ -33,30 +33,34 @@ describe("createInitialState", () => {
   });
 
   it("produces a fixed output for a known seed (replay anchor)", () => {
-    // Pins the RNG algorithm AND the draw order (bonuses -> initiative -> deck shuffles).
-    // A change to any would shift these values and break replay of saved games. The deck
-    // shuffles are appended last, so bonuses + initiative are unchanged from before cards.
+    // Pins the RNG algorithm AND the draw order (bonuses -> initiative -> the shared deck shuffle).
+    // A change to any would shift these values and break replay of saved games. The shared deck
+    // shuffle is appended last, so bonuses + initiative are unchanged from before cards.
     const s = createInitialState(opts);
     expect(s.initiative).toBe("red");
-    expect(s.rngState).toBe("548158277");
+    expect(s.rngState).toBe("4147348706");
     expect(s.bonuses).toEqual({ tile2: "pirateHaven", tile4: "hiddenBase", tile20: "warRoom" });
   });
 
-  it("deals each player a full, empty-handed operation-card deck", () => {
+  it("seeds one shared, shuffled 24-card deck and empty hands", () => {
     const s = createInitialState(opts);
     for (const seat of ["red", "black"] as const) {
       expect(s.players[seat].hand).toEqual([]);
-      expect(s.players[seat].discard).toEqual([]);
-      expect(s.players[seat].deck).toHaveLength(8);
-      expect([...s.players[seat].deck].sort()).toEqual([...RIVERS_CARDS].sort());
     }
-    // Independently shuffled: the two decks are not in the same order (for this seed).
-    expect(s.players.red.deck).not.toEqual(s.players.black.deck);
+    expect(s.discard).toEqual([]);
+    expect(s.deck).toHaveLength(24);
+    for (const kind of RIVERS_CARDS) {
+      expect(s.deck.filter((c) => c === kind)).toHaveLength(3);
+    }
+  });
+
+  it("shuffles the shared deck deterministically for a seed", () => {
+    expect(createInitialState(opts).deck).toEqual(createInitialState(opts).deck);
   });
 
   it("opens at round 1, deploy phase, active, activeSeat = initiative", () => {
     const s = createInitialState(opts);
-    expect(s.schemaVersion).toBe(2);
+    expect(s.schemaVersion).toBe(3);
     expect(s.gameId).toBe("g1");
     expect(s.mapId).toBe("rivers");
     expect(s.mode).toBe("hotseat");

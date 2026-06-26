@@ -113,20 +113,16 @@ export interface PlayerState {
   commanders: { total: number; standby: number; counterattacks: number };
   /** Cards held (hidden info — only the owner sees them). Drawn via Plan. */
   hand: OperationCard[];
-  /** Undrawn cards, top of deck first. */
-  deck: OperationCard[];
-  /** Spent cards; reshuffled into the deck when the deck runs short. */
-  discard: OperationCard[];
   /** Whether this seat has passed this round. */
   passed: boolean;
 }
 
 /**
- * The full dynamic game state (schemaVersion 2). Static facts (adjacency, HQs,
+ * The full dynamic game state (schemaVersion 3). Static facts (adjacency, HQs,
  * stars, bonus slots) live in the MapDefinition; only what changes lives here.
  */
 export interface GameState {
-  schemaVersion: 2;
+  schemaVersion: 3;
   gameId: string;
   mapId: string;
   rules: RulesConfig;
@@ -141,6 +137,11 @@ export interface GameState {
   rngState: string;
 
   players: Record<SeatId, PlayerState>;
+  /** Shared operation-card draw pile, top first. Shuffled once at setup; never reshuffled
+   *  (≤16 draws from 24 cards never empties it). */
+  deck: OperationCard[];
+  /** Shared pile of spent cards (played or discarded to reroll). Not drawn from. */
+  discard: OperationCard[];
   areas: Record<string, AreaRuntime>;
   actionSpaces: Record<string, SeatId | null>; // populated in Plan 3
   bonuses: Record<string, BonusType>; // bonus-slot areaId -> assigned bonus (3 entries)
