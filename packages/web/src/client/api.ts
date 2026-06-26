@@ -5,13 +5,6 @@ import type {
 } from "@sengoku-jidai/shared";
 import type { Command, PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
 
-export async function createHotseatGame(): Promise<CreateGameResponse<PlayerGameView>> {
-  return request("/api/games", {
-    method: "POST",
-    body: JSON.stringify({ mode: "hotseat" })
-  });
-}
-
 export async function createGame(input: {
   name: string;
   side: SeatId;

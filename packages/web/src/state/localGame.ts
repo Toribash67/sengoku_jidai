@@ -1,35 +1,5 @@
 import type { SeatId, SeatToken } from "@sengoku-jidai/shared";
 
-// --- Legacy single-game storage (still used by App until the routing rewire lands) ---
-const storageKey = "sengoku-jidai.hotseat";
-
-export interface StoredGame {
-  gameId: string;
-  activeSeat: string;
-  seats: SeatToken[];
-}
-
-export function loadStoredGame(): StoredGame | null {
-  const raw = localStorage.getItem(storageKey);
-  if (!raw) {
-    return null;
-  }
-  try {
-    return JSON.parse(raw) as StoredGame;
-  } catch {
-    localStorage.removeItem(storageKey);
-    return null;
-  }
-}
-
-export function saveStoredGame(game: StoredGame): void {
-  localStorage.setItem(storageKey, JSON.stringify(game));
-}
-
-export function clearStoredGame(): void {
-  localStorage.removeItem(storageKey);
-}
-
 // --- Per-game seat-token cache (the link is the source of truth; this is convenience) ---
 const seatsKey = "sengoku-jidai.games";
 
