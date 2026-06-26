@@ -143,7 +143,9 @@ describe("embark", () => {
 describe("advance", () => {
   it("moves troops into an empty adjacent land and takes control", () => {
     const s = game();
-    const hq = hqOf("red"); // tile9, 5 troops; tile1 empty land adjacent.
+    const hq = hqOf("red"); // tile9, normalised to 5 troops; tile1 cleared to empty land.
+    s.areas[hq] = { owner: "red", units: { troop: 5, ship: 0, siege: 0 } };
+    s.areas["tile1"] = { owner: null, units: { troop: 0, ship: 0, siege: 0 } };
     const r = resolveCommand(
       s,
       { seat: "red" },

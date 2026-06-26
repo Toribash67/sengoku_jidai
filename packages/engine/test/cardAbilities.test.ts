@@ -160,6 +160,7 @@ describe("ground_assault (advance +up to 2 troops)", () => {
     const hq = hqOf("red");
     const s = game(["ground_assault"]);
     s.areas[hq] = { owner: "red", units: { troop: 5, ship: 0, siege: 0 } };
+    s.areas["tile1"] = { owner: null, units: { troop: 0, ship: 0, siege: 0 } }; // empty advance target
     const before = s.players.red.reserve.troop;
     const r = resolveCommand(
       s,
@@ -254,6 +255,7 @@ describe("counterattack (advance onto an opponent-occupied Advance space)", () =
     const hq = hqOf("red");
     const s = game(["counterattack"]);
     s.areas[hq] = { owner: "red", units: { troop: 5, ship: 0, siege: 0 } };
+    s.areas["tile1"] = { owner: null, units: { troop: 0, ship: 0, siege: 0 } }; // empty advance target
     return { s, hq };
   }
 

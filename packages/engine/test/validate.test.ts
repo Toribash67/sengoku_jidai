@@ -11,6 +11,11 @@ function base() {
   const s = createInitialState({ gameId: "g", seed: "seed-A" });
   s.initiative = "red";
   s.activeSeat = "red";
+  // The advance-criteria tests below were written against a 5-troop HQ with an empty,
+  // adjacent tile1. The real starting deployment garrisons tile1 and puts 3 in the HQ, so
+  // normalise just those two areas back to that controlled shape.
+  s.areas[hqOf("red")] = { owner: "red", units: { troop: 5, ship: 0, siege: 0 } };
+  s.areas["tile1"] = { owner: null, units: { troop: 0, ship: 0, siege: 0 } };
   return s;
 }
 

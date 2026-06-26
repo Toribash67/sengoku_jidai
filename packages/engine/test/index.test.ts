@@ -6,7 +6,6 @@ describe("engine package exports", () => {
     expect(typeof engine.createInitialState).toBe("function");
     expect(typeof engine.zeroUnits).toBe("function");
     expect(engine.RIVERS_UNIT_POOL).toEqual({ troop: 25, ship: 10, siege: 0 });
-    expect(engine.HQ_STARTING_TROOPS).toBe(5);
   });
 
   it("createInitialState produces a schemaVersion-2 state via the index", () => {
