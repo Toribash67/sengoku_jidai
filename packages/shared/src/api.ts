@@ -30,10 +30,6 @@ export interface CreateGameResponse<View = unknown> extends PlayerGameViewEnvelo
   seats: SeatToken[];
 }
 
-export interface JoinGameResponse<View = unknown> extends PlayerGameViewEnvelope<View> {
-  token: string;
-}
-
 export interface SubmitCommandResponse<View = unknown, Event = unknown> {
   accepted: boolean;
   revision: number;

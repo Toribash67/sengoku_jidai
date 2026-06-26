@@ -27,23 +27,39 @@ import {
   stagedCountsFor
 } from "./components/board/composer.js";
 import { MapBoard } from "./components/board/MapBoard.js";
-import { ApiError, createHotseatGame, fetchGameView, submitCommand } from "./client/api.js";
+import type { GameSeatInfo, SeatToken } from "@sengoku-jidai/shared";
 import {
-  clearStoredGame,
+  ApiError,
+  claimSeat,
+  createGame,
+  fetchEvents,
+  fetchGameView,
+  submitCommand
+} from "./client/api.js";
+import {
+  forgetGame,
   loadPanelWidth,
-  loadStoredGame,
-  savePanelWidth,
-  saveStoredGame,
-  type StoredGame
+  loadSeatTokens,
+  rememberSeatTokens,
+  savePanelWidth
 } from "./state/localGame.js";
+import { gameUrl, inviteUrl, navigateTo, useRoute } from "./state/route.js";
+import { shouldPoll } from "./state/polling.js";
+import { CreateGameScreen } from "./components/CreateGameScreen.js";
+import { ClaimSeatPrompt } from "./components/ClaimSeatPrompt.js";
+import { PlayersPanel } from "./components/PlayersPanel.js";
 
 const MIN_PANEL_WIDTH = 260;
 const MIN_MAP_WIDTH = 360;
 const DEFAULT_PANEL_WIDTH = 340;
 
-interface LoadedGame extends StoredGame {
+interface LoadedGame {
+  gameId: string;
+  token: string;
+  heldSeats: SeatToken[];
   revision: number;
   view: PlayerGameView;
+  seatInfo: GameSeatInfo[];
 }
 
 export function App() {
@@ -63,6 +79,8 @@ export function App() {
   const [panelWidth, setPanelWidth] = useState(() => loadPanelWidth() ?? DEFAULT_PANEL_WIDTH);
   const layoutRef = useRef<HTMLElement>(null);
   const draggingRef = useRef(false);
+  const route = useRoute();
+  const loadedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     savePanelWidth(panelWidth);
@@ -93,26 +111,118 @@ export function App() {
     event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
+  // Load the seat named by the current /g/:id#token route. Keyed on the route only, so a
+  // "view as" switch (which changes game.token but not the URL) does not trigger a reload.
   useEffect(() => {
-    const stored = loadStoredGame();
-    if (!stored) {
+    if (route.kind !== "game") {
+      loadedKeyRef.current = null;
+      setGame(null);
       return;
     }
+    const { gameId, token } = route;
+    const key = `${gameId}#${token}`;
+    if (loadedKeyRef.current === key) {
+      return;
+    }
+    loadedKeyRef.current = key;
 
-    const token = stored.seats.find((seat) => seat.seat === stored.activeSeat)?.token;
     if (!token) {
-      clearStoredGame();
+      setError("This game link is missing its seat token.");
       return;
     }
 
-    void fetchGameView(stored.gameId, token)
+    let cancelled = false;
+    setBusy(true);
+    setError(null);
+    void fetchGameView(gameId, token)
       .then((envelope) => {
-        setGame({ ...stored, revision: envelope.revision, view: envelope.view });
+        if (cancelled) {
+          return;
+        }
+        rememberSeatTokens(gameId, [{ seat: envelope.seat, token }]);
+        setGame({
+          gameId,
+          token,
+          heldSeats: loadSeatTokens(gameId),
+          revision: envelope.revision,
+          view: envelope.view,
+          seatInfo: envelope.seatInfo
+        });
+        setSelectedAreaId(null);
+        setComposer(null);
+        setPlayingCard(null);
+        setEvents([]);
       })
-      .catch(() => {
-        clearStoredGame();
+      .catch((caught) => {
+        if (!cancelled) {
+          setError(errorMessage(caught));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setBusy(false);
+        }
       });
-  }, []);
+    return () => {
+      cancelled = true;
+      // Release the key if this load was torn down before it finished (e.g. React
+      // StrictMode's mount→unmount→remount in dev), so the remount re-fetches instead
+      // of seeing the key already claimed and skipping the load.
+      if (loadedKeyRef.current === key) {
+        loadedKeyRef.current = null;
+      }
+    };
+  }, [route]);
+
+  const gameRef = useRef<LoadedGame | null>(null);
+  useEffect(() => {
+    gameRef.current = game;
+  }, [game]);
+
+  useEffect(() => {
+    if (!game || busy) {
+      return;
+    }
+    if (!shouldPoll(game.view, game.seatInfo)) {
+      return;
+    }
+    const interval = window.setInterval(() => {
+      const current = gameRef.current;
+      if (!current) {
+        return;
+      }
+      void fetchGameView(current.gameId, current.token)
+        .then(async (envelope) => {
+          if (gameRef.current?.token !== current.token) {
+            return; // seat switched mid-poll; drop this result
+          }
+          let newEvents: PlayerGameEvent[] = [];
+          if (envelope.revision > current.revision) {
+            newEvents = (await fetchEvents(current.gameId, current.token, current.revision)).events;
+          }
+          // Drop a stale tick whose revision is older than what we already hold (overlapping
+          // out-of-order polls); >= still lets an unchanged-revision seatInfo update through
+          // (e.g. the opponent claiming a seat does not advance the game revision).
+          setGame((prev) =>
+            prev && prev.token === current.token && envelope.revision >= prev.revision
+              ? {
+                  ...prev,
+                  revision: envelope.revision,
+                  view: envelope.view,
+                  seatInfo: envelope.seatInfo
+                }
+              : prev
+          );
+          if (newEvents.length > 0) {
+            setEvents((previous) => [...newEvents.reverse(), ...previous].slice(0, 8));
+          }
+        })
+        .catch(() => {
+          // transient poll failure: ignore and let the next tick retry
+        });
+    }, 3000);
+    return () => window.clearInterval(interval);
+  }, [game, busy]);
 
   const selectedArea = useMemo(
     () => game?.view.areas.find((area) => area.id === selectedAreaId) ?? null,
@@ -189,22 +299,48 @@ export function App() {
   const cardPlays = useMemo(() => game?.view.legal.cardPlays ?? [], [game?.view.legal.cardPlays]);
   const playableCards = useMemo(() => new Set(cardPlays.map((p) => p.card)), [cardPlays]);
 
-  async function handleCreateGame() {
+  async function handleCreate(name: string, side: SeatId) {
     setBusy(true);
     setError(null);
     try {
-      const created = await createHotseatGame();
-      const stored: StoredGame = {
+      const created = await createGame({ name, side });
+      rememberSeatTokens(created.gameId, created.seats);
+      const myToken = created.seats.find((s) => s.seat === created.seat)!.token;
+      loadedKeyRef.current = `${created.gameId}#${myToken}`;
+      setGame({
         gameId: created.gameId,
-        activeSeat: created.seat,
-        seats: created.seats
-      };
-      saveStoredGame(stored);
-      setGame({ ...stored, revision: created.revision, view: created.view });
+        token: myToken,
+        heldSeats: created.seats,
+        revision: created.revision,
+        view: created.view,
+        seatInfo: created.seatInfo
+      });
       setSelectedAreaId(null);
       setComposer(null);
       setPlayingCard(null);
       setEvents([]);
+      navigateTo(gameUrl(created.gameId, myToken));
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleClaim(name: string) {
+    if (!game) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const envelope = await claimSeat(game.gameId, game.token, name);
+      setGame({
+        ...game,
+        revision: envelope.revision,
+        view: envelope.view,
+        seatInfo: envelope.seatInfo
+      });
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
@@ -216,7 +352,7 @@ export function App() {
     if (!game) {
       return;
     }
-    const token = game.seats.find((seatToken) => seatToken.seat === seat)?.token;
+    const token = game.heldSeats.find((held) => held.seat === seat)?.token;
     if (!token) {
       return;
     }
@@ -224,9 +360,13 @@ export function App() {
     setError(null);
     try {
       const envelope = await fetchGameView(game.gameId, token);
-      const stored = { gameId: game.gameId, activeSeat: seat, seats: game.seats };
-      saveStoredGame(stored);
-      setGame({ ...stored, revision: envelope.revision, view: envelope.view });
+      setGame({
+        ...game,
+        token,
+        revision: envelope.revision,
+        view: envelope.view,
+        seatInfo: envelope.seatInfo
+      });
       setSelectedAreaId(null);
       setComposer(null);
       setPlayingCard(null);
@@ -383,11 +523,7 @@ export function App() {
     if (!game || !composer) {
       return;
     }
-    const token = game.seats.find((seat) => seat.seat === game.activeSeat)?.token;
-    if (!token) {
-      setError("Missing seat token.");
-      return;
-    }
+    const token = game.token;
     const command = buildCommand(composer);
     if (!command) {
       return;
@@ -415,11 +551,7 @@ export function App() {
     if (!game) {
       return;
     }
-    const token = game.seats.find((seat) => seat.seat === game.activeSeat)?.token;
-    if (!token) {
-      setError("Missing seat token.");
-      return;
-    }
+    const token = game.token;
 
     setBusy(true);
     setError(null);
@@ -448,11 +580,7 @@ export function App() {
     if (!game || !game.view.pendingCombat) {
       return;
     }
-    const token = game.seats.find((seat) => seat.seat === game.activeSeat)?.token;
-    if (!token) {
-      setError("Missing seat token.");
-      return;
-    }
+    const token = game.token;
     const pendingId = game.view.pendingCombat.id;
     setBusy(true);
     setError(null);
@@ -477,11 +605,7 @@ export function App() {
     if (!game || !game.view.pendingDecision) {
       return;
     }
-    const token = game.seats.find((seat) => seat.seat === game.activeSeat)?.token;
-    if (!token) {
-      setError("Missing seat token.");
-      return;
-    }
+    const token = game.token;
     const pendingId = game.view.pendingDecision.id;
     setBusy(true);
     setError(null);
@@ -502,21 +626,45 @@ export function App() {
     }
   }
 
+  if (route.kind === "create") {
+    return <CreateGameScreen busy={busy} error={error} onCreate={handleCreate} />;
+  }
+
   if (!game) {
     return (
       <main className="app-shell app-empty">
-        <section className="start-panel" aria-label="Start game">
-          <h1>General Orders: Sengoku Jidai</h1>
-          <button type="button" onClick={handleCreateGame} disabled={busy}>
-            {busy ? "Creating..." : "New hotseat game"}
+        <section className="start-panel" aria-label="Loading game">
+          {busy ? (
+            <p className="muted">Loading game…</p>
+          ) : error ? (
+            <p className="error-text">{error}</p>
+          ) : (
+            <p className="muted">Game not found.</p>
+          )}
+          <button type="button" className="secondary-action" onClick={() => navigateTo("/")}>
+            New game
           </button>
-          {error ? <p className="error-text">{error}</p> : null}
         </section>
       </main>
     );
   }
 
-  const isViewerActive = game.view.activeSeat === game.activeSeat;
+  const viewerSeatInfo = game.seatInfo.find((s) => s.seat === game.view.viewerSeat);
+  // Only the *invited* opponent (the one who opened the open seat's link) claims it. A creator
+  // "viewing as" the still-open second seat changes game.token, not route.token, so they play it.
+  if (route.kind === "game" && route.token === game.token && viewerSeatInfo?.status === "open") {
+    return (
+      <ClaimSeatPrompt
+        seatInfo={game.seatInfo}
+        viewerSeat={game.view.viewerSeat}
+        busy={busy}
+        error={error}
+        onClaim={handleClaim}
+      />
+    );
+  }
+
+  const isViewerActive = game.view.activeSeat === game.view.viewerSeat;
 
   // A paused combat replaces the order bar with the roll step.
   const pendingCombat = game.view.pendingCombat;
@@ -541,6 +689,14 @@ export function App() {
   const goldAreaId = isMove ? composer.targetAreaId : selectedAreaId;
   const stepperAreaId = isMove ? activeSourceId : selectedAreaId;
   const mapActiveSourceId = isMove ? activeSourceId : null;
+
+  const openSeat = game.seatInfo.find((s) => s.status === "open");
+  const openSeatToken = openSeat
+    ? game.heldSeats.find((held) => held.seat === openSeat.seat)?.token
+    : undefined;
+  const inviteLink = openSeatToken
+    ? inviteUrl(window.location.origin, game.gameId, openSeatToken)
+    : null;
 
   return (
     <main className="app-shell" data-active-seat={game.view.activeSeat}>
@@ -656,20 +812,15 @@ export function App() {
         />
 
         <aside className="side-panel" aria-label="Command panel">
-          <div className="seat-switcher" role="group" aria-label="Seat">
-            {game.seats.map((seat) => (
-              <button
-                key={seat.seat}
-                type="button"
-                data-seat={seat.seat}
-                className={seat.seat === game.activeSeat ? "is-active" : ""}
-                onClick={() => handleSwitchSeat(seat.seat)}
-                disabled={busy}
-              >
-                {seat.seat}
-              </button>
-            ))}
-          </div>
+          <PlayersPanel
+            seatInfo={game.seatInfo}
+            heldSeats={game.heldSeats.map((held) => held.seat)}
+            viewerSeat={game.view.viewerSeat}
+            activeSeat={game.view.activeSeat}
+            inviteLink={inviteLink}
+            busy={busy}
+            onSwitchSeat={handleSwitchSeat}
+          />
 
           <section className="panel-section panel-hand">
             <Hand
@@ -707,8 +858,8 @@ export function App() {
             type="button"
             className="secondary-action"
             onClick={() => {
-              clearStoredGame();
-              setGame(null);
+              forgetGame(game.gameId);
+              navigateTo("/");
             }}
           >
             Clear local game

@@ -102,11 +102,6 @@ export const claimGameRequestSchema = z.object({
   name: z.string().trim().min(1).max(80)
 });
 
-export const joinGameRequestSchema = z.object({
-  seat: seatIdSchema.optional(),
-  displayName: z.string().trim().min(1).max(80).optional()
-});
-
 export const submitCommandRequestSchema = z.object({
   baseRevision: z.number().int().nonnegative(),
   clientCommandId: z.string().min(1).max(120),
@@ -129,6 +124,5 @@ export type SeatIdDto = z.infer<typeof seatIdSchema>;
 export type GameModeDto = z.infer<typeof gameModeSchema>;
 export type CommandDto = z.infer<typeof commandSchema>;
 export type CreateGameRequest = z.infer<typeof createGameRequestSchema>;
-export type JoinGameRequest = z.infer<typeof joinGameRequestSchema>;
 export type SubmitCommandRequest = z.infer<typeof submitCommandRequestSchema>;
 export type ClaimGameRequest = z.infer<typeof claimGameRequestSchema>;
