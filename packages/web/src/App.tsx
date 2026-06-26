@@ -569,11 +569,16 @@ export function App() {
     return (
       <main className="app-shell app-empty">
         <section className="start-panel" aria-label="Loading game">
-          <p className="muted">{busy ? "Loading game…" : (error ?? "Game not found.")}</p>
+          {busy ? (
+            <p className="muted">Loading game…</p>
+          ) : error ? (
+            <p className="error-text">{error}</p>
+          ) : (
+            <p className="muted">Game not found.</p>
+          )}
           <button type="button" className="secondary-action" onClick={() => navigateTo("/")}>
             New game
           </button>
-          {error && !busy ? <p className="error-text">{error}</p> : null}
         </section>
       </main>
     );
