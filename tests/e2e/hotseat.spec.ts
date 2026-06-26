@@ -8,6 +8,11 @@ test("creates a hotseat game, renders the SVG board, and selects a tile", async 
   await expect(page.getByTestId("board")).toBeVisible();
   await expect(page.getByText("Round 1", { exact: true })).toBeVisible();
 
+  // Creator's own seat shows their name; the open seat shows the waiting state + invite link.
+  await expect(page.getByText("Oda")).toBeVisible();
+  await expect(page.getByText("Waiting to join…")).toBeVisible();
+  await expect(page.getByLabel("Invite link")).toBeVisible();
+
   // The canonical map is inlined: the red HQ tile exists and is clickable.
   await expect(page.locator("#tile9")).toBeVisible();
   await page.locator("#tile9").click();

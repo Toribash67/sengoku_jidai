@@ -36,9 +36,10 @@ import {
   rememberSeatTokens,
   savePanelWidth
 } from "./state/localGame.js";
-import { gameUrl, navigateTo, useRoute } from "./state/route.js";
+import { gameUrl, inviteUrl, navigateTo, useRoute } from "./state/route.js";
 import { CreateGameScreen } from "./components/CreateGameScreen.js";
 import { ClaimSeatPrompt } from "./components/ClaimSeatPrompt.js";
+import { PlayersPanel } from "./components/PlayersPanel.js";
 
 const MIN_PANEL_WIDTH = 260;
 const MIN_MAP_WIDTH = 360;
@@ -625,6 +626,14 @@ export function App() {
   const stepperAreaId = isMove ? activeSourceId : selectedAreaId;
   const mapActiveSourceId = isMove ? activeSourceId : null;
 
+  const openSeat = game.seatInfo.find((s) => s.status === "open");
+  const openSeatToken = openSeat
+    ? game.heldSeats.find((held) => held.seat === openSeat.seat)?.token
+    : undefined;
+  const inviteLink = openSeatToken
+    ? inviteUrl(window.location.origin, game.gameId, openSeatToken)
+    : null;
+
   return (
     <main className="app-shell" data-active-seat={game.view.activeSeat}>
       <header className="top-bar">
@@ -739,23 +748,15 @@ export function App() {
         />
 
         <aside className="side-panel" aria-label="Command panel">
-          <div className="seat-switcher" role="group" aria-label="View as">
-            {game.heldSeats.map((held) => {
-              const info = game.seatInfo.find((s) => s.seat === held.seat);
-              return (
-                <button
-                  key={held.seat}
-                  type="button"
-                  data-seat={held.seat}
-                  className={held.seat === game.view.viewerSeat ? "is-active" : ""}
-                  onClick={() => handleSwitchSeat(held.seat)}
-                  disabled={busy}
-                >
-                  {info?.name ?? held.seat}
-                </button>
-              );
-            })}
-          </div>
+          <PlayersPanel
+            seatInfo={game.seatInfo}
+            heldSeats={game.heldSeats.map((held) => held.seat)}
+            viewerSeat={game.view.viewerSeat}
+            activeSeat={game.view.activeSeat}
+            inviteLink={inviteLink}
+            busy={busy}
+            onSwitchSeat={handleSwitchSeat}
+          />
 
           <section className="panel-section panel-hand">
             <Hand

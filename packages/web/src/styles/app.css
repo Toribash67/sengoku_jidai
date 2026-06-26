@@ -858,3 +858,91 @@ button:disabled {
 .claim-intro strong[data-seat="black"] {
   color: var(--ai);
 }
+
+/* Players panel */
+.players-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.player-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.player-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--washi-raised);
+  color: var(--sumi);
+  text-align: left;
+  cursor: pointer;
+}
+.player-pill.is-readonly {
+  cursor: default;
+}
+.player-pill:disabled {
+  cursor: default;
+}
+.player-row.is-turn .player-pill {
+  border-color: var(--kin);
+  box-shadow: inset 0 0 0 1px var(--kin);
+}
+.player-pill .player-side {
+  font-family: var(--font-display, inherit);
+  font-weight: 700;
+}
+.player-pill .player-side[data-seat="red"] {
+  color: var(--shu);
+}
+.player-pill .player-side[data-seat="black"] {
+  color: var(--ai);
+}
+.player-pill.is-active[data-seat="red"] {
+  background: var(--shu);
+  border-color: var(--shu);
+}
+.player-pill.is-active[data-seat="black"] {
+  background: var(--ai);
+  border-color: var(--ai);
+}
+.player-pill.is-active,
+.player-pill.is-active .player-side {
+  color: var(--washi-raised);
+}
+.player-name.is-open {
+  color: var(--sumi-soft);
+  font-style: italic;
+}
+.invite-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.invite-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--sumi-soft);
+}
+.invite-row {
+  display: flex;
+  gap: 0.4rem;
+}
+.invite-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--washi);
+  color: var(--sumi-soft);
+  font-size: 0.8rem;
+}
