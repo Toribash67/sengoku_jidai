@@ -194,8 +194,11 @@ export function App() {
           if (envelope.revision > current.revision) {
             newEvents = (await fetchEvents(current.gameId, current.token, current.revision)).events;
           }
+          // Drop a stale tick whose revision is older than what we already hold (overlapping
+          // out-of-order polls); >= still lets an unchanged-revision seatInfo update through
+          // (e.g. the opponent claiming a seat does not advance the game revision).
           setGame((prev) =>
-            prev && prev.token === current.token
+            prev && prev.token === current.token && envelope.revision >= prev.revision
               ? {
                   ...prev,
                   revision: envelope.revision,
