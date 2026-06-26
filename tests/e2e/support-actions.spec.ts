@@ -4,7 +4,12 @@ import { expect, test } from "@playwright/test";
 async function switchToActiveSeat(page: import("@playwright/test").Page): Promise<string> {
   const actor = await page.locator(".app-shell").getAttribute("data-active-seat");
   expect(actor === "red" || actor === "black").toBe(true);
-  await page.locator(`button[data-seat="${actor}"]`).click();
+  // Switch to view as the seat with initiative — unless we already are (its button is
+  // disabled when it's the current view).
+  const actorSeat = page.locator(`button[data-seat="${actor}"]`);
+  if (await actorSeat.isEnabled()) {
+    await actorSeat.click();
+  }
   return actor!;
 }
 
