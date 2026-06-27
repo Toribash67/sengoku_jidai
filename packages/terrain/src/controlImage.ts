@@ -64,11 +64,12 @@ export async function renderControlImage(args: {
 
         // Hide every feature/order/visual layer; keep only the tile groups.
         const g1 = svg.querySelector("#g1");
-        if (g1) {
-          for (const child of Array.from(g1.children)) {
-            if (child.id !== "tile-land" && child.id !== "tile-sea") {
-              (child as SVGElement).style.display = "none";
-            }
+        if (!g1) {
+          throw new Error("control render: SVG has no #g1 group");
+        }
+        for (const child of Array.from(g1.children)) {
+          if (child.id !== "tile-land" && child.id !== "tile-sea") {
+            (child as SVGElement).style.display = "none";
           }
         }
 
