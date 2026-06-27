@@ -84,14 +84,18 @@ export async function renderControlImage(args: {
           }
         }
 
-        // Colour each tile by class; no stroke so same-class neighbours merge cleanly.
+        // Colour each tile by class. Stroke each tile in its OWN fill colour (not "none") so
+        // adjacent same-class tiles overlap and seal the anti-aliased seam at their shared hex
+        // edge — otherwise the white background bleeds through as a faint grey hex grid inside
+        // the (black) sea. The stroke nudges the coastline by < 1px, well within tolerance.
         for (const [tileId, color] of Object.entries(colors)) {
           const tile = document.getElementById(tileId) as SVGElement | null;
           if (!tile) {
             throw new Error(`control render: SVG has no element for tile "${tileId}"`);
           }
           tile.style.fill = color;
-          tile.style.stroke = "none";
+          tile.style.stroke = color;
+          tile.style.strokeWidth = "2";
           tile.style.display = "inline";
         }
       },
