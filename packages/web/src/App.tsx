@@ -815,14 +815,18 @@ export function App() {
               decision={game.view.pendingDecision}
               busy={busy}
               onChoose={submitDecision}
-              renderLabel={
-                game.view.pendingDecision.kind === "selectCombat"
-                  ? (choice) => {
-                      const area = getMap(game.view.mapId).areas[choice.id];
-                      return area ? describeArea(area) : choice.label;
-                    }
-                  : undefined
-              }
+              renderLabel={(choice) => {
+                const kind = game.view.pendingDecision?.kind;
+                if (choice.id === "decline") {
+                  return choice.label;
+                }
+                const area = getMap(game.view.mapId).areas[choice.id];
+                if (!area) {
+                  return choice.label;
+                }
+                // selectCombat lists battle areas by name; shipStrike lists candidate seas to shell.
+                return kind === "shipStrike" ? `Shell ${describeArea(area)}` : describeArea(area);
+              }}
             />
           ) : (
             <ActionBar

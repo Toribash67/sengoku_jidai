@@ -37,12 +37,11 @@ export interface PendingDecision {
   seat: SeatId;
   prompt: string;
   choices: PendingChoice[];
-  /** Discriminates the decision: "shipStrike" carries the space/target of the second Shell;
-   *  "selectCombat" lets the attacker pick which queued sea battle to resolve next (each
-   *  `choice.id` is the contested area). */
+  /** Discriminates the decision: "shipStrike" offers a second Shell from `spaceId` and each
+   *  non-decline `choice.id` is a candidate sea to target; "selectCombat" lets the attacker pick
+   *  which queued sea battle to resolve next (each `choice.id` is the contested area). */
   kind?: "shipStrike" | "selectCombat";
   spaceId?: string;
-  targetAreaId?: string;
 }
 
 /**

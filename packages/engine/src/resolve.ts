@@ -55,17 +55,17 @@ export function resolveCommand(
     // Apply the reviewed roll, then fall through to the turn tail.
     events.push(...applyPendingCombat(next));
   } else if (command.type === "choosePendingDecision") {
-    // Ship Strike: "Shell again" stages a second Shell from the same space (no commander
-    // spent); any other choice (Decline) just clears the decision and continues.
+    // Ship Strike: a non-decline choice stages a second Shell from the same space (no commander
+    // spent) at the chosen sea (the choice id IS the target area); Decline just clears the
+    // decision and continues.
     const decision = next.pendingDecision!;
     next.pendingDecision = null;
     if (
       decision.kind === "shipStrike" &&
-      command.choice.id === "ship_strike" &&
-      decision.spaceId !== undefined &&
-      decision.targetAreaId !== undefined
+      command.choice.id !== "decline" &&
+      decision.spaceId !== undefined
     ) {
-      events.push(...applyShipStrike(next, decision.seat, decision.spaceId, decision.targetAreaId));
+      events.push(...applyShipStrike(next, decision.seat, decision.spaceId, command.choice.id));
     } else if (decision.kind === "selectCombat") {
       // Activate the chosen queued sea battle (its `choice.id` is the contested area).
       const idx = next.combatQueue.findIndex((b) => b.area === command.choice.id);
