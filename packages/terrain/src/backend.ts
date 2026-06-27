@@ -28,8 +28,8 @@ export function createFalBackend(deps: { fal: FalClient; fetch: FetchFn }): Terr
   const { fal, fetch } = deps;
   return {
     async generate({ control, styleReference, profile }) {
-      const controlUrl = await fal.storage.upload(new Blob([control], { type: "image/png" }));
-      const styleUrl = await fal.storage.upload(new Blob([styleReference], { type: "image/png" }));
+      const controlUrl = await fal.storage.upload(new Blob([new Uint8Array(control)], { type: "image/png" }));
+      const styleUrl = await fal.storage.upload(new Blob([new Uint8Array(styleReference)], { type: "image/png" }));
 
       const input: Record<string, unknown> = {
         ...profile.extraInput,

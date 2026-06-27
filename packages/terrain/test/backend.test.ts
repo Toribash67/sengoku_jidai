@@ -26,7 +26,7 @@ describe("createFalBackend", () => {
           return uploads.length === 1 ? "https://up/control.png" : "https://up/ref.png";
         })
       },
-      subscribe: vi.fn(async () => ({ data: { images: [{ url: "https://out/result.png" }] } }))
+      subscribe: vi.fn(async (_model: string, _opts: { input: Record<string, unknown> }) => ({ data: { images: [{ url: "https://out/result.png" }] } }))
     };
     const fetch = vi.fn(async () => ({
       ok: true,
