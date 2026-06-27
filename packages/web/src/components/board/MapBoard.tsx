@@ -354,6 +354,9 @@ function applyTerrain(svg: SVGSVGElement, terrainUrl: string | null | undefined)
     image.setAttribute("id", TERRAIN_LAYER_ID);
     image.setAttribute("pointer-events", "none");
     svg.insertBefore(image, svg.firstChild);
+  } else if (svg.firstChild !== image) {
+    // Keep terrain as the bottom layer even if something was prepended since.
+    svg.insertBefore(image, svg.firstChild);
   }
   const attrs = terrainImageAttrs(svg.viewBox.baseVal);
   image.setAttribute("x", String(attrs.x));
