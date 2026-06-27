@@ -335,7 +335,7 @@ describe("pending combat lifecycle", () => {
         {
           type: "choosePendingDecision",
           pendingId: afterFirst.pendingDecision!.id,
-          choice: { id: "ship_strike", label: "Shell again" }
+          choice: { id: "tile11", label: "Shell tile11" } // re-fire the same sea (still holds ships)
         }
       );
       expect(again.status).toBe("accepted");
@@ -390,10 +390,50 @@ describe("pending combat lifecycle", () => {
       expect(afterFirst.activeSeat).toBe("black");
     });
 
-    it("makes no offer if the target was cleared of ships", () => {
+    it("makes no offer if no adjacent sea still holds enemy ships", () => {
       const afterFirst = rollResolve(shellHoldingShipStrike(2), "red"); // 2 - 2 = 0
       expect(afterFirst.areas["tile11"]?.units.ship ?? 0).toBe(0);
       expect(afterFirst.pendingDecision).toBeNull();
+    });
+
+    it("offers a second shell at another adjacent sea once the first target is cleared", () => {
+      const s = game();
+      s.areas["tile10"] = { owner: "red", units: { troop: 1, ship: 0, siege: 0 } };
+      s.areas["tile11"] = { owner: "black", units: { troop: 0, ship: 2, siege: 0 } }; // cleared (2-2)
+      s.areas["tile7"] = { owner: "black", units: { troop: 0, ship: 3, siege: 0 } }; // still holds ships
+      s.players.red.hand = ["ship_strike"];
+      const r = resolveCommand(
+        s,
+        { seat: "red" },
+        { type: "shell", spaceId: "shell-tile10", targetAreaId: "tile11" }
+      );
+      if (r.status !== "accepted") throw new Error("shell rejected");
+
+      const afterFirst = rollResolve(r.nextState, "red");
+      expect(afterFirst.areas["tile11"]?.units.ship ?? 0).toBe(0); // original target cleared
+      expect(afterFirst.pendingDecision).not.toBeNull();
+      expect(afterFirst.pendingDecision!.kind).toBe("shipStrike");
+      // The offer lets the attacker pick a different adjacent enemy sea (each choice id is the sea).
+      const choiceIds = afterFirst.pendingDecision!.choices.map((c) => c.id);
+      expect(choiceIds).toContain("tile7");
+      expect(choiceIds).toContain("decline");
+
+      const again = resolveCommand(
+        afterFirst,
+        { seat: "red" },
+        {
+          type: "choosePendingDecision",
+          pendingId: afterFirst.pendingDecision!.id,
+          choice: { id: "tile7", label: "Shell tile7" }
+        }
+      );
+      expect(again.status).toBe("accepted");
+      if (again.status !== "accepted") return;
+      expect(again.nextState.pendingDecision).toBeNull();
+      expect(again.nextState.pendingCombat!.kind).toBe("shell");
+      expect(again.nextState.pendingCombat!.area).toBe("tile7"); // second shell targets the chosen sea
+      expect(again.nextState.players.red.hand).toEqual([]); // card spent
+      expect(again.nextState.discard).toContain("ship_strike");
     });
   });
 

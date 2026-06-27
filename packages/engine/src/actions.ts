@@ -4,6 +4,9 @@ import type { SeatId } from "./types.js";
 import { getMap } from "./maps/registry.js";
 import { actionSpaceMap } from "./actionSpaces.js";
 import { suppliesBonus } from "./validate.js";
+import { gameBoard } from "./board.js";
+import { shellTargets } from "./legality.js";
+import { suppliedAreas } from "./supply.js";
 import { conflictOutcome } from "./conflict.js";
 import { rollDie } from "./rng.js";
 import type { OperationCard, PendingCombat } from "./state.js";
@@ -536,28 +539,38 @@ export function applyPendingCombat(state: GameState): GameEvent[] {
     events.push(...removeUnits(state, pc.area, pc.unit, pc.total!));
   }
 
-  // Ship Strike: after a Shell resolves, if the attacker still holds the card and the target
-  // still has enemy ships, offer a second Shell from the same space (decided before the turn
-  // advances). Bombard never offers it.
+  // Ship Strike: "Take a second Shell action from the same space ... without deploying a
+  // commander." After a Shell resolves, if the attacker still holds the card and a legal second
+  // Shell exists from the same space, offer it (decided before the turn advances). The second
+  // Shell chooses its own target, so the offer lists every eligible adjacent sea — NOT just the
+  // one just hit, which a normal two-dice roll usually clears outright. Bombard never offers it.
   if (
     pc.kind === "shell" &&
     pc.spaceId !== undefined &&
-    state.players[pc.attacker].hand.includes("ship_strike") &&
-    rt.owner === pc.defender &&
-    rt.units.ship > 0
+    state.players[pc.attacker].hand.includes("ship_strike")
   ) {
-    state.pendingDecision = {
-      id: `ship-strike-${pc.area}`,
-      seat: pc.attacker,
-      prompt: "Ship Strike: take a second Shell from the same space?",
-      choices: [
-        { id: "ship_strike", label: "Shell again" },
-        { id: "decline", label: "Decline" }
-      ],
-      kind: "shipStrike",
-      spaceId: pc.spaceId,
-      targetAreaId: pc.area
-    };
+    const map = getMap(state.mapId);
+    const land = actionSpaceMap(map)[pc.spaceId]?.areaId;
+    const supplied = land != null && suppliedAreas(map, gameBoard(state), pc.attacker).has(land);
+    const targets =
+      supplied && land != null
+        ? shellTargets(map, land).filter(
+            (sea) => state.areas[sea]?.owner === pc.defender && state.areas[sea]!.units.ship > 0
+          )
+        : [];
+    if (targets.length > 0) {
+      state.pendingDecision = {
+        id: `ship-strike-${pc.area}`,
+        seat: pc.attacker,
+        prompt: "Ship Strike: take a second Shell from the same space?",
+        choices: [
+          ...targets.map((sea) => ({ id: sea, label: `Shell ${sea}` })),
+          { id: "decline", label: "Decline" }
+        ],
+        kind: "shipStrike",
+        spaceId: pc.spaceId
+      };
+    }
   }
 
   state.pendingCombat = null;
