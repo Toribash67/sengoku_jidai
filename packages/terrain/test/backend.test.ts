@@ -52,7 +52,8 @@ describe("createFalBackend", () => {
       seed: 42,
       control_image_url: "https://up/control.png",
       ip_adapter_image_url: "https://up/ref.png",
-      controlnet_conditioning_scale: 0.85
+      controlnet_conditioning_scale: 0.85,
+      image_size: { width: 1024, height: 1160 }
     });
     // Result bytes are the fetched image.
     expect(fetch).toHaveBeenCalledWith("https://out/result.png");
