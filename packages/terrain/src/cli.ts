@@ -35,16 +35,16 @@ async function main(): Promise<void> {
     width: profile.outputSize.width,
     height: profile.outputSize.height
   });
-  const sourceDir = `${repoRoot}terrain/${mapId}`;
-  mkdirSync(sourceDir, { recursive: true });
-  writeFileSync(`${sourceDir}/control.png`, control);
+  const artifactDir = `${repoRoot}terrain/${mapId}`;
+  mkdirSync(artifactDir, { recursive: true });
+  writeFileSync(`${artifactDir}/control.png`, control);
 
   // Stage 2: generate.
   console.log(`[terrain] generating terrain via ${profile.model}…`);
   fal.config({ credentials: key });
   const backend = createFalBackend({ fal, fetch });
   const generated = await backend.generate({ control, styleReference, profile });
-  writeFileSync(`${sourceDir}/generated.png`, generated);
+  writeFileSync(`${artifactDir}/generated.png`, generated);
 
   // Stage 3: post-process + write the committed web asset.
   const webp = await toWebp(generated, {
@@ -56,7 +56,7 @@ async function main(): Promise<void> {
   mkdirSync(dirname(assetPath), { recursive: true });
   writeFileSync(assetPath, webp);
 
-  console.log(`[terrain] done:\n  control:   ${sourceDir}/control.png\n  asset:     ${assetPath}`);
+  console.log(`[terrain] done:\n  control:   ${artifactDir}/control.png\n  generated: ${artifactDir}/generated.png\n  asset:     ${assetPath}`);
 }
 
 main().catch((err) => {

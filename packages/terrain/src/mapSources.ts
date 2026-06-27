@@ -3,7 +3,11 @@ import { fileURLToPath } from "node:url";
 /** Repo root, relative to packages/terrain/src/. */
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 
-/** Board SVG path per map id (relative to repo root). Future maps add an entry here. */
+/**
+ * Board SVG path per map id (relative to repo root). Keep these keys in sync with the
+ * engine's map registry (`getMap`): a map known to the engine but missing here makes the
+ * CLI fail at `mapSvgPath`. Future maps add an entry here.
+ */
 const SVG_BY_MAP: Record<string, string> = {
   rivers: "cloned_map.svg"
 };
