@@ -36,6 +36,7 @@ import {
   stagedCountsFor
 } from "./components/board/composer.js";
 import { MapBoard } from "./components/board/MapBoard.js";
+import { terrainImage } from "./components/board/terrainImages.js";
 import type { GameSeatInfo, SeatToken } from "@sengoku-jidai/shared";
 import {
   ApiError,
@@ -795,6 +796,7 @@ export function App() {
             stagedCounts={stagedCounts}
             activeSourceId={mapActiveSourceId}
             pendingAttack={pendingAttack}
+            terrainUrl={terrainImage(game.view.mapId)}
           />
 
           {pendingCombat ? (
