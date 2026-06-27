@@ -1,7 +1,11 @@
 import type { StyleProfile } from "./styleProfile.js";
 
 export interface TerrainBackend {
-  generate(args: { control: Buffer; styleReference: Buffer; profile: StyleProfile }): Promise<Buffer>;
+  generate(args: {
+    control: Buffer;
+    styleReference: Buffer;
+    profile: StyleProfile;
+  }): Promise<Buffer>;
 }
 
 export interface FalClient {
@@ -28,8 +32,12 @@ export function createFalBackend(deps: { fal: FalClient; fetch: FetchFn }): Terr
   const { fal, fetch } = deps;
   return {
     async generate({ control, styleReference, profile }) {
-      const controlUrl = await fal.storage.upload(new Blob([new Uint8Array(control)], { type: "image/png" }));
-      const styleUrl = await fal.storage.upload(new Blob([new Uint8Array(styleReference)], { type: "image/png" }));
+      const controlUrl = await fal.storage.upload(
+        new Blob([new Uint8Array(control)], { type: "image/png" })
+      );
+      const styleUrl = await fal.storage.upload(
+        new Blob([new Uint8Array(styleReference)], { type: "image/png" })
+      );
 
       const input: Record<string, unknown> = {
         ...profile.extraInput,

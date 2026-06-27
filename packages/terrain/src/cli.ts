@@ -56,7 +56,9 @@ async function main(): Promise<void> {
   mkdirSync(dirname(assetPath), { recursive: true });
   writeFileSync(assetPath, webp);
 
-  console.log(`[terrain] done:\n  control:   ${artifactDir}/control.png\n  generated: ${artifactDir}/generated.png\n  asset:     ${assetPath}`);
+  console.log(
+    `[terrain] done:\n  control:   ${artifactDir}/control.png\n  generated: ${artifactDir}/generated.png\n  asset:     ${assetPath}`
+  );
 }
 
 main().catch((err) => {

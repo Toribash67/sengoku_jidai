@@ -34,7 +34,12 @@ const TERRAIN_LAYER_ID = "map-terrain";
 /** `<image>` attributes that stretch the terrain across the full viewBox. The terrain webp is
  *  rendered at the viewBox aspect, so `preserveAspectRatio="none"` aligns it 1:1 with the tiles
  *  (no cropping of coastal edges). */
-export function terrainImageAttrs(viewBox: { x: number; y: number; width: number; height: number }) {
+export function terrainImageAttrs(viewBox: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) {
   return {
     x: viewBox.x,
     y: viewBox.y,
