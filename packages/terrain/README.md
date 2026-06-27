@@ -32,9 +32,9 @@ pnpm --filter @sengoku-jidai/terrain gen:control rivers # render only the contro
 ```
 
 It writes **`terrain/rivers/control.png`** (repo root). Open that file to see the exact
-land/sea coastline the terrain will follow — land is white, sea (and everything outside the
-tiles) is black. This is the quickest way to sanity-check a new map's mask before spending a
-generation.
+land/sea coastline the terrain will follow — land (and everything outside the tiles) is
+white, sea is black. This is the quickest way to sanity-check a new map's mask before spending
+a generation.
 
 ## Generate a terrain background (full pipeline)
 

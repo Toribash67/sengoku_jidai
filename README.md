@@ -107,7 +107,7 @@ corepack pnpm --filter @sengoku-jidai/terrain gen:control rivers
 ```
 
 This writes **`terrain/rivers/control.png`** (repo root). Open it to inspect the
-coastline — land is white, sea (and everything outside the tiles) is black.
+coastline — land (and everything outside the tiles) is white, sea is black.
 
 ### Generate a terrain background (full pipeline)
 
