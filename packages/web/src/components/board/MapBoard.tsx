@@ -20,12 +20,34 @@ export interface MapBoardProps {
   /** During advance/sail combat, the attacker's off-board units to show on the contested
    *  tile alongside the defender. */
   pendingAttack?: { area: string; seat: SeatId; unit: "troop" | "ship"; count: number } | null;
+  /** Committed terrain background for the active map, painted behind all tiles. Null = flat fills. */
+  terrainUrl?: string | null;
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
 
 const OVERLAY_ID = "map-overlay";
+
+const TERRAIN_LAYER_ID = "map-terrain";
+
+/** `<image>` attributes that stretch the terrain across the full viewBox. The terrain webp is
+ *  rendered at the viewBox aspect, so `preserveAspectRatio="none"` aligns it 1:1 with the tiles
+ *  (no cropping of coastal edges). */
+export function terrainImageAttrs(viewBox: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) {
+  return {
+    x: viewBox.x,
+    y: viewBox.y,
+    width: viewBox.width,
+    height: viewBox.height,
+    preserveAspectRatio: "none" as const
+  };
+}
 /** Supply/control tints live in a group appended to each tile group (the map splits tiles
  *  into #tile-sea and #tile-land), so they paint just above their own tiles but below the
  *  map's feature art (HQ/harbour/star/bonus icons) and units. */
@@ -324,6 +346,33 @@ function makeSelectionOutline(svg: SVGSVGElement, tile: SVGGraphicsElement): SVG
   return outline;
 }
 
+/** Insert (or update/remove) the terrain background as the first child of the SVG, so it paints
+ *  beneath every tile and overlay. */
+function applyTerrain(svg: SVGSVGElement, terrainUrl: string | null | undefined): void {
+  const existing = svg.querySelector<SVGImageElement>(`#${TERRAIN_LAYER_ID}`);
+  if (!terrainUrl) {
+    existing?.remove();
+    return;
+  }
+  const image = existing ?? document.createElementNS(SVG_NS, "image");
+  if (!existing) {
+    image.setAttribute("id", TERRAIN_LAYER_ID);
+    image.setAttribute("pointer-events", "none");
+    svg.insertBefore(image, svg.firstChild);
+  } else if (svg.firstChild !== image) {
+    // Keep terrain as the bottom layer even if something was prepended since.
+    svg.insertBefore(image, svg.firstChild);
+  }
+  const attrs = terrainImageAttrs(svg.viewBox.baseVal);
+  image.setAttribute("x", String(attrs.x));
+  image.setAttribute("y", String(attrs.y));
+  image.setAttribute("width", String(attrs.width));
+  image.setAttribute("height", String(attrs.height));
+  image.setAttribute("preserveAspectRatio", attrs.preserveAspectRatio);
+  image.setAttribute("href", terrainUrl);
+  image.setAttributeNS(XLINK_NS, "xlink:href", terrainUrl);
+}
+
 /** Get (creating if needed) the top-level overlay group, emptied for a fresh pass. */
 function resetOverlay(svg: SVGSVGElement): SVGGElement {
   let overlay = svg.querySelector<SVGGElement>(`#${OVERLAY_ID}`);
@@ -374,6 +423,7 @@ interface DecorateInput {
   stagedCounts?: ReadonlyMap<string, number>;
   activeSourceId?: string | null;
   pendingAttack?: { area: string; seat: SeatId; unit: "troop" | "ship"; count: number } | null;
+  hasTerrain?: boolean;
 }
 
 /** Apply per-tile fill, selection stroke, and click handler. */
@@ -389,7 +439,8 @@ function decorate(
     onSourceClick,
     stagedCounts,
     activeSourceId,
-    pendingAttack
+    pendingAttack,
+    hasTerrain
   }: DecorateInput
 ): void {
   const overlay = resetOverlay(svg);
@@ -406,10 +457,15 @@ function decorate(
     // Supplied tiles keep their natural map colour; a translucent overlay provides the tint.
     // Unsupplied-owned tiles get the stripe pattern. Unowned tiles keep their authored colour.
     const isSupplied = area.owner !== null && area.suppliedBy === area.owner;
-    tile.style.fill =
-      area.owner === null || isSupplied
-        ? (tile.dataset.authoredFill ?? (area.kind === "sea" ? TILE_SEA_FILL : TILE_LAND_FILL))
-        : tileFill(area);
+    if (area.owner === null || isSupplied) {
+      // With terrain behind the board, let it show through unowned/supplied tiles (the
+      // hex stroke grid still paints on top); otherwise keep the authored flat fill.
+      tile.style.fill = hasTerrain
+        ? "transparent"
+        : (tile.dataset.authoredFill ?? (area.kind === "sea" ? TILE_SEA_FILL : TILE_LAND_FILL));
+    } else {
+      tile.style.fill = tileFill(area);
+    }
     tile.style.stroke = "#000000";
     tile.style.strokeWidth = "5";
     tile.style.cursor = "pointer";
@@ -558,7 +614,8 @@ export function MapBoard({
   onSourceClick,
   stagedCounts,
   activeSourceId,
-  pendingAttack
+  pendingAttack,
+  terrainUrl
 }: MapBoardProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
@@ -572,13 +629,15 @@ export function MapBoard({
     const svg = host.querySelector("svg");
     if (svg) {
       prepareSvg(svg);
+      applyTerrain(svg, terrainUrl);
     }
-  }, []);
+  }, [terrainUrl]);
 
   // Re-decorate whenever state changes.
   useEffect(() => {
     const svg = hostRef.current?.querySelector("svg");
     if (svg) {
+      applyTerrain(svg, terrainUrl);
       decorate(svg, {
         areas,
         selectedAreaId,
@@ -589,7 +648,8 @@ export function MapBoard({
         onSourceClick,
         stagedCounts,
         activeSourceId,
-        pendingAttack
+        pendingAttack,
+        hasTerrain: terrainUrl != null
       });
     }
   }, [
@@ -602,7 +662,8 @@ export function MapBoard({
     onSourceClick,
     stagedCounts,
     activeSourceId,
-    pendingAttack
+    pendingAttack,
+    terrainUrl
   ]);
 
   return (
