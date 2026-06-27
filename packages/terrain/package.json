@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "gen": "tsx src/cli.ts",
+    "gen:control": "tsx src/controlCli.ts",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
