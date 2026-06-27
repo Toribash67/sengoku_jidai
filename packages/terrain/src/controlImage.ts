@@ -1,7 +1,7 @@
 import type { MapDefinition } from "@sengoku-jidai/engine";
 import { chromium } from "@playwright/test";
 
-/** Control-image classes: land is white, sea (and everything outside the tiles) is black. */
+/** Control-image classes: land (and everything outside the tiles) is white, sea is black. */
 export const LAND_COLOR = "#ffffff";
 export const SEA_COLOR = "#000000";
 
@@ -20,7 +20,8 @@ export function tileColorMap(map: MapDefinition): Record<string, string> {
 
 /**
  * Render the land/sea control image from the board SVG. Approach:
- *  - black background rect behind everything (so sea + outside-the-tiles read as ocean),
+ *  - land-coloured background rect behind everything (so the area outside the tiles reads as
+ *    land, not sea),
  *  - hide every `#g1` child except the `#tile-land` / `#tile-sea` groups (no re-parenting,
  *    so every transform is preserved and coastlines match the board pixel-for-pixel),
  *  - neutralize the shared geometry defs, then fill each tile by its colour with no stroke
@@ -42,7 +43,7 @@ export async function renderControlImage(args: {
       { waitUntil: "load" }
     );
     await page.evaluate(
-      ({ colors, geometryDefs, width, height, seaColor }) => {
+      ({ colors, geometryDefs, width, height, bgColor }) => {
         const svg = document.querySelector("svg");
         if (!svg) {
           throw new Error("control render: no <svg> in markup");
@@ -52,14 +53,15 @@ export async function renderControlImage(args: {
         svg.setAttribute("height", String(height));
         svg.setAttribute("preserveAspectRatio", "none");
 
-        // Black ocean background covering the whole viewBox, behind all tiles.
+        // Land-coloured background covering the whole viewBox, behind all tiles (so the area
+        // outside the hex cluster reads as land rather than sea).
         const vb = svg.viewBox.baseVal;
         const bg = document.createElementNS(SVG_NS, "rect");
         bg.setAttribute("x", String(vb.x));
         bg.setAttribute("y", String(vb.y));
         bg.setAttribute("width", String(vb.width));
         bg.setAttribute("height", String(vb.height));
-        bg.setAttribute("fill", seaColor);
+        bg.setAttribute("fill", bgColor);
         svg.insertBefore(bg, svg.firstChild);
 
         // Hide every feature/order/visual layer; keep only the tile groups.
@@ -93,7 +95,7 @@ export async function renderControlImage(args: {
           tile.style.display = "inline";
         }
       },
-      { colors, geometryDefs: TILE_GEOMETRY_DEFS, width, height, seaColor: SEA_COLOR }
+      { colors, geometryDefs: TILE_GEOMETRY_DEFS, width, height, bgColor: LAND_COLOR }
     );
     const svgHandle = await page.$("svg");
     if (!svgHandle) {
