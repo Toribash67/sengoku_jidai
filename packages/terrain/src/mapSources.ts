@@ -1,0 +1,18 @@
+import { fileURLToPath } from "node:url";
+
+/** Repo root, relative to packages/terrain/src/. */
+const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
+
+/** Board SVG path per map id (relative to repo root). Future maps add an entry here. */
+const SVG_BY_MAP: Record<string, string> = {
+  rivers: "cloned_map.svg"
+};
+
+/** Absolute path to a map's board SVG. Throws on an unknown map id. */
+export function mapSvgPath(mapId: string): string {
+  const rel = SVG_BY_MAP[mapId];
+  if (!rel) {
+    throw new Error(`Unknown map "${mapId}" — add its SVG to SVG_BY_MAP in mapSources.ts`);
+  }
+  return repoRoot + rel;
+}
