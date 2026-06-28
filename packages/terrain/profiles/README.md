@@ -52,6 +52,12 @@ Fields marked **UNVERIFIED** could not be confirmed from the live schema/docs.
 
 Use `pnpm --filter @sengoku-jidai/terrain gen:matrix <mapId>` to render and compare candidates side-by-side.
 
+**Prerequisite:** set `FAL_KEY` (see `.env.example`, or put it in the git-ignored `.env`). Each full run makes ~15 fal.ai calls (one per candidate in `matrix.json`). To generate the whole matrix for the bundled `rivers` map:
+
+```bash
+pnpm --filter @sengoku-jidai/terrain gen:matrix rivers
+```
+
 ### What it does
 
 Reads `profiles/matrix.json`, renders the shared colour base once, runs every candidate configuration through fal.ai, and writes:
