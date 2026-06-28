@@ -95,6 +95,31 @@ shared by every map:
 
 To restyle every map, tune one profile and regenerate. A second art style is a second profile.
 
+## How the committed `rivers.webp` was generated
+
+The shipped Rivers background was **not** produced by the `gen` CLI above. The SDXL
+ControlNet-union path constrains edges/elevation, not regions, so it drew a hex grid and
+never filled the sea as water. The asset was instead made with an **image-to-image** recipe
+that carries the land/sea regions as colour, then restyles into antique watercolour — which
+preserves the coastline layout. Folding this into the CLI is future work. The recipe, for
+reproducibility (artifacts kept under [`terrain/rivers/`](../../terrain/rivers)):
+
+1. **Base** (`base.png`): render the control mask with **land `#7e8c5a` (green), sea
+   `#566f80` (blue)**, outside-the-map = land, then a light Gaussian blur (σ≈4) to round the
+   hex corners into organic coastlines (a hard hex coastline makes the model hallucinate a
+   grid). `control.png` is the underlying land/sea mask.
+2. **Generate** (`generated.png`): `fal-ai/flux/dev/image-to-image` with the base as
+   `image_url`, `strength: 0.92`, `guidance_scale: 3.5`, `num_inference_steps: 34`,
+   `seed: 1568`, `enable_safety_checker: false`, and a prompt of muted green forested land /
+   calm faded blue sea, vintage watercolour, top-down, no grid/horizon. Strength is the key
+   dial: ≤0.85 barely changes the flat base; ≥0.95 reshapes the geography; **0.92** adds the
+   antique texture while keeping the layout.
+3. **Post**: resize to the board's viewBox aspect (1024×1164) and encode webp →
+   `packages/web/src/assets/terrain/rivers.webp`.
+
+> The control image was rendered headlessly with `sharp` + `jsdom` rather than Playwright,
+> because the dev host lacks Chromium's system libraries.
+
 ## Adding terrain for a future map
 
 1. Author the map's SVG (tile ids `#tileN`) and its `MapDefinition` (registered in the engine).
