@@ -9,11 +9,11 @@
     "strokeWidth": 2
   },
   "land": {
-    "prompt": "seamless top-down antique map texture of forested feudal-Japan land, aged sepia parchment, hand-inked tiny mountains and pine groves, faded green and ochre watercolour wash, weathered paper grain, no coastline, no water, no text, no border",
+    "prompt": "flat lay top-down orthographic seamless repeating texture of a dense pine forest completely covering the whole image, hundreds of tiny hand-inked antique pine trees evenly and uniformly distributed corner to corner with no gaps, faded green and ochre watercolour wash on aged sepia parchment, antique hand-tinted cartography shading, weathered paper grain, uniform all-over pattern filling every part of the frame, no empty areas, no clearings, no meadow, no blank parchment gaps, no lake, no river, flat overhead view, no horizon, no sky, no perspective, no ocean, no water, no coastline, no islands, no landmass outline, no map of a country, no text, no border",
     "seed": 1568
   },
   "sea": {
-    "prompt": "seamless top-down antique map texture of calm sea, aged parchment, faded blue-grey watercolour wash, fine hand-drawn wave hatching, subtle ripples, weathered paper grain, no land, no coastline, no text, no border",
+    "prompt": "flat lay top-down orthographic seamless repeating texture of open water completely covering the whole image with fine hand-drawn antique concentric wave lines and ripple hatching in dark blue ink, faded blue-grey watercolour wash on aged parchment, the wavy line pattern covers every part of the frame uniformly corner to corner with no gaps, old nautical chart stippling, weathered paper grain, no empty areas, no blank patches, flat overhead view, no horizon, no sky, no perspective, no land, no coastline, no shoreline, no beach, no islands, no text, no border",
     "seed": 1568
   },
   "guidanceScale": 3.5,
