@@ -47,3 +47,43 @@ Fields marked **UNVERIFIED** could not be confirmed from the live schema/docs.
   (civitai model 382959 "Fantasy Map – Heavy", safetensors, ~218 MB, SDXL 1.0).
   Marked **UNVERIFIED** because no live fal.ai call was made to confirm it loads.
   Confidence: medium — civitai download URLs are documented as supported by fal.ai fast-sdxl.
+
+## Comparison harness (gen:matrix)
+
+Use `pnpm --filter @sengoku-jidai/terrain gen:matrix <mapId>` to render and compare candidates side-by-side.
+
+### What it does
+
+Reads `profiles/matrix.json`, renders the shared colour base once, runs every candidate configuration through fal.ai, and writes:
+
+- `terrain/<mapId>/candidates/_base.png` — the colour base
+- `terrain/<mapId>/candidates/<label>.png` — per-candidate result
+- `terrain/<mapId>/candidates/contact-sheet.png` — all candidates in a grid (failed candidates appear as dark cells)
+
+The committed `.webp` and `antique.json` are **not** touched.
+
+### How to explore
+
+1. Edit `profiles/matrix.json` to add, trim, or modify candidates:
+   - Add a new entry to `candidates[]` with unique `label`, `method`, `model`, `prompt`, `strength`, `seed`.
+   - Change prompts, strengths, or models to compare different approaches on the same map.
+   - Delete entries to exclude them from the next run.
+
+2. Re-run:
+
+   ```bash
+   pnpm --filter @sengoku-jidai/terrain gen:matrix rivers
+   ```
+
+3. Open `terrain/rivers/candidates/contact-sheet.png` to compare the results.
+
+### Manual promotion
+
+Once you pick a winner from the contact sheet:
+
+1. Copy its `model`, `prompt`, `strength`, and `seed` into `profiles/antique.json`.
+2. Run:
+   ```bash
+   pnpm --filter @sengoku-jidai/terrain gen <mapId>
+   ```
+3. This emits the committed `<mapId>.webp` and keeps `antique.json` stable for all future maps.
