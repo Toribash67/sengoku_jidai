@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadMatrixConfig } from "../src/matrixProfile.js";
+
+const COMMITTED = fileURLToPath(new URL("../profiles/matrix.json", import.meta.url));
 
 function writeConfig(obj: unknown): string {
   const dir = mkdtempSync(join(tmpdir(), "matrix-"));
@@ -48,5 +51,15 @@ describe("loadMatrixConfig", () => {
   it("rejects duplicate labels", () => {
     const bad = { ...validConfig, candidates: [validCandidate, validCandidate] };
     expect(() => loadMatrixConfig(writeConfig(bad))).toThrow(/duplicate|unique/i);
+  });
+});
+
+describe("committed matrix.json", () => {
+  it("loads, has 15 candidates and 3 columns", () => {
+    const cfg = loadMatrixConfig(COMMITTED);
+    expect(cfg.columns).toBe(3);
+    expect(cfg.candidates).toHaveLength(15);
+    // 5 distinct methods present.
+    expect(new Set(cfg.candidates.map((c) => c.method)).size).toBe(5);
   });
 });
