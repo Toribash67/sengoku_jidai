@@ -1,0 +1,17 @@
+{
+  "base": {
+    "landColor": "#2e7d32",
+    "seaColor": "#1565c0",
+    "outputSize": { "width": 1024 },
+    "organicSigma": 6,
+    "coastWarp": { "amplitude": 160, "scale": 0.003, "seed": 7 }
+  },
+  "edit": {
+    "model": "fal-ai/nano-banana-pro/edit",
+    "styleRef": "assets/style-ref.jpeg",
+    "resolution": "2K",
+    "seed": 1568,
+    "prompt": "You are given two images. The FIRST image is a control map showing where land and water go: solid GREEN regions are LAND, solid BLUE regions are SEA water. The SECOND image is a style reference: an antique hand-drawn Japanese map with sepia ink cross-hatched landmasses and scalloped wave patterns on aged parchment. Redraw the control map in the EXACT style, linework, textures and palette of the style reference — render every GREEN region as detailed cross-hatched antique landmass terrain (mountains, forests, hatching) with a natural drawn coastline, and every BLUE region as the light scalloped antique wave pattern of open water. CRITICAL MAPPING: green control region becomes LAND, blue control region becomes SEA. Do not swap them and do not turn land into water. Keep the exact same overall land and sea shapes as the control map. Flat top-down 2D map, no perspective, no labels, no text, no border."
+  },
+  "webpQuality": 82
+}

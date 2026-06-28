@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import sharp from "sharp";
 import { riversMap } from "@sengoku-jidai/engine";
-import { renderBaseImage, tileColorMap } from "../src/controlImage.js";
+import { prepBoardSvgMarkup, renderBaseImage, tileColorMap } from "../src/controlImage.js";
 import { mapSvgPath } from "../src/mapSources.js";
 
 const LAND = "#7e8c5a";
@@ -17,6 +17,23 @@ describe("tileColorMap", () => {
     for (const value of Object.values(colors)) {
       expect([LAND, SEA]).toContain(value);
     }
+  });
+});
+
+describe("prepBoardSvgMarkup", () => {
+  it("returns SVG markup sized to the request with a tile filled by the given colour", () => {
+    const svgMarkup = readFileSync(mapSvgPath("rivers"), "utf8");
+    const markup = prepBoardSvgMarkup({
+      svgMarkup,
+      colors: tileColorMap(riversMap, LAND, SEA),
+      backgroundColor: LAND,
+      width: 256,
+      height: 290
+    });
+    expect(markup).toContain('width="256"');
+    expect(markup).toContain('preserveAspectRatio="none"');
+    // tile1 is land, so its inline style carries the land fill.
+    expect(markup).toMatch(/id="tile1"[^>]*fill:#7e8c5a/);
   });
 });
 
