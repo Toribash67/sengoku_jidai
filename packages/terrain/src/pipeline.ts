@@ -28,15 +28,23 @@ export function loadDefaultProfile(): StyleProfile {
  * output size. Needs only the engine and the board SVG — no API key — so it can be previewed
  * standalone before a full generation run.
  */
-export async function renderMapBase(mapId: string, profile: StyleProfile): Promise<Buffer> {
+export async function renderMapBase(
+  mapId: string,
+  opts: Pick<StyleProfile, "landColor" | "seaColor" | "blurSigma" | "outputSize">
+): Promise<Buffer> {
   const map = getMap(mapId); // throws on unknown map id
   const svgMarkup = readFileSync(mapSvgPath(mapId), "utf8");
   return renderBaseImage({
     svgMarkup,
-    colors: tileColorMap(map, profile.landColor, profile.seaColor),
-    backgroundColor: profile.landColor,
-    width: profile.outputSize.width,
-    height: profile.outputSize.height,
-    blurSigma: profile.blurSigma
+    colors: tileColorMap(map, opts.landColor, opts.seaColor),
+    backgroundColor: opts.landColor,
+    width: opts.outputSize.width,
+    height: opts.outputSize.height,
+    blurSigma: opts.blurSigma
   });
+}
+
+/** Output directory for a map's matrix candidates (per-candidate PNGs + contact-sheet.png). */
+export function candidatesDir(mapId: string): string {
+  return `${artifactDir(mapId)}/candidates`;
 }
