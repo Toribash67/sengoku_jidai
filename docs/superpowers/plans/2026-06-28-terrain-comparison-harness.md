@@ -91,7 +91,7 @@ git commit -m "docs(terrain): verified fal endpoints for the comparison matrix"
 **Interfaces:**
 - Produces:
   - `Method` = `"flux-img2img" | "flux-controlnet-canny" | "recraft-v3" | "sdxl-map-lora" | "sd35-large"`
-  - `type Candidate = { label: string; method: Method; model: string; prompt: string; seed: number; strength?: number; conditioningScale?: number; loraUrl?: string; guidanceScale: number; numInferenceSteps: number; enableSafetyChecker: boolean }`
+  - `type Candidate = { label: string; method: Method; model: string; prompt: string; seed: number; strength?: number; conditioningScale?: number; loraUrl?: string; style?: string; guidanceScale: number; numInferenceSteps: number; enableSafetyChecker: boolean }`
   - `type MatrixConfig = { base: { landColor: string; seaColor: string; blurSigma: number; outputSize: { width: number; height: number } }; columns: number; candidates: Candidate[] }`
   - `loadMatrixConfig(path: string): MatrixConfig`
 
@@ -188,6 +188,8 @@ const CandidateSchema = z.object({
   conditioningScale: z.number().min(0).max(2).optional(),
   /** LoRA weights URL (sdxl-map-lora). */
   loraUrl: z.string().url().optional(),
+  /** Recraft style enum (recraft-v3), e.g. "digital_illustration". */
+  style: z.string().optional(),
   guidanceScale: z.number().default(3.5),
   numInferenceSteps: z.number().int().default(34),
   enableSafetyChecker: z.boolean().default(false)
@@ -298,25 +300,25 @@ one method across parchment / military / sumie).
     { "label": "flux-i2i-sumie", "method": "flux-img2img", "model": "fal-ai/flux/dev/image-to-image", "seed": 1568, "strength": 0.9,
       "prompt": "sumi-e ink wash map on aged rice paper, top-down, sparse and elegant, black brush strokes, mountains and pine groves as ink strokes, small castle and pagoda ink pictograms not to scale, pale grey-blue sea, restrained colour, antique scroll, no modern text, no grid, no horizon" },
 
-    { "label": "flux-cn-parchment", "method": "flux-controlnet-canny", "model": "fal-ai/flux-control-lora-canny", "seed": 1568, "conditioningScale": 0.5,
+    { "label": "flux-cn-parchment", "method": "flux-controlnet-canny", "model": "fal-ai/flux-control-lora-canny/image-to-image", "seed": 1568, "conditioningScale": 0.5,
       "prompt": "antique hand-drawn map of feudal Japan, aged sepia parchment, top-down bird's-eye cartography, forested green land and faded blue sea, tiny Sengoku-era castles, torii gates and pagodas drawn as small pictograms not to scale, mountains as little drawn peaks, compass rose, weathered ink linework, vintage watercolour wash, no modern text, no grid, no horizon" },
-    { "label": "flux-cn-military", "method": "flux-controlnet-canny", "model": "fal-ai/flux-control-lora-canny", "seed": 1568, "conditioningScale": 0.5,
+    { "label": "flux-cn-military", "method": "flux-controlnet-canny", "model": "fal-ai/flux-control-lora-canny/image-to-image", "seed": 1568, "conditioningScale": 0.5,
       "prompt": "antique Japanese military campaign map (ezu) of the Sengoku period, top-down, muted earth tones on aged paper, drawn fortifications and castle glyphs not to scale, roads and domain boundaries, small town markers, forested land and calm sea, hand-inked, weathered, no modern text, no grid, no horizon" },
-    { "label": "flux-cn-sumie", "method": "flux-controlnet-canny", "model": "fal-ai/flux-control-lora-canny", "seed": 1568, "conditioningScale": 0.5,
+    { "label": "flux-cn-sumie", "method": "flux-controlnet-canny", "model": "fal-ai/flux-control-lora-canny/image-to-image", "seed": 1568, "conditioningScale": 0.5,
       "prompt": "sumi-e ink wash map on aged rice paper, top-down, sparse and elegant, black brush strokes, mountains and pine groves as ink strokes, small castle and pagoda ink pictograms not to scale, pale grey-blue sea, restrained colour, antique scroll, no modern text, no grid, no horizon" },
 
-    { "label": "recraft-parchment", "method": "recraft-v3", "model": "fal-ai/recraft-v3/image-to-image", "seed": 1568, "strength": 0.6,
+    { "label": "recraft-parchment", "method": "recraft-v3", "model": "fal-ai/recraft/v3/image-to-image", "seed": 1568, "strength": 0.6, "style": "digital_illustration",
       "prompt": "antique hand-drawn map of feudal Japan, aged sepia parchment, top-down bird's-eye cartography, forested green land and faded blue sea, tiny Sengoku-era castles, torii gates and pagodas drawn as small pictograms not to scale, mountains as little drawn peaks, compass rose, weathered ink linework, vintage watercolour wash, no modern text, no grid, no horizon" },
-    { "label": "recraft-military", "method": "recraft-v3", "model": "fal-ai/recraft-v3/image-to-image", "seed": 1568, "strength": 0.6,
+    { "label": "recraft-military", "method": "recraft-v3", "model": "fal-ai/recraft/v3/image-to-image", "seed": 1568, "strength": 0.6, "style": "digital_illustration",
       "prompt": "antique Japanese military campaign map (ezu) of the Sengoku period, top-down, muted earth tones on aged paper, drawn fortifications and castle glyphs not to scale, roads and domain boundaries, small town markers, forested land and calm sea, hand-inked, weathered, no modern text, no grid, no horizon" },
-    { "label": "recraft-sumie", "method": "recraft-v3", "model": "fal-ai/recraft-v3/image-to-image", "seed": 1568, "strength": 0.6,
+    { "label": "recraft-sumie", "method": "recraft-v3", "model": "fal-ai/recraft/v3/image-to-image", "seed": 1568, "strength": 0.6, "style": "digital_illustration",
       "prompt": "sumi-e ink wash map on aged rice paper, top-down, sparse and elegant, black brush strokes, mountains and pine groves as ink strokes, small castle and pagoda ink pictograms not to scale, pale grey-blue sea, restrained colour, antique scroll, no modern text, no grid, no horizon" },
 
-    { "label": "sdxl-parchment", "method": "sdxl-map-lora", "model": "fal-ai/fast-sdxl/image-to-image", "seed": 1568, "strength": 0.7, "loraUrl": "https://VERIFY-IN-TASK-1.example/antique-map-lora.safetensors",
+    { "label": "sdxl-parchment", "method": "sdxl-map-lora", "model": "fal-ai/fast-sdxl/image-to-image", "seed": 1568, "strength": 0.7, "loraUrl": "https://civitai.com/api/download/models/427437",
       "prompt": "antique hand-drawn map of feudal Japan, aged sepia parchment, top-down bird's-eye cartography, forested green land and faded blue sea, tiny Sengoku-era castles, torii gates and pagodas drawn as small pictograms not to scale, mountains as little drawn peaks, compass rose, weathered ink linework, vintage watercolour wash, no modern text, no grid, no horizon" },
-    { "label": "sdxl-military", "method": "sdxl-map-lora", "model": "fal-ai/fast-sdxl/image-to-image", "seed": 1568, "strength": 0.7, "loraUrl": "https://VERIFY-IN-TASK-1.example/antique-map-lora.safetensors",
+    { "label": "sdxl-military", "method": "sdxl-map-lora", "model": "fal-ai/fast-sdxl/image-to-image", "seed": 1568, "strength": 0.7, "loraUrl": "https://civitai.com/api/download/models/427437",
       "prompt": "antique Japanese military campaign map (ezu) of the Sengoku period, top-down, muted earth tones on aged paper, drawn fortifications and castle glyphs not to scale, roads and domain boundaries, small town markers, forested land and calm sea, hand-inked, weathered, no modern text, no grid, no horizon" },
-    { "label": "sdxl-sumie", "method": "sdxl-map-lora", "model": "fal-ai/fast-sdxl/image-to-image", "seed": 1568, "strength": 0.7, "loraUrl": "https://VERIFY-IN-TASK-1.example/antique-map-lora.safetensors",
+    { "label": "sdxl-sumie", "method": "sdxl-map-lora", "model": "fal-ai/fast-sdxl/image-to-image", "seed": 1568, "strength": 0.7, "loraUrl": "https://civitai.com/api/download/models/427437",
       "prompt": "sumi-e ink wash map on aged rice paper, top-down, sparse and elegant, black brush strokes, mountains and pine groves as ink strokes, small castle and pagoda ink pictograms not to scale, pale grey-blue sea, restrained colour, antique scroll, no modern text, no grid, no horizon" },
 
     { "label": "sd35-parchment", "method": "sd35-large", "model": "fal-ai/stable-diffusion-v35-large/image-to-image", "seed": 1568, "strength": 0.7,
@@ -329,9 +331,10 @@ one method across parchment / military / sumie).
 }
 ```
 
-> Replace the `sdxl-*` `loraUrl` placeholder with the real LoRA URL chosen in Task 1.
-> This is the one value the schema can't catch (any URL passes `z.string().url()`), so it
-> must be filled before any live `gen:matrix` run.
+> The `sdxl-*` `loraUrl` is the civitai "Fantasy Map – Heavy" LoRA chosen in Task 1. It is
+> **UNVERIFIED** (not yet test-called on fal) — the Task 8 live smoke is what confirms it
+> loads; if that candidate column fails, swap the URL (a lighter variant is noted in the
+> README). The schema can't catch a bad URL (any URL passes `z.string().url()`).
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -357,8 +360,14 @@ git commit -m "feat(terrain): committed 15-candidate matrix.json"
 **Interfaces:**
 - Consumes: `Candidate` (Task 2); `FalClient`, `FetchFn`, `firstImageUrl` from `backend.ts`.
 - Produces:
-  - `buildCandidateInput(c: Candidate, deps: { baseUrl: string; outputSize: { width: number; height: number } }): Record<string, unknown>`
-  - `generateCandidate(deps: { fal: FalClient; fetch: FetchFn }, args: { candidate: Candidate; baseUrl: string; outputSize: { width: number; height: number } }): Promise<Buffer>`
+  - `buildCandidateInput(c: Candidate, deps: { baseUrl: string }): Record<string, unknown>`
+  - `generateCandidate(deps: { fal: FalClient; fetch: FetchFn }, args: { candidate: Candidate; baseUrl: string }): Promise<Buffer>`
+
+> **Verified endpoint facts (from Task 1, see `profiles/README.md`):** these image-to-image
+> endpoints have **no `image_size` param** — output dims follow the input image (our base is
+> already 1024×1164), so `buildCandidateInput` omits `image_size` entirely. ControlNet uses
+> `control_lora_image_url` + `control_lora_strength` (and also takes the base as `image_url`).
+> Recraft takes a `style` field. Param names below are the verified ones.
 
 - [ ] **Step 1: Export `firstImageUrl` from backend.ts**
 
@@ -373,7 +382,6 @@ import { describe, expect, it, vi } from "vitest";
 import { buildCandidateInput, generateCandidate } from "../src/matrixBackend.js";
 import type { Candidate } from "../src/matrixProfile.js";
 
-const outputSize = { width: 1024, height: 1164 };
 const baseUrl = "https://up/base.png";
 
 function candidate(over: Partial<Candidate>): Candidate {
@@ -391,33 +399,49 @@ function candidate(over: Partial<Candidate>): Candidate {
 }
 
 describe("buildCandidateInput", () => {
-  it("img2img uses image_url + strength", () => {
+  it("img2img uses image_url + strength and omits image_size", () => {
     const input = buildCandidateInput(candidate({ method: "flux-img2img", strength: 0.9 }), {
-      baseUrl,
-      outputSize
+      baseUrl
     });
     expect(input).toMatchObject({
       prompt: "antique map",
       image_url: baseUrl,
       strength: 0.9,
-      seed: 1568,
-      image_size: outputSize
+      seed: 1568
+    });
+    // These endpoints have no image_size param (output follows the input image).
+    expect(input).not.toHaveProperty("image_size");
+  });
+
+  it("controlnet passes the base as both image_url and control_lora_image_url + control_lora_strength", () => {
+    const input = buildCandidateInput(
+      candidate({ method: "flux-controlnet-canny", conditioningScale: 0.4 }),
+      { baseUrl }
+    );
+    expect(input).toMatchObject({
+      image_url: baseUrl,
+      control_lora_image_url: baseUrl,
+      control_lora_strength: 0.4
     });
   });
 
-  it("controlnet uses the control image + conditioning scale, not strength", () => {
+  it("recraft-v3 passes a style and omits flux-only knobs", () => {
     const input = buildCandidateInput(
-      candidate({ method: "flux-controlnet-canny", conditioningScale: 0.5 }),
-      { baseUrl, outputSize }
+      candidate({ method: "recraft-v3", strength: 0.6, style: "digital_illustration" }),
+      { baseUrl }
     );
-    expect(input).toMatchObject({ control_image_url: baseUrl, controlnet_conditioning_scale: 0.5 });
-    expect(input).not.toHaveProperty("strength");
+    expect(input).toMatchObject({
+      image_url: baseUrl,
+      strength: 0.6,
+      style: "digital_illustration"
+    });
+    expect(input).not.toHaveProperty("guidance_scale");
   });
 
   it("sdxl-map-lora passes a loras array", () => {
     const input = buildCandidateInput(
       candidate({ method: "sdxl-map-lora", strength: 0.7, loraUrl: "https://lora/x.safetensors" }),
-      { baseUrl, outputSize }
+      { baseUrl }
     );
     expect(input).toMatchObject({
       image_url: baseUrl,
@@ -439,7 +463,7 @@ describe("generateCandidate", () => {
     }));
     const out = await generateCandidate(
       { fal, fetch },
-      { candidate: candidate({ model: "fal-ai/test" }), baseUrl, outputSize }
+      { candidate: candidate({ model: "fal-ai/test" }), baseUrl }
     );
     expect(fal.subscribe.mock.calls[0]![0]).toBe("fal-ai/test");
     expect(out.toString()).toBe("PNG");
@@ -452,7 +476,7 @@ describe("generateCandidate", () => {
     };
     const fetch = vi.fn(async () => ({ ok: false, status: 500, arrayBuffer: async () => new ArrayBuffer(0) }));
     await expect(
-      generateCandidate({ fal, fetch }, { candidate: candidate({ label: "boom" }), baseUrl, outputSize })
+      generateCandidate({ fal, fetch }, { candidate: candidate({ label: "boom" }), baseUrl })
     ).rejects.toThrow(/boom.*500|500.*boom/);
   });
 });
@@ -471,44 +495,61 @@ import { firstImageUrl, type FalClient, type FetchFn } from "./backend.js";
 import type { Candidate } from "./matrixProfile.js";
 
 export interface CandidateInputDeps {
+  /** fal storage URL of the uploaded colour base, shared by every candidate. */
   baseUrl: string;
-  outputSize: { width: number; height: number };
 }
 
 /**
- * Build the fal `input` for one candidate. Pure — no network. Each method maps the shared
- * uploaded base to the right param name and adds its own dials. Param names follow the
- * fal endpoints verified in the harness README; adjust here if an endpoint differs.
+ * Build the fal `input` for one candidate. Pure — no network. Param names match the fal
+ * endpoints verified in `profiles/README.md`. These are all image-to-image endpoints whose
+ * output dims follow the input image, so no `image_size` is sent. Flux-only knobs
+ * (guidance_scale / num_inference_steps / enable_safety_checker) are sent only to the Flux
+ * and Stable-Diffusion endpoints that accept them, not to Recraft.
  */
 export function buildCandidateInput(c: Candidate, deps: CandidateInputDeps): Record<string, unknown> {
-  const image_size = { width: deps.outputSize.width, height: deps.outputSize.height };
-  const common: Record<string, unknown> = {
-    prompt: c.prompt,
+  const fluxKnobs = {
     seed: c.seed,
     num_images: 1,
     guidance_scale: c.guidanceScale,
     num_inference_steps: c.numInferenceSteps,
-    enable_safety_checker: c.enableSafetyChecker,
-    image_size
+    enable_safety_checker: c.enableSafetyChecker
   };
   switch (c.method) {
+    case "flux-img2img":
+      return { prompt: c.prompt, image_url: deps.baseUrl, strength: c.strength ?? 0.9, ...fluxKnobs };
     case "flux-controlnet-canny":
       return {
-        ...common,
-        control_image_url: deps.baseUrl,
-        controlnet_conditioning_scale: c.conditioningScale ?? 0.5
+        prompt: c.prompt,
+        image_url: deps.baseUrl,
+        control_lora_image_url: deps.baseUrl,
+        control_lora_strength: c.conditioningScale ?? 0.5,
+        ...fluxKnobs
+      };
+    case "recraft-v3":
+      return {
+        prompt: c.prompt,
+        image_url: deps.baseUrl,
+        strength: c.strength ?? 0.5,
+        style: c.style ?? "digital_illustration"
       };
     case "sdxl-map-lora":
       return {
-        ...common,
+        prompt: c.prompt,
         image_url: deps.baseUrl,
         strength: c.strength ?? 0.7,
-        loras: c.loraUrl ? [{ path: c.loraUrl, scale: 1 }] : []
+        loras: c.loraUrl ? [{ path: c.loraUrl, scale: 1 }] : [],
+        ...fluxKnobs
       };
-    case "flux-img2img":
-    case "recraft-v3":
     case "sd35-large":
-      return { ...common, image_url: deps.baseUrl, strength: c.strength ?? 0.8 };
+      return {
+        prompt: c.prompt,
+        image_url: deps.baseUrl,
+        strength: c.strength ?? 0.7,
+        seed: c.seed,
+        num_images: 1,
+        guidance_scale: c.guidanceScale,
+        num_inference_steps: c.numInferenceSteps
+      };
   }
 }
 
@@ -520,12 +561,9 @@ export interface FalDeps {
 /** Run one candidate: subscribe to its model with the built input, fetch the result bytes. */
 export async function generateCandidate(
   deps: FalDeps,
-  args: { candidate: Candidate; baseUrl: string; outputSize: { width: number; height: number } }
+  args: { candidate: Candidate; baseUrl: string }
 ): Promise<Buffer> {
-  const input = buildCandidateInput(args.candidate, {
-    baseUrl: args.baseUrl,
-    outputSize: args.outputSize
-  });
+  const input = buildCandidateInput(args.candidate, { baseUrl: args.baseUrl });
   const result = await deps.fal.subscribe(args.candidate.model, { input });
   const url = firstImageUrl(result.data);
   const response = await deps.fetch(url);
@@ -539,7 +577,7 @@ export async function generateCandidate(
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `pnpm --filter @sengoku-jidai/terrain test matrixBackend`
-Expected: PASS (5 tests).
+Expected: PASS (6 tests).
 
 - [ ] **Step 6: Commit**
 
@@ -834,10 +872,7 @@ async function main(): Promise<void> {
   for (const candidate of config.candidates) {
     try {
       console.log(`[matrix] ${candidate.label} — ${candidate.method} via ${candidate.model}…`);
-      const png = await generateCandidate(
-        { fal, fetch },
-        { candidate, baseUrl, outputSize: config.base.outputSize }
-      );
+      const png = await generateCandidate({ fal, fetch }, { candidate, baseUrl });
       writeFileSync(`${outDir}/${candidate.label}.png`, png);
       cells.push({ label: candidate.label, image: png });
     } catch (err) {
