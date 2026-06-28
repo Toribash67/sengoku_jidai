@@ -1,0 +1,28 @@
+{
+  "base": {
+    "model": "fal-ai/flux/dev",
+    "landColor": "#7e8c5a",
+    "seaColor": "#566f80",
+    "outputSize": { "width": 1024, "height": 1164 },
+    "organicSigma": 2,
+    "inkColor": "#3a2f23",
+    "strokeWidth": 2
+  },
+  "land": {
+    "prompt": "seamless top-down antique map texture of forested feudal-Japan land, aged sepia parchment, hand-inked tiny mountains and pine groves, faded green and ochre watercolour wash, weathered paper grain, no coastline, no water, no text, no border",
+    "seed": 1568
+  },
+  "sea": {
+    "prompt": "seamless top-down antique map texture of calm sea, aged parchment, faded blue-grey watercolour wash, fine hand-drawn wave hatching, subtle ripples, weathered paper grain, no land, no coastline, no text, no border",
+    "seed": 1568
+  },
+  "guidanceScale": 3.5,
+  "numInferenceSteps": 34,
+  "harmonize": {
+    "saturation": 0.6,
+    "brightness": 0.96,
+    "parchmentTint": "#d8c8a8",
+    "vignette": true
+  },
+  "webpQuality": 82
+}
