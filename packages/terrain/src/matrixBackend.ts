@@ -9,9 +9,10 @@ export interface CandidateInputDeps {
 /**
  * Build the fal `input` for one candidate. Pure — no network. Param names match the fal
  * endpoints verified in `profiles/README.md`. These are all image-to-image endpoints whose
- * output dims follow the input image, so no `image_size` is sent. Flux-only knobs
- * (guidance_scale / num_inference_steps / enable_safety_checker) are sent only to the Flux
- * and Stable-Diffusion endpoints that accept them, not to Recraft.
+ * output dims follow the input image, so no `image_size` is sent. The Flux and SDXL
+ * endpoints take the full knob set (guidance_scale / num_inference_steps /
+ * enable_safety_checker); sd35-large takes the same minus `enable_safety_checker`; Recraft
+ * takes none of them (just prompt / image_url / strength / style).
  */
 export function buildCandidateInput(
   c: Candidate,

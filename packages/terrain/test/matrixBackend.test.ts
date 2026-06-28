@@ -68,6 +68,20 @@ describe("buildCandidateInput", () => {
       loras: [{ path: "https://lora/x.safetensors", scale: 1 }]
     });
   });
+
+  it("sd35-large sends flux knobs except enable_safety_checker", () => {
+    const input = buildCandidateInput(candidate({ method: "sd35-large", strength: 0.7 }), {
+      baseUrl
+    });
+    expect(input).toMatchObject({
+      image_url: baseUrl,
+      strength: 0.7,
+      guidance_scale: 3.5,
+      num_inference_steps: 34
+    });
+    // This endpoint omits the safety-checker knob (it hand-rolls its param list).
+    expect(input).not.toHaveProperty("enable_safety_checker");
+  });
 });
 
 describe("generateCandidate", () => {

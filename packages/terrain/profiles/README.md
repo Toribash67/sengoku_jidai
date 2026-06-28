@@ -65,8 +65,8 @@ The committed `.webp` and `antique.json` are **not** touched.
 ### How to explore
 
 1. Edit `profiles/matrix.json` to add, trim, or modify candidates:
-   - Add a new entry to `candidates[]` with unique `label`, `method`, `model`, `prompt`, `strength`, `seed`.
-   - Change prompts, strengths, or models to compare different approaches on the same map.
+   - Add a new entry to `candidates[]` with a unique `label`, plus `method`, `model`, `prompt`, and `seed`. Set the method's dial: `strength` for the img2img-style methods, `conditioningScale` for `flux-controlnet-canny` (and `loraUrl` / `style` where the method uses them).
+   - Change prompts, dials, or models to compare different approaches on the same map.
    - Delete entries to exclude them from the next run.
 
 2. Re-run:
