@@ -1,15 +1,14 @@
 {
-  "model": "fal-ai/sdxl-controlnet-union",
-  "prompt": "antique hand-drawn cartography map, faded aged parchment, muted earthy terrain, soft watercolour landmasses, calm pale sea, subtle paper texture, vintage atlas, no text, no labels, no grid",
-  "negativePrompt": "modern, satellite photo, vivid saturated colours, text, labels, lettering, borders, ui, neon, photorealistic",
+  "model": "fal-ai/flux/dev/image-to-image",
+  "prompt": "antique map terrain, top-down aerial, muted green forested land with soft hills, scattered trees and groves, calm faded blue sea water with subtle ripples, vintage watercolour wash, weathered parchment tones, soft painterly brushwork, hand-painted old map, no text, no grid, no horizon",
   "seed": 1568,
-  "styleReference": "antique-reference.png",
-  "controlImageKey": "control_image_url",
-  "styleImageKey": "ip_adapter_image_url",
-  "extraInput": {
-    "controlnet_conditioning_scale": 0.85,
-    "num_inference_steps": 30
-  },
-  "outputSize": { "width": 1024, "height": 1160 },
+  "strength": 0.92,
+  "guidanceScale": 3.5,
+  "numInferenceSteps": 34,
+  "landColor": "#7e8c5a",
+  "seaColor": "#566f80",
+  "blurSigma": 4,
+  "enableSafetyChecker": false,
+  "outputSize": { "width": 1024, "height": 1164 },
   "webpQuality": 82
 }

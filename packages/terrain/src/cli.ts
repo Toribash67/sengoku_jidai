@@ -1,8 +1,8 @@
 import { fal } from "@fal-ai/client";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { createFalBackend } from "./backend.js";
-import { artifactDir, loadDefaultProfile, renderMapControl, webAssetPath } from "./pipeline.js";
+import { artifactDir, loadDefaultProfile, renderMapBase, webAssetPath } from "./pipeline.js";
 import { toWebp } from "./postprocess.js";
 
 async function main(): Promise<void> {
@@ -16,20 +16,19 @@ async function main(): Promise<void> {
   }
 
   const profile = loadDefaultProfile();
-  const styleReference = readFileSync(profile.styleReferencePath); // clear ENOENT if missing
 
-  // Stage 1: control image (also saved for inspection).
-  console.log(`[terrain] rendering control image for "${mapId}"…`);
-  const control = await renderMapControl(mapId, profile);
+  // Stage 1: colour base (land/sea regions + organic coastlines), also saved for inspection.
+  console.log(`[terrain] rendering colour base for "${mapId}"…`);
+  const base = await renderMapBase(mapId, profile);
   const outDir = artifactDir(mapId);
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(`${outDir}/control.png`, control);
+  writeFileSync(`${outDir}/base.png`, base);
 
-  // Stage 2: generate.
+  // Stage 2: image-to-image generation.
   console.log(`[terrain] generating terrain via ${profile.model}…`);
   fal.config({ credentials: key });
   const backend = createFalBackend({ fal, fetch });
-  const generated = await backend.generate({ control, styleReference, profile });
+  const generated = await backend.generate({ base, profile });
   writeFileSync(`${outDir}/generated.png`, generated);
 
   // Stage 3: post-process + write the committed web asset.
@@ -43,7 +42,7 @@ async function main(): Promise<void> {
   writeFileSync(assetPath, webp);
 
   console.log(
-    `[terrain] done:\n  control:   ${outDir}/control.png\n  generated: ${outDir}/generated.png\n  asset:     ${assetPath}`
+    `[terrain] done:\n  base:      ${outDir}/base.png\n  generated: ${outDir}/generated.png\n  asset:     ${assetPath}`
   );
 }
 

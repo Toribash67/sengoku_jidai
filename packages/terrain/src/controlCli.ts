@@ -1,25 +1,25 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { artifactDir, loadDefaultProfile, renderMapControl } from "./pipeline.js";
+import { artifactDir, loadDefaultProfile, renderMapBase } from "./pipeline.js";
 
 /**
- * Render ONLY the land/sea control image for a map and write it to `terrain/<mapId>/control.png`,
- * so you can preview the SVG-derived coastline mask without an API key or a generation run.
+ * Render ONLY the colour base for a map and write it to `terrain/<mapId>/base.png`, so you can
+ * preview the land/sea regions + coastlines that condition generation — no API key or paid run.
  */
 async function main(): Promise<void> {
   const mapId = process.argv[2];
   if (!mapId) {
-    throw new Error("usage: pnpm --filter @sengoku-jidai/terrain gen:control <mapId>");
+    throw new Error("usage: pnpm --filter @sengoku-jidai/terrain gen:base <mapId>");
   }
 
   const profile = loadDefaultProfile();
-  console.log(`[terrain] rendering control image for "${mapId}"…`);
-  const control = await renderMapControl(mapId, profile);
+  console.log(`[terrain] rendering colour base for "${mapId}"…`);
+  const base = await renderMapBase(mapId, profile);
 
   const outDir = artifactDir(mapId);
   mkdirSync(outDir, { recursive: true });
-  const outPath = `${outDir}/control.png`;
-  writeFileSync(outPath, control);
-  console.log(`[terrain] control image written: ${outPath}`);
+  const outPath = `${outDir}/base.png`;
+  writeFileSync(outPath, base);
+  console.log(`[terrain] base image written: ${outPath}`);
 }
 
 main().catch((err) => {

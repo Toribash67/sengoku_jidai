@@ -86,47 +86,40 @@ tests, a Production Build, a Browser Smoke Test, and the container image build.
 ## Terrain backgrounds
 
 The board can render a faded, antique-style **terrain background** behind the SVG
-vectors. Its coastlines follow the map's hex land/sea data, because the image is
-generated (via a hosted SDXL + ControlNet model) conditioned on a 2-tone **control
-image** rendered straight from the board SVG. This is an **offline, dev-only** step:
-the generated image is committed as a static asset, so the running app and CI never
-call any image API. Until an asset is committed, the board renders with flat tile
-fills as before.
+vectors. Its coastlines follow the map's hex land/sea data: a colour **base** (land vs.
+sea) is rendered straight from the board SVG, then a hosted image-to-image model
+(Flux) restyles it into antique watercolour while preserving the regions. This is an
+**offline, dev-only** step: the generated image is committed as a static asset, so the
+running app and CI never call any image API. Until an asset is committed, the board
+renders with flat tile fills as before.
 
 The pipeline lives in [`packages/terrain`](packages/terrain) — see its
 [README](packages/terrain/README.md) for full details and style tuning.
 
-### Preview the control image (no API key, no cost)
+### Preview the colour base (no API key, no cost)
 
-The control image is the exact land/sea mask the terrain's coastline follows. Render
-it on its own:
+The base is the green-land / blue-sea map (with organic coastlines) that conditions
+generation. Render it on its own:
 
 ```bash
 corepack pnpm build:libs
-corepack pnpm --filter @sengoku-jidai/terrain gen:control rivers
+corepack pnpm --filter @sengoku-jidai/terrain gen:base rivers
 ```
 
-This writes **`terrain/rivers/control.png`** (repo root). Open it to inspect the
-coastline — land (and everything outside the tiles) is white, sea is black.
+This writes **`terrain/rivers/base.png`** (repo root) — handy to sanity-check a map's
+land/sea layout before spending a generation.
 
 ### Generate a terrain background (full pipeline)
 
-This calls the hosted **fal.ai** API, so it needs an API key and a curated style
-reference image (one-time setup):
-
-1. Set `FAL_KEY` in your environment or the git-ignored `.env` (see `.env.example`).
-2. Add a style reference image at `packages/terrain/profiles/antique-reference.png`
-   (curated art fed to the model via IP-Adapter — see
-   [`packages/terrain/profiles/README.md`](packages/terrain/profiles/README.md)).
-
-Then:
+This calls the hosted **fal.ai** API, so it needs an API key (no reference image required):
 
 ```bash
+export FAL_KEY=...   # or put it in the git-ignored .env (see .env.example)
 corepack pnpm build:libs
 corepack pnpm --filter @sengoku-jidai/terrain gen rivers
 ```
 
-It writes `terrain/rivers/control.png` and `terrain/rivers/generated.png` (for
+It writes `terrain/rivers/base.png` and `terrain/rivers/generated.png` (for
 inspection) and the committed board asset
 `packages/web/src/assets/terrain/rivers.webp`. Review the outputs, then **commit the
 `.webp`** — the web board picks it up automatically (Vite bundles

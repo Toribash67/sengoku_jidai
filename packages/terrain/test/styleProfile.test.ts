@@ -10,9 +10,30 @@ const ANTIQUE = fileURLToPath(new URL("../profiles/antique.json", import.meta.ur
 describe("loadStyleProfile", () => {
   it("loads and validates the committed antique profile", () => {
     const profile = loadStyleProfile(ANTIQUE);
-    expect(profile.outputSize).toEqual({ width: 1024, height: 1160 });
+    expect(profile.outputSize).toEqual({ width: 1024, height: 1164 });
     expect(typeof profile.prompt).toBe("string");
     expect(profile.seed).toBeTypeOf("number");
+    expect(profile.strength).toBeGreaterThan(0);
+    expect(profile.landColor).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(profile.seaColor).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  it("applies defaults for optional fields", () => {
+    const dir = mkdtempSync(join(tmpdir(), "profile-"));
+    const path = join(dir, "minimal.json");
+    writeFileSync(
+      path,
+      JSON.stringify({
+        model: "fal-ai/test",
+        prompt: "x",
+        seed: 1,
+        outputSize: { width: 1024, height: 1164 }
+      })
+    );
+    const profile = loadStyleProfile(path);
+    expect(profile.strength).toBe(0.92);
+    expect(profile.blurSigma).toBe(4);
+    expect(profile.enableSafetyChecker).toBe(false);
   });
 
   it("throws a clear error on an invalid profile", () => {

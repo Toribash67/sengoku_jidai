@@ -1,11 +1,7 @@
 import type { StyleProfile } from "./styleProfile.js";
 
 export interface TerrainBackend {
-  generate(args: {
-    control: Buffer;
-    styleReference: Buffer;
-    profile: StyleProfile;
-  }): Promise<Buffer>;
+  generate(args: { base: Buffer; profile: StyleProfile }): Promise<Buffer>;
 }
 
 export interface FalClient {
@@ -27,26 +23,29 @@ function firstImageUrl(data: unknown): string {
   return url;
 }
 
-/** fal.ai-backed terrain generator. `fal` and `fetch` are injected so tests stay offline. */
+/**
+ * fal.ai image-to-image terrain generator. Uploads the colour base and runs it through the
+ * profile's img2img model, so the land/sea regions in the base carry into the result while the
+ * prompt restyles it. `fal` and `fetch` are injected so tests stay offline.
+ */
 export function createFalBackend(deps: { fal: FalClient; fetch: FetchFn }): TerrainBackend {
   const { fal, fetch } = deps;
   return {
-    async generate({ control, styleReference, profile }) {
-      const controlUrl = await fal.storage.upload(
-        new Blob([new Uint8Array(control)], { type: "image/png" })
-      );
-      const styleUrl = await fal.storage.upload(
-        new Blob([new Uint8Array(styleReference)], { type: "image/png" })
+    async generate({ base, profile }) {
+      const imageUrl = await fal.storage.upload(
+        new Blob([new Uint8Array(base)], { type: "image/png" })
       );
 
       const input: Record<string, unknown> = {
-        ...profile.extraInput,
         prompt: profile.prompt,
-        negative_prompt: profile.negativePrompt,
+        image_url: imageUrl,
+        strength: profile.strength,
+        guidance_scale: profile.guidanceScale,
+        num_inference_steps: profile.numInferenceSteps,
         seed: profile.seed,
-        image_size: { width: profile.outputSize.width, height: profile.outputSize.height },
-        [profile.controlImageKey]: controlUrl,
-        [profile.styleImageKey]: styleUrl
+        num_images: 1,
+        enable_safety_checker: profile.enableSafetyChecker,
+        image_size: { width: profile.outputSize.width, height: profile.outputSize.height }
       };
 
       const result = await fal.subscribe(profile.model, { input });
