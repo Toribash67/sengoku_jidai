@@ -1,4 +1,4 @@
-import sharp, { type Sharp, type OverlayOptions } from "sharp";
+import sharp, { type OverlayOptions } from "sharp";
 
 export interface SheetOpts {
   columns: number;

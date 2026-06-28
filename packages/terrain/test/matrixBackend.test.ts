@@ -74,31 +74,35 @@ describe("generateCandidate", () => {
   it("subscribes with the candidate model and returns fetched bytes", async () => {
     const fal = {
       storage: { upload: vi.fn() },
-      subscribe: vi.fn(async () => ({ data: { images: [{ url: "https://out/r.png" }] } }))
-    } as any;
+      subscribe: vi.fn(async (_model: string, _opts: { input: Record<string, unknown> }) => ({
+        data: { images: [{ url: "https://out/r.png" }] }
+      }))
+    };
     const fetch = vi.fn(async () => ({
       ok: true,
       status: 200,
       arrayBuffer: async () => new TextEncoder().encode("PNG").buffer
-    })) as any;
+    }));
     const out = await generateCandidate(
       { fal, fetch },
       { candidate: candidate({ model: "fal-ai/test" }), baseUrl }
     );
-    expect((fal.subscribe as any).mock.calls[0]![0]).toBe("fal-ai/test");
+    expect(fal.subscribe.mock.calls[0]![0]).toBe("fal-ai/test");
     expect(out.toString()).toBe("PNG");
   });
 
   it("throws (labelled) when the result fetch fails", async () => {
     const fal = {
       storage: { upload: vi.fn() },
-      subscribe: vi.fn(async () => ({ data: { images: [{ url: "https://out/r.png" }] } }))
-    } as any;
+      subscribe: vi.fn(async (_model: string, _opts: { input: Record<string, unknown> }) => ({
+        data: { images: [{ url: "https://out/r.png" }] }
+      }))
+    };
     const fetch = vi.fn(async () => ({
       ok: false,
       status: 500,
       arrayBuffer: async () => new ArrayBuffer(0)
-    })) as any;
+    }));
     await expect(
       generateCandidate({ fal, fetch }, { candidate: candidate({ label: "boom" }), baseUrl })
     ).rejects.toThrow(/boom.*500|500.*boom/);
