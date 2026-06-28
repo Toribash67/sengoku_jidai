@@ -2,20 +2,26 @@ import type { MapDefinition } from "@sengoku-jidai/engine";
 import sharp from "sharp";
 import { prepBoardSvgMarkup, tileColorMap } from "./controlImage.js";
 
-/** Low-frequency fractal-noise field (single channel, mean ~128) used to domain-warp the
- *  coastline so it reads as a natural irregular shore rather than rounded hexes. */
-async function turbulence(
+/** Smooth low-frequency noise field (single channel, mean ~128) used to domain-warp the
+ *  coastline so it reads as a natural irregular shore rather than rounded hexes. The field is
+ *  blurred so the displacement varies smoothly between neighbouring pixels — without that, the
+ *  nearest-neighbour resample aliases the high-frequency noise into stripes along the boundary;
+ *  `normalise` restores the contrast the blur removes so the warp keeps its full amplitude. */
+async function displacementField(
   width: number,
   height: number,
   baseFrequency: number,
   seed: number
 ): Promise<Buffer> {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-    <filter id="t"><feTurbulence type="fractalNoise" baseFrequency="${baseFrequency}" numOctaves="3" seed="${seed}" stitchTiles="stitch"/></filter>
+    <filter id="t"><feTurbulence type="fractalNoise" baseFrequency="${baseFrequency}" numOctaves="2" seed="${seed}" stitchTiles="stitch"/></filter>
     <rect width="100%" height="100%" filter="url(#t)"/></svg>`;
   return sharp(Buffer.from(svg))
     .resize(width, height, { fit: "fill" })
     .greyscale()
+    .blur(12)
+    .normalise()
+    .toColourspace("b-w") // force single channel: blur promotes raw input to 3 channels
     .raw()
     .toBuffer();
 }
@@ -49,15 +55,15 @@ export async function renderLandMask(args: {
   const greyPipe = sharp(Buffer.from(markup)).resize(width, height, { fit: "fill" }).greyscale();
 
   // Binary source: white land (incl. background), black sea.
-  let mask = await greyPipe.threshold(128).raw().toBuffer();
+  let mask = await greyPipe.threshold(128).toColourspace("b-w").raw().toBuffer();
 
   if (coastWarp && coastWarp.amplitude > 0) {
     // Domain warp: resample the binary mask through a smooth low-frequency noise vector field.
     // Because the displacement is smooth, whole regions translate coherently — the hex boundary
     // bends into organic coastlines while thin features (rivers) stay connected. `amplitude` is
     // the max displacement in pixels; `scale` is the base frequency (smaller = larger bays).
-    const nx = await turbulence(width, height, coastWarp.scale, coastWarp.seed);
-    const ny = await turbulence(width, height, coastWarp.scale, coastWarp.seed + 101);
+    const nx = await displacementField(width, height, coastWarp.scale, coastWarp.seed);
+    const ny = await displacementField(width, height, coastWarp.scale, coastWarp.seed + 101);
     const amp = coastWarp.amplitude;
     const warped = Buffer.alloc(width * height);
     for (let y = 0; y < height; y++) {
@@ -81,6 +87,7 @@ export async function renderLandMask(args: {
   if (organicSigma > 0) {
     mask = await sharp(mask, { raw: { width, height, channels: 1 } })
       .blur(organicSigma)
+      .toColourspace("b-w") // force single channel: blur promotes raw input to 3 channels
       .raw()
       .toBuffer();
   }

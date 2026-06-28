@@ -8,6 +8,7 @@
     "gen:base": "tsx src/controlCli.ts",
     "gen:matrix": "tsx src/matrixCli.ts",
     "gen:map": "tsx src/mapPipelineCli.ts",
+    "gen:map-control": "tsx src/mapControlCli.ts",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

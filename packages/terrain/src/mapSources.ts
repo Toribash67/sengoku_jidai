@@ -20,3 +20,9 @@ export function mapSvgPath(mapId: string): string {
   }
   return repoRoot + rel;
 }
+
+/** Committed control-image asset path for a map — the flat land/sea image fed to the edit
+ *  model. Generated (fal-free) by the `gen:map-control` CLI. */
+export function mapControlPath(mapId: string): string {
+  return fileURLToPath(new URL(`../assets/controls/${mapId}-control.png`, import.meta.url));
+}

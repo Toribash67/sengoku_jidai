@@ -39,15 +39,33 @@ describe("renderLandMask", () => {
       coastWarp: { amplitude: 30, scale: 0.01, seed: 7 }
     });
 
-    const mask = await sharp(landMask).greyscale().raw().toBuffer();
+    const { data, info } = await sharp(landMask)
+      .greyscale()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
     let white = 0;
     let black = 0;
-    for (const v of mask) {
+    for (const v of data) {
       if (v > 200) white += 1;
       else if (v < 50) black += 1;
     }
-    expect(white + black).toBe(mask.length); // still strictly binary after warp
-    expect(white / mask.length).toBeGreaterThan(0.3); // both land and sea survive the warp
-    expect(black / mask.length).toBeGreaterThan(0.1);
+    expect(white + black).toBe(data.length); // still strictly binary after warp
+    expect(white / data.length).toBeGreaterThan(0.3); // both land and sea survive the warp
+    expect(black / data.length).toBeGreaterThan(0.1);
+
+    // No striping: a column crosses the coastline only a few times, not once per few rows.
+    // (Regression guard — a blur step that returns 3 channels read as 1 aliases into stripes.)
+    let maxFlips = 0;
+    for (const x of [40, 128, 210]) {
+      let prev: boolean | null = null;
+      let flips = 0;
+      for (let y = 0; y < info.height; y++) {
+        const land = data[y * info.width + x]! > 127;
+        if (prev !== null && land !== prev) flips += 1;
+        prev = land;
+      }
+      maxFlips = Math.max(maxFlips, flips);
+    }
+    expect(maxFlips).toBeLessThan(20); // clean: single digits; striped: hundreds
   });
 });
