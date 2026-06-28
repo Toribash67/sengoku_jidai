@@ -1,28 +1,17 @@
 {
   "base": {
-    "model": "fal-ai/flux/dev",
-    "landColor": "#7e8c5a",
-    "seaColor": "#566f80",
-    "outputSize": { "width": 1024, "height": 1164 },
-    "organicSigma": 2,
-    "inkColor": "#3a2f23",
-    "strokeWidth": 2
+    "landColor": "#2e7d32",
+    "seaColor": "#1565c0",
+    "outputSize": { "width": 1024 },
+    "organicSigma": 6,
+    "coastWarp": { "amplitude": 160, "scale": 0.003, "seed": 7 }
   },
-  "land": {
-    "prompt": "flat lay top-down orthographic seamless repeating texture of a dense pine forest completely covering the whole image, hundreds of tiny hand-inked antique pine trees evenly and uniformly distributed corner to corner with no gaps, faded green and ochre watercolour wash on aged sepia parchment, antique hand-tinted cartography shading, weathered paper grain, uniform all-over pattern filling every part of the frame, no empty areas, no clearings, no meadow, no blank parchment gaps, no lake, no river, flat overhead view, no horizon, no sky, no perspective, no ocean, no water, no coastline, no islands, no landmass outline, no map of a country, no text, no border",
-    "seed": 1568
-  },
-  "sea": {
-    "prompt": "flat lay top-down orthographic seamless repeating texture of open water completely covering the whole image with fine hand-drawn antique concentric wave lines and ripple hatching in dark blue ink, faded blue-grey watercolour wash on aged parchment, the wavy line pattern covers every part of the frame uniformly corner to corner with no gaps, old nautical chart stippling, weathered paper grain, no empty areas, no blank patches, flat overhead view, no horizon, no sky, no perspective, no land, no coastline, no shoreline, no beach, no islands, no text, no border",
-    "seed": 1568
-  },
-  "guidanceScale": 3.5,
-  "numInferenceSteps": 34,
-  "harmonize": {
-    "saturation": 0.6,
-    "brightness": 0.96,
-    "parchmentTint": "#d8c8a8",
-    "vignette": true
+  "edit": {
+    "model": "fal-ai/nano-banana-pro/edit",
+    "styleRef": "assets/style-ref.jpeg",
+    "resolution": "2K",
+    "seed": 1568,
+    "prompt": "You are given two images. The FIRST image is a control map showing where land and water go: solid GREEN regions are LAND, solid BLUE regions are SEA water. The SECOND image is a style reference: an antique hand-drawn Japanese map with sepia ink cross-hatched landmasses and scalloped wave patterns on aged parchment. Redraw the control map in the EXACT style, linework, textures and palette of the style reference — render every GREEN region as detailed cross-hatched antique landmass terrain (mountains, forests, hatching) with a natural drawn coastline, and every BLUE region as the light scalloped antique wave pattern of open water. CRITICAL MAPPING: green control region becomes LAND, blue control region becomes SEA. Do not swap them and do not turn land into water. Keep the exact same overall land and sea shapes as the control map. Flat top-down 2D map, no perspective, no labels, no text, no border."
   },
   "webpQuality": 82
 }

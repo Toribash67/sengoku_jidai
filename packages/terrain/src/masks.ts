@@ -1,35 +1,42 @@
 import type { MapDefinition } from "@sengoku-jidai/engine";
-import sharp, { type SharpOptions } from "sharp";
+import sharp from "sharp";
 import { prepBoardSvgMarkup, tileColorMap } from "./controlImage.js";
 
-export interface BoardMasks {
-  landMask: Buffer;
-  coastStroke: Buffer;
-  width: number;
-  height: number;
+/** Low-frequency fractal-noise field (single channel, mean ~128) used to domain-warp the
+ *  coastline so it reads as a natural irregular shore rather than rounded hexes. */
+async function turbulence(
+  width: number,
+  height: number,
+  baseFrequency: number,
+  seed: number
+): Promise<Buffer> {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+    <filter id="t"><feTurbulence type="fractalNoise" baseFrequency="${baseFrequency}" numOctaves="3" seed="${seed}" stitchTiles="stitch"/></filter>
+    <rect width="100%" height="100%" filter="url(#t)"/></svg>`;
+  return sharp(Buffer.from(svg))
+    .resize(width, height, { fit: "fill" })
+    .greyscale()
+    .raw()
+    .toBuffer();
 }
 
-/** 3x3 Laplacian: nonzero only where the binary mask changes (the coastline). */
-const EDGE_KERNEL = { width: 3, height: 3, kernel: [-1, -1, -1, -1, 8, -1, -1, -1, -1] };
-
 /**
- * Render the structural masks for a map from its board SVG. The land mask is the
- * compositing authority (coastline fidelity is 100% because it is the vector outline,
- * never a model output); the coastline stroke is the inked boundary laid over the
- * finished composite. Land + the area outside the tiles read as land; sea tiles read
- * as sea. `organicSigma` rounds the hex facets into organic curves while keeping the
- * mask strictly binary.
+ * Render the binary land mask for a map from its board SVG. Land + the area outside the tiles
+ * read as land (white), sea tiles read as sea (black). `organicSigma` softens the hex facets;
+ * when `coastWarp` is given the boundary is domain-warped through a smooth noise vector field
+ * so the coastline becomes naturally irregular (a real-looking shore, deliberately no longer
+ * pixel-perfect to the hex tiles) while staying connected. This mask is the placement control
+ * fed (with a style reference) to the edit model.
  */
-export async function renderMasks(args: {
+export async function renderLandMask(args: {
   svgMarkup: string;
   map: MapDefinition;
   width: number;
   height: number;
   organicSigma: number;
-  inkColor: string;
-  strokeWidth: number;
-}): Promise<BoardMasks> {
-  const { svgMarkup, map, width, height, organicSigma, inkColor, strokeWidth } = args;
+  coastWarp?: { amplitude: number; scale: number; seed: number };
+}): Promise<Buffer> {
+  const { svgMarkup, map, width, height, organicSigma, coastWarp } = args;
 
   const markup = prepBoardSvgMarkup({
     svgMarkup,
@@ -39,41 +46,46 @@ export async function renderMasks(args: {
     height
   });
 
-  let maskPipe = sharp(Buffer.from(markup)).resize(width, height, { fit: "fill" }).greyscale();
+  const greyPipe = sharp(Buffer.from(markup)).resize(width, height, { fit: "fill" }).greyscale();
+
+  // Binary source: white land (incl. background), black sea.
+  let mask = await greyPipe.threshold(128).raw().toBuffer();
+
+  if (coastWarp && coastWarp.amplitude > 0) {
+    // Domain warp: resample the binary mask through a smooth low-frequency noise vector field.
+    // Because the displacement is smooth, whole regions translate coherently — the hex boundary
+    // bends into organic coastlines while thin features (rivers) stay connected. `amplitude` is
+    // the max displacement in pixels; `scale` is the base frequency (smaller = larger bays).
+    const nx = await turbulence(width, height, coastWarp.scale, coastWarp.seed);
+    const ny = await turbulence(width, height, coastWarp.scale, coastWarp.seed + 101);
+    const amp = coastWarp.amplitude;
+    const warped = Buffer.alloc(width * height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = y * width + x;
+        const dx = ((nx[i]! - 128) / 128) * amp;
+        const dy = ((ny[i]! - 128) / 128) * amp;
+        let sx = x + Math.round(dx);
+        let sy = y + Math.round(dy);
+        sx = sx < 0 ? 0 : sx >= width ? width - 1 : sx;
+        sy = sy < 0 ? 0 : sy >= height ? height - 1 : sy;
+        warped[i] = mask[sy * width + sx]!;
+      }
+    }
+    mask = warped;
+  }
+
+  // Soften the jaggies, then re-threshold to a strict binary mask. Blur and threshold must run
+  // in separate sharp passes — within one pipeline sharp applies blur after threshold, which
+  // would leave soft grey edges.
   if (organicSigma > 0) {
-    maskPipe = maskPipe.blur(organicSigma);
+    mask = await sharp(mask, { raw: { width, height, channels: 1 } })
+      .blur(organicSigma)
+      .raw()
+      .toBuffer();
   }
-  const landMask = await maskPipe.threshold(128).png().toBuffer();
-
-  // Coastline: edge-detect the binary mask, thicken, then tint with ink as alpha.
-  // sharp rasterizes SVG as RGBA (4-channel); flatten composites the alpha against white
-  // before greyscale so the Laplacian convolve sees a true single-channel image.
-  let edgePipe = sharp(landMask)
-    .flatten({ background: { r: 255, g: 255, b: 255 } })
-    .greyscale()
-    .convolve(EDGE_KERNEL)
-    .threshold(40);
-  if (strokeWidth > 1) {
-    edgePipe = edgePipe.blur(strokeWidth / 2).threshold(40);
-  }
-  const edge = await edgePipe.toColourspace("b-w").raw().toBuffer();
-
-  const { r, g, b } = parseHex(inkColor);
-  const coastStroke = await sharp({
-    create: { width, height, channels: 3, background: { r, g, b } }
-  } as SharpOptions)
-    .joinChannel(edge, { raw: { width, height, channels: 1 } })
+  return sharp(mask, { raw: { width, height, channels: 1 } })
+    .threshold(128)
     .png()
     .toBuffer();
-
-  return { landMask, coastStroke, width, height };
-}
-
-function parseHex(hex: string): { r: number; g: number; b: number } {
-  const h = hex.replace("#", "");
-  return {
-    r: parseInt(h.slice(0, 2), 16),
-    g: parseInt(h.slice(2, 4), 16),
-    b: parseInt(h.slice(4, 6), 16)
-  };
 }

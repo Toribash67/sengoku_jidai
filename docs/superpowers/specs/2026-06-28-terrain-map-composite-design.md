@@ -1,6 +1,35 @@
 # Terrain map composite pipeline — design
 
 Date: 2026-06-28
+Status: superseded during implementation — see "Update: final architecture" below
+
+## Update: final architecture (edit-model pipeline)
+
+The mask-composite approach below was built and live-tested, but iterating on the visual
+result showed that **clipping two separately-generated textures to a mask always reads as
+"two textures on one canvas," never as one cohesive island/river map**. The pipeline pivoted
+to a single multi-image **instruction-edit** model, keeping the deterministic structural work
+as its control input:
+
+1. **`renderLandMask`** — from the board SVG, a binary land/sea mask, **domain-warped** through
+   a smooth noise vector field so the hex boundary bends into natural, connected coastlines
+   (deliberately no longer pixel-perfect to the tiles).
+2. **`renderControl`** — paints the warped mask as a flat **green-land / blue-sea** control
+   image (bold distinct colours read most reliably to the edit model; the control colour never
+   appears in the output).
+3. **`editMapPass`** — `fal-ai/nano-banana-pro/edit` redraws the control's land/sea layout in
+   the style of a committed reference image (`assets/style-ref.jpeg`), producing one cohesive
+   antique map with a natural drawn coastline. The style ref is cover-cropped to the board
+   aspect so the output keeps the board's proportions (aligns with the UI; tiles undistorted).
+4. **`toWebp`** — final asset at the board's exact viewBox aspect.
+
+The texture / composite / img2img modules from the design below were removed. The sections
+that survived: SVG prep (`prepBoardSvgMarkup`), the domain warp, the `TERRAIN_OUT_DIR` CLI,
+and the test/profile patterns. The original design is retained below for the record.
+
+---
+
+Date: 2026-06-28
 Status: approved (brainstorm)
 Branch: `feat/terrain-comparison-harness` (work continues here or a follow-up branch)
 

@@ -3,11 +3,11 @@ import { fileURLToPath } from "node:url";
 import { loadMapProfile } from "../src/mapProfile.js";
 
 describe("loadMapProfile", () => {
-  it("loads the committed default map profile with land + sea prompts", () => {
+  it("loads the committed default map profile with an edit prompt + style ref", () => {
     const path = fileURLToPath(new URL("../profiles/map.json", import.meta.url));
     const p = loadMapProfile(path);
-    expect(p.land.prompt.length).toBeGreaterThan(0);
-    expect(p.sea.prompt.length).toBeGreaterThan(0);
+    expect(p.edit.prompt.length).toBeGreaterThan(0);
+    expect(p.edit.styleRef.length).toBeGreaterThan(0);
     expect(p.base.outputSize.width).toBeGreaterThan(0);
     expect(p.base.organicSigma).toBeGreaterThanOrEqual(0);
   });

@@ -1,16 +1,9 @@
 import { describe, expect, it } from "vitest";
-import sharp, { type Stats } from "sharp";
-import { compositeMap, harmonize } from "../src/composite.js";
+import sharp from "sharp";
+import { renderControl } from "../src/composite.js";
 
 const W = 16;
 const H = 16;
-
-// A solid-colour PNG helper.
-async function solid(r: number, g: number, b: number): Promise<Buffer> {
-  return sharp({ create: { width: W, height: H, channels: 3, background: { r, g, b } } })
-    .png()
-    .toBuffer();
-}
 
 // Left half land (255), right half sea (0): a vertical split single-channel mask.
 async function splitMask(): Promise<Buffer> {
@@ -23,21 +16,12 @@ async function splitMask(): Promise<Buffer> {
     .toBuffer();
 }
 
-async function transparent(): Promise<Buffer> {
-  return sharp({
-    create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
-  })
-    .png()
-    .toBuffer();
-}
-
-describe("compositeMap", () => {
-  it("paints land where the mask is white and sea where it is black", async () => {
-    const out = await compositeMap({
-      landTexture: await solid(0, 200, 0), // green land
-      seaTexture: await solid(0, 0, 200), // blue sea
+describe("renderControl", () => {
+  it("paints landColor where the mask is land and seaColor where it is sea", async () => {
+    const out = await renderControl({
       landMask: await splitMask(),
-      coastStroke: await transparent(),
+      landColor: "#2e7d32", // green
+      seaColor: "#1565c0", // blue
       width: W,
       height: H
     });
@@ -49,24 +33,9 @@ describe("compositeMap", () => {
       const i = (y * info.width + x) * 3;
       return [data[i]!, data[i + 1]!, data[i + 2]!];
     };
-    expect(px(2, 8)[1]).toBeGreaterThan(150); // left → green land
-    expect(px(13, 8)[2]).toBeGreaterThan(150); // right → blue sea
-  });
-});
-
-describe("harmonize", () => {
-  it("reduces saturation of the input", async () => {
-    const vivid = await solid(220, 30, 30); // saturated red
-    const out = await harmonize(vivid, {
-      saturation: 0.3,
-      brightness: 1,
-      parchmentTint: "#ffffff",
-      vignette: false
-    });
-    const before = await sharp(vivid).stats();
-    const after = await sharp(out).stats();
-    const spread = (s: Stats) =>
-      Math.max(...s.channels.map((c) => c.max)) - Math.min(...s.channels.map((c) => c.min));
-    expect(spread(after)).toBeLessThan(spread(before)); // channels pulled together
+    const [lr, lg, lb] = px(2, 8); // left → land green #2e7d32
+    expect([lr, lg, lb]).toEqual([0x2e, 0x7d, 0x32]);
+    const [sr, sg, sb] = px(13, 8); // right → sea blue #1565c0
+    expect([sr, sg, sb]).toEqual([0x15, 0x65, 0xc0]);
   });
 });

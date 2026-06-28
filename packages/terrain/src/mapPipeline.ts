@@ -1,73 +1,96 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import sharp from "sharp";
 import { getMap } from "@sengoku-jidai/engine";
-import { compositeMap, harmonize } from "./composite.js";
+import { renderControl } from "./composite.js";
+import { editMapPass, type EditDeps } from "./editPass.js";
 import { mapSvgPath } from "./mapSources.js";
-import { renderMasks } from "./masks.js";
+import { renderLandMask } from "./masks.js";
 import type { MapProfile } from "./mapProfile.js";
 import { toWebp } from "./postprocess.js";
-import { generateTexture, type TextureDeps } from "./texture.js";
 
 /**
- * Run the mask-composite map pipeline: structure comes from the vector SVG (renderMasks),
- * texture from two parallel text-to-image calls, then deterministic clip + harmonize. Writes
- * every intermediate next to the final webp for inspection.
+ * Run the map-background pipeline. Structure comes from the vector board SVG: a domain-warped
+ * land mask is rendered as a flat green/blue control, then a multi-image edit model redraws
+ * that control's land/sea layout in the style of a reference image — one cohesive antique map
+ * with a natural drawn coastline. The output keeps the board's proportions so it aligns with
+ * the UI. Every intermediate is written next to the final webp for inspection.
  */
 export async function runMapPipeline(
-  deps: TextureDeps,
+  deps: EditDeps,
   args: { mapId: string; profile: MapProfile; outDir: string }
 ): Promise<{ outDir: string; webpPath: string }> {
   const { mapId, profile, outDir } = args;
   const { base } = profile;
-  const { width, height } = base.outputSize;
 
   const map = getMap(mapId); // throws on unknown map id
   const svgMarkup = readFileSync(mapSvgPath(mapId), "utf8");
 
+  // Keep the profile's target width; derive the height from the board viewBox so the
+  // background lines up with the UI and the tiles are never distorted.
+  const width = base.outputSize.width;
+  const height = outputHeightForViewBox(svgMarkup, width);
+
   mkdirSync(outDir, { recursive: true });
 
-  const masks = await renderMasks({
+  const landMask = await renderLandMask({
     svgMarkup,
     map,
     width,
     height,
     organicSigma: base.organicSigma,
-    inkColor: base.inkColor,
-    strokeWidth: base.strokeWidth
+    coastWarp: base.coastWarp
   });
-  writeFileSync(join(outDir, "landMask.png"), masks.landMask);
-  writeFileSync(join(outDir, "coastStroke.png"), masks.coastStroke);
+  writeFileSync(join(outDir, "landMask.png"), landMask);
 
-  const texArgs = (region: { prompt: string; seed: number }) => ({
-    model: base.model,
-    prompt: region.prompt,
-    seed: region.seed,
-    width,
-    height,
-    guidanceScale: profile.guidanceScale,
-    numInferenceSteps: profile.numInferenceSteps
-  });
-  const [landTexture, seaTexture] = await Promise.all([
-    generateTexture(deps, texArgs(profile.land)),
-    generateTexture(deps, texArgs(profile.sea))
-  ]);
-  writeFileSync(join(outDir, "land.png"), landTexture);
-  writeFileSync(join(outDir, "sea.png"), seaTexture);
-
-  const composited = await compositeMap({
-    landTexture,
-    seaTexture,
-    landMask: masks.landMask,
-    coastStroke: masks.coastStroke,
+  const control = await renderControl({
+    landMask,
+    landColor: base.landColor,
+    seaColor: base.seaColor,
     width,
     height
   });
-  writeFileSync(join(outDir, "composite.png"), composited);
+  writeFileSync(join(outDir, "control.png"), control);
 
-  const aged = await harmonize(composited, profile.harmonize);
-  const webp = await toWebp(aged, { width, height, quality: profile.webpQuality });
+  // Conform the style reference to the board aspect (cover-crop) so the edit model emits the
+  // control's proportions, not the style image's — keeps land/sea aligned with the tiles.
+  const styleImage = await sharp(
+    readFileSync(fileURLToPath(new URL(`../${profile.edit.styleRef}`, import.meta.url)))
+  )
+    .resize(width, height, { fit: "cover" })
+    .jpeg()
+    .toBuffer();
+
+  const edited = await editMapPass(deps, {
+    controlImage: control,
+    styleImage,
+    model: profile.edit.model,
+    prompt: profile.edit.prompt,
+    resolution: profile.edit.resolution,
+    seed: profile.edit.seed
+  });
+  writeFileSync(join(outDir, "edited.png"), edited);
+
+  const webp = await toWebp(edited, { width, height, quality: profile.webpQuality });
   const webpPath = join(outDir, "background.webp");
   writeFileSync(webpPath, webp);
 
   return { outDir, webpPath };
+}
+
+/** Height (px) for a target width that preserves the board SVG's viewBox aspect, so the
+ *  rendered background lines up with the board in the UI and the tiles are never distorted. */
+export function outputHeightForViewBox(svgMarkup: string, width: number): number {
+  const vb = svgMarkup.match(/viewBox="([\d.\s-]+)"/i)?.[1];
+  if (!vb) {
+    throw new Error("outputHeightForViewBox: SVG has no viewBox");
+  }
+  const nums = vb.trim().split(/\s+/).map(Number);
+  const vbWidth = nums[2];
+  const vbHeight = nums[3];
+  if (!vbWidth || !vbHeight) {
+    throw new Error(`outputHeightForViewBox: bad viewBox "${vb}"`);
+  }
+  return Math.round((width * vbHeight) / vbWidth);
 }

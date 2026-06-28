@@ -1,29 +1,37 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod";
 
-const RegionSchema = z.object({ prompt: z.string().min(1), seed: z.number().int() });
-
 const MapProfileSchema = z.object({
   base: z.object({
-    /** fal text-to-image endpoint id used for both region textures. */
-    model: z.string().min(1),
-    landColor: z.string().default("#7e8c5a"),
-    seaColor: z.string().default("#566f80"),
-    outputSize: z.object({ width: z.number().int(), height: z.number().int() }),
-    /** Blur-then-threshold sigma that rounds hex facets into organic coastline. */
-    organicSigma: z.number().min(0).default(2),
-    inkColor: z.string().default("#3a2f23"),
-    strokeWidth: z.number().min(1).default(2)
+    /** Control-image land/sea fills. Bold, distinct colours (green land / blue sea) read most
+     *  reliably to the edit model; the control colour never appears in the final map. */
+    landColor: z.string().default("#2e7d32"),
+    seaColor: z.string().default("#1565c0"),
+    /** Target output width; the height is derived from the board's viewBox so the background
+     *  lines up with the UI and tiles are not distorted. */
+    outputSize: z.object({ width: z.number().int() }),
+    /** Blur-then-threshold sigma that softens the hex facets of the land mask. */
+    organicSigma: z.number().min(0).default(6),
+    /** Domain-warps the land/sea boundary through a smooth noise vector field so hex edges
+     *  bend into natural, connected coastlines. `amplitude` is the max displacement in pixels;
+     *  `scale` is the noise base frequency (smaller = larger bays). amplitude 0 disables. */
+    coastWarp: z
+      .object({
+        amplitude: z.number().min(0).default(160),
+        scale: z.number().positive().default(0.003),
+        seed: z.number().int().default(7)
+      })
+      .default({})
   }),
-  land: RegionSchema,
-  sea: RegionSchema,
-  guidanceScale: z.number().default(3.5),
-  numInferenceSteps: z.number().int().default(34),
-  harmonize: z.object({
-    saturation: z.number().min(0).default(0.6),
-    brightness: z.number().min(0).default(0.96),
-    parchmentTint: z.string().default("#d8c8a8"),
-    vignette: z.boolean().default(true)
+  /** Final render via a multi-image instruction-edit model: a flat land/sea control + a style
+   *  reference image → the map redrawn in that style. `styleRef` is relative to the terrain
+   *  package root. */
+  edit: z.object({
+    model: z.string().default("fal-ai/nano-banana-pro/edit"),
+    styleRef: z.string().default("assets/style-ref.jpeg"),
+    resolution: z.enum(["1K", "2K", "4K"]).default("2K"),
+    seed: z.number().int().default(1568),
+    prompt: z.string().min(1)
   }),
   webpQuality: z.number().int().min(1).max(100).default(82)
 });
