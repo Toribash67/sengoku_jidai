@@ -4,7 +4,7 @@
     "seaColor": "#1565c0",
     "outputSize": { "width": 1024 },
     "organicSigma": 6,
-    "coastWarp": { "amplitude": 160, "scale": 0.003, "seed": 7 }
+    "coastWarp": { "amplitude": 30, "scale": 0.003, "seed": 7 }
   },
   "edit": {
     "model": "fal-ai/nano-banana-pro/edit",

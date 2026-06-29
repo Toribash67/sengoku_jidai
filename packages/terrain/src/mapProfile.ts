@@ -13,11 +13,13 @@ const MapProfileSchema = z.object({
     /** Blur-then-threshold sigma that softens the hex facets of the land mask. */
     organicSigma: z.number().min(0).default(6),
     /** Domain-warps the land/sea boundary through a smooth noise vector field so hex edges
-     *  bend into natural, connected coastlines. `amplitude` is the max displacement in pixels;
-     *  `scale` is the noise base frequency (smaller = larger bays). amplitude 0 disables. */
+     *  bend into natural, connected coastlines. `amplitude` is the max displacement in pixels
+     *  (kept low so the background hugs the tile layout — the override flag on gen:map-control
+     *  can raise it); `scale` is the noise base frequency (smaller = larger bays). amplitude 0
+     *  disables. */
     coastWarp: z
       .object({
-        amplitude: z.number().min(0).default(160),
+        amplitude: z.number().min(0).default(30),
         scale: z.number().positive().default(0.003),
         seed: z.number().int().default(7)
       })
