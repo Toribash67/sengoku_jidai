@@ -9,7 +9,7 @@ const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
  * CLI fail at `mapSvgPath`. Future maps add an entry here.
  */
 const SVG_BY_MAP: Record<string, string> = {
-  rivers: "cloned_map.svg"
+  rivers: "assets/maps/rivers/board.svg"
 };
 
 /** Absolute path to a map's board SVG. Throws on an unknown map id. */

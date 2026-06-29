@@ -7,7 +7,7 @@ import type { SeatId } from "../types.js";
  * scoring/supply-relevant facts. Visual layout (SVG coordinates, hit targets) is
  * owned by the web package and references these area ids.
  *
- * Source of truth is the hand-drawn `cloned_map.svg`, whose clone ids encode the
+ * Source of truth is the hand-drawn `board.svg`, whose clone ids encode the
  * topology declaratively:
  *   - `move-tileN`            -> land area N (the SVG's `move` prefix == the Advance action)
  *   - `bombard/sail-tileN`    -> sea area N
@@ -41,7 +41,7 @@ export interface MapArea {
   harbor: boolean;
   /** Coastal land area that can be targeted by a Shell action from the sea. */
   shellable: boolean;
-  /** General adjacency: every area sharing a border (land, sea, or mixed). Derived from cloned_map.svg; symmetry + no-dangling enforced by riversMap.test.ts. */
+  /** General adjacency: every area sharing a border (land, sea, or mixed). Derived from board.svg; symmetry + no-dangling enforced by riversMap.test.ts. */
   adjacent: string[];
   /** For harbours: water areas reachable via a pier (Embark placement + navy building). */
   ports: string[];
@@ -150,7 +150,7 @@ export const riversMap: MapDefinition = {
   id: riversMapId,
   name: "Rivers",
   areas: Object.fromEntries(areaList.map((area) => [area.id, area])),
-  // Bonus slots match the board art in cloned_map.svg: sunbonus-tile2,
+  // Bonus slots match the board art in board.svg: sunbonus-tile2,
   // moonbonus-tile4, starbonus-tile20.
   bonusSlots: ["tile2", "tile4", "tile20"]
 };

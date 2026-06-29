@@ -5,7 +5,7 @@ import { mapControlPath, mapSvgPath } from "../src/mapSources.js";
 describe("mapSvgPath", () => {
   it("resolves the rivers map SVG to an existing file", () => {
     const path = mapSvgPath("rivers");
-    expect(path.endsWith("cloned_map.svg")).toBe(true);
+    expect(path.endsWith("assets/maps/rivers/board.svg")).toBe(true);
     expect(existsSync(path)).toBe(true);
   });
 
