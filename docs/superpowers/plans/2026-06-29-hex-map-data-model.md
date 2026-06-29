@@ -836,7 +836,7 @@ git commit -m "feat(maps): compile hex source to MapDefinition + layout"
 - Test: `packages/engine/test/maps/hex/deployment.test.ts`
 
 **Interfaces:**
-- Consumes: `compileHexMap` (Task 3), `FIXTURE_HEX_MAP` (Task 2), `setupGame`/`getMap`/`registerMap`.
+- Consumes: `compileHexMap` (Task 3), `FIXTURE_HEX_MAP` (Task 2), `createInitialState`/`getMap`/`registerMap`.
 - Produces:
   - `riversMap.ts`: `export interface StartingUnits { seat: SeatId; troop?: number; ship?: number }`; `MapDefinition.startingDeployment?: Record<string, StartingUnits>`.
   - `registry.ts`: `registerMap(definition: MapDefinition): void`.
@@ -850,15 +850,15 @@ Create `packages/engine/test/maps/hex/deployment.test.ts`:
 import { describe, expect, it } from "vitest";
 import { compileHexMap } from "../../../src/maps/hex/compile.js";
 import { FIXTURE_HEX_MAP } from "../../../src/maps/hex/fixtures.js";
-import { setupGame } from "../../../src/game.js";
+import { createInitialState } from "../../../src/game.js";
 import { registerMap } from "../../../src/maps/registry.js";
 
 describe("map-driven starting deployment", () => {
-  it("setupGame deploys units from the map's startingDeployment", () => {
+  it("createInitialState deploys units from the map's startingDeployment", () => {
     const { definition } = compileHexMap(FIXTURE_HEX_MAP);
     registerMap(definition);
 
-    const state = setupGame({ gameId: "g1", seed: "seed", mapId: definition.id });
+    const state = createInitialState({ gameId: "g1", seed: "seed", mapId: definition.id });
 
     // A: red HQ with 3 troops; C: sea with red ship; E: black HQ with 3 troops.
     expect(state.areas.A!.owner).toBe("red");
@@ -873,7 +873,7 @@ describe("map-driven starting deployment", () => {
   });
 
   it("leaves the Rivers map (no startingDeployment) on the hardcoded fallback", () => {
-    const state = setupGame({ gameId: "g2", seed: "seed", mapId: "rivers" });
+    const state = createInitialState({ gameId: "g2", seed: "seed", mapId: "rivers" });
     // tile9 is the Rivers red HQ with 3 starting troops (RIVERS_STARTING_UNITS).
     expect(state.areas.tile9!.owner).toBe("red");
     expect(state.areas.tile9!.units.troop).toBe(3);
@@ -904,7 +904,7 @@ Then add this field inside the `MapDefinition` interface (alongside `bonusSlots`
 ```ts
   /**
    * Optional map-driven starting deployment, keyed by area id. When present,
-   * `setupGame` uses it instead of the hardcoded Rivers fallback.
+   * `createInitialState` uses it instead of the hardcoded Rivers fallback.
    */
   startingDeployment?: Record<string, StartingUnits>;
 ```

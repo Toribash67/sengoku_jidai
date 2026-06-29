@@ -160,7 +160,7 @@ Validation is also exported standalone (`validateHexMap(source): void`) so the f
 Today `game.ts` hardcodes `RIVERS_STARTING_UNITS` keyed by Rivers tile ids. To make custom maps playable, deployment must come from the map.
 
 - Add **optional** `startingDeployment?: Record<string, StartingUnits>` to `MapDefinition`.
-- `setupGame` prefers `map.startingDeployment` when present; otherwise falls back to the existing `RIVERS_STARTING_UNITS` (so Rivers is unaffected until #3).
+- `createInitialState` (the engine's game-setup function) prefers `map.startingDeployment` when present; otherwise falls back to the existing `RIVERS_STARTING_UNITS` (so Rivers is unaffected until #3).
 - The fallback is removed in sub-project 3 when Rivers is re-authored as a `HexMapSource` carrying its own deployment.
 
 This is the only change to runtime rules code in #1, and it is backward-compatible (Rivers behavior is byte-for-byte unchanged because it has no `startingDeployment` yet).
@@ -198,6 +198,6 @@ Exports are surfaced through `packages/engine/src/index.ts` (the authoring types
 ## 10. Done criteria
 
 - `coords.ts`, `source.ts`, `compile.ts`, `validate.ts`, `fixtures.ts` implemented and exported.
-- `MapDefinition` gains optional `startingDeployment`; `setupGame` consumes it with the Rivers fallback intact.
+- `MapDefinition` gains optional `startingDeployment`; `createInitialState` consumes it with the Rivers fallback intact.
 - All new tests pass; existing engine tests (incl. `riversMap.test.ts`) remain green.
 - No rendering / editor / server code introduced.
