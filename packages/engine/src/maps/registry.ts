@@ -14,6 +14,12 @@ const maps: Record<string, MapDefinition> = {
   [riversMap.id]: riversMap
 };
 
+/** Register (or replace) a map at runtime — used by tests and, later, the server's
+ *  dynamic map library. Additive: does not affect the built-in maps unless ids collide. */
+export function registerMap(definition: MapDefinition): void {
+  maps[definition.id] = definition;
+}
+
 export function getMap(id: string): MapDefinition {
   const map = maps[id];
   if (!map) {

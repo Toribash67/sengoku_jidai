@@ -40,7 +40,8 @@ export function compileHexMap(source: HexMapSource): CompiledMap {
     id: source.id,
     name: source.name,
     areas,
-    bonusSlots: [...source.bonusSlots]
+    bonusSlots: [...source.bonusSlots],
+    startingDeployment: { ...source.startingDeployment }
   };
 
   return { definition, layout: buildLayout(source) };

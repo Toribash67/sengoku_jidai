@@ -1,16 +1,8 @@
 import type { SeatId } from "../../types.js";
 import type { Axial, HexLayout } from "./coords.js";
+import type { StartingUnits } from "../riversMap.js";
 
-/**
- * Map-driven starting unit placement for a tile. Interim home: Task 4 moves the
- * canonical declaration to `riversMap.ts` (next to `MapDefinition`) and this file
- * re-imports it, so engine setup and the authoring format share one shape.
- */
-export interface StartingUnits {
-  seat: SeatId;
-  troop?: number;
-  ship?: number;
-}
+export type { StartingUnits };
 
 /** One game tile: a connected set of same-kind hexes plus its feature flags. */
 export interface HexTileSource {

@@ -99,7 +99,7 @@ export function createInitialState(options: GameSetupOptions): GameState {
   // future deployment leaves it ungarrisoned; otherwise ownership follows the deploying seat.
   const areas: Record<string, AreaRuntime> = {};
   for (const area of Object.values(map.areas)) {
-    const start = RIVERS_STARTING_UNITS[area.id];
+    const start = (map.startingDeployment ?? RIVERS_STARTING_UNITS)[area.id];
     const units = zeroUnits();
     if (start) {
       units.troop = start.troop ?? 0;
