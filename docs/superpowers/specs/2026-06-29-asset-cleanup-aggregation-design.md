@@ -45,15 +45,29 @@ Stale assets:
 - `packages/terrain/assets/controls/rivers-control.png`
 
 Dead old-pipeline code (verified imported only by each other / removed entry points; nothing
-in the new pipeline or outside `@sengoku-jidai/terrain` imports them):
-- src: `cli.ts`, `controlCli.ts`, `matrixCli.ts`, `pipeline.ts`, `matrixBackend.ts`,
-  `matrixProfile.ts`, `contactSheet.ts`
-- tests: `matrixBackend.test.ts`, `matrixProfile.test.ts`, `contactSheet.test.ts`
+in the new pipeline or outside `@sengoku-jidai/terrain` imports them). Verification during
+planning found the dead set is larger than first listed — the new pipeline's `editPass.ts`
+imports only `firstImageUrl` / `FalClient` / `FetchFn` from `backend.ts`, so
+`createFalBackend` / `TerrainBackend` / `StyleProfile` (and thus `styleProfile.ts` and
+`antique.json`) are also dead:
+- src (delete whole file): `cli.ts`, `controlCli.ts`, `matrixCli.ts`, `pipeline.ts`,
+  `matrixBackend.ts`, `matrixProfile.ts`, `contactSheet.ts`, `styleProfile.ts`
+- src (trim): `backend.ts` — remove `createFalBackend` and the `TerrainBackend` interface
+  and the `StyleProfile` import; **keep** `firstImageUrl`, `FalClient`, `FetchFn`.
+- tests (delete): `matrixBackend.test.ts`, `matrixProfile.test.ts`, `contactSheet.test.ts`,
+  `styleProfile.test.ts`
+- tests (rewrite): `backend.test.ts` — drop the `createFalBackend` cases; cover the kept
+  `firstImageUrl` (returns the first image url; throws when none).
+- profiles: `antique.json`, `matrix.json` (only the removed pipeline loaded them);
+  `map.json` stays.
 - `package.json` scripts: `gen`, `gen:base`, `gen:matrix`
+- Check `packages/terrain/profiles/README.md` and `packages/terrain/README.md` for stale
+  references to the removed profiles/scripts; fix.
 
-Kept (used by the new `gen:map` / `gen:map-control` pipeline): `backend`, `styleProfile`,
+Kept (used by the new `gen:map` / `gen:map-control` pipeline): `backend` (trimmed),
 `postprocess`, `controlImage`, `composite`, `editPass`, `masks`, `mapSources`,
-`mapProfile`, `mapPipeline`, `mapPipelineCli`, `mapControlCli`, `mapControlArgs`.
+`mapProfile`, `mapPipeline`, `mapPipelineCli`, `mapControlCli`, `mapControlArgs`;
+profile `map.json`.
 
 ## Target layout
 
