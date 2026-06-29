@@ -1,18 +1,18 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getMap } from "@sengoku-jidai/engine";
 import { renderControl } from "./composite.js";
 import { renderLandMask } from "./masks.js";
-import { mapControlPath, mapSvgPath } from "./mapSources.js";
+import { mapSvgPath } from "./mapSources.js";
 import { loadMapProfile } from "./mapProfile.js";
 import { outputHeightForViewBox } from "./mapPipeline.js";
 import { parseMapControlArgs } from "./mapControlArgs.js";
 
 /**
- * Render the flat land/sea control image for a map and write it to a committed asset. This is
- * the deterministic input the edit model receives — fal-free (no API key, no cost), so the
- * control is always readily available in the repo and regenerable when the warp/profile changes.
+ * Render the flat land/sea control image for a map and write it to the scratch output dir. This
+ * is a fal-free preview (no API key, no cost) used for inspecting and tuning the control — e.g.
+ * adjusting `--amplitude` — without committing anything to the repo.
  */
 async function main(): Promise<void> {
   const { mapId, amplitude } = parseMapControlArgs(process.argv.slice(2));
@@ -45,7 +45,11 @@ async function main(): Promise<void> {
     height
   });
 
-  const outPath = mapControlPath(mapId);
+  const baseOut =
+    process.env.TERRAIN_OUT_DIR ??
+    fileURLToPath(new URL(`../../../terrain/${mapId}`, import.meta.url));
+  const outDir = process.env.TERRAIN_OUT_DIR ? join(baseOut, mapId) : baseOut;
+  const outPath = join(outDir, "control.png");
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, control);
   console.log(`[terrain] control written: ${outPath}`);
