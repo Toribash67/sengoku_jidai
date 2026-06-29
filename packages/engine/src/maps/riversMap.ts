@@ -1,5 +1,12 @@
 import type { SeatId } from "../types.js";
 
+/** Map-driven starting unit placement for a tile (seat + counts). */
+export interface StartingUnits {
+  seat: SeatId;
+  troop?: number;
+  ship?: number;
+}
+
 /**
  * Static topology for the "Rivers" board (the base General Orders: Sengoku Jidai map).
  *
@@ -57,6 +64,11 @@ export interface MapDefinition {
    * per slot). The map author defines which areas qualify.
    */
   bonusSlots: string[];
+  /**
+   * Optional map-driven starting deployment, keyed by area id. When present,
+   * `setupGame` uses it instead of the hardcoded Rivers fallback.
+   */
+  startingDeployment?: Record<string, StartingUnits>;
 }
 
 export const riversMapId = "rivers";
