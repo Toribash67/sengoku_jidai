@@ -4,9 +4,9 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages ./packages
-# The web build inlines the canonical map (packages/web imports ../../../../../cloned_map.svg?raw).
+# The web build inlines the canonical map (packages/web imports ../../../../../assets/maps/rivers/board.svg?raw).
 # Card art lives under packages/web/src/assets (web-sized webp), copied via `COPY packages`.
-COPY cloned_map.svg ./
+COPY assets ./assets
 
 RUN corepack enable
 RUN corepack pnpm install --frozen-lockfile

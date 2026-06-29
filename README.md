@@ -86,49 +86,50 @@ tests, a Production Build, a Browser Smoke Test, and the container image build.
 ## Terrain backgrounds
 
 The board can render a faded, antique-style **terrain background** behind the SVG
-vectors. Its coastlines follow the map's hex land/sea data: a colour **base** (land vs.
-sea) is rendered straight from the board SVG, then a hosted image-to-image model
-(Flux) restyles it into antique watercolour while preserving the regions. This is an
-**offline, dev-only** step: the generated image is committed as a static asset, so the
-running app and CI never call any image API. Until an asset is committed, the board
-renders with flat tile fills as before.
+vectors. Its coastlines follow the map's hex land/sea data: a land/sea **control** image
+is rendered from the board SVG, then a hosted multi-image **edit** model (control + style
+reference → restyled map) redraws it in an antique hand-drawn style while preserving the
+regions. This is an **offline, dev-only** step: the generated image is committed as a
+static asset, so the running app and CI never call any image API. Until an asset is
+committed, the board renders with flat tile fills as before.
 
 The pipeline lives in [`packages/terrain`](packages/terrain) — see its
 [README](packages/terrain/README.md) for full details and style tuning.
 
-### Preview the colour base (no API key, no cost)
+### Preview the land/sea control (no API key, no cost)
 
-The base is the green-land / blue-sea map (with organic coastlines) that conditions
-generation. Render it on its own:
+The control is the green-land / blue-sea image (with organic, domain-warped coastlines)
+that conditions generation. Render it on its own to tune the coastline:
 
 ```bash
 corepack pnpm build:libs
-corepack pnpm --filter @sengoku-jidai/terrain gen:base rivers
+corepack pnpm --filter @sengoku-jidai/terrain gen:map-control rivers
+# sweep the coastline distortion without editing the profile:
+corepack pnpm --filter @sengoku-jidai/terrain gen:map-control rivers --amplitude 60
 ```
 
-This writes **`terrain/rivers/base.png`** (repo root) — handy to sanity-check a map's
-land/sea layout before spending a generation.
+This writes `terrain/rivers/control.png` (git-ignored scratch) — handy to sanity-check a
+map's land/sea layout before spending a generation.
 
 ### Generate a terrain background (full pipeline)
 
-This calls the hosted **fal.ai** API, so it needs an API key (no reference image required):
+This calls the hosted **fal.ai** edit model, so it needs an API key:
 
 ```bash
 export FAL_KEY=...   # or put it in the git-ignored .env (see .env.example)
 corepack pnpm build:libs
-corepack pnpm --filter @sengoku-jidai/terrain gen rivers
+corepack pnpm --filter @sengoku-jidai/terrain gen:map rivers
 ```
 
-It writes `terrain/rivers/base.png` and `terrain/rivers/generated.png` (for
-inspection) and the committed board asset
-`packages/web/src/assets/terrain/rivers.webp`. Review the outputs, then **commit the
-`.webp`** — the web board picks it up automatically (Vite bundles
-`src/assets/terrain/*.webp`).
+It builds the control from the board SVG, sends it with the shared style reference
+(`packages/terrain/assets/style-ref.jpeg`) to the edit model, and writes intermediates plus
+`background.webp` to the scratch dir. Promote the result by copying it to
+`packages/web/src/assets/<mapId>/background.webp` and committing it — the web board picks it
+up automatically (Vite globs `src/assets/*/background.webp`).
 
 The art style is controlled by one shared profile
-([`packages/terrain/profiles/antique.json`](packages/terrain/profiles/antique.json)),
-so every map looks consistent; adding a future map only needs an `SVG_BY_MAP` entry
-and a generation run.
+([`packages/terrain/profiles/map.json`](packages/terrain/profiles/map.json)), so every map
+looks consistent; adding a future map needs an `SVG_BY_MAP` entry and a generation run.
 
 ## Deployment
 

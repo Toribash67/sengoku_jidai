@@ -1,87 +1,44 @@
 # @sengoku-jidai/terrain
 
-A **dev-only** offline pipeline that generates faded, antique-style terrain background
-images for the game board. It is not part of the app or the Docker image — it produces a
-static `webp` asset that the web client renders behind the SVG vectors.
+A **dev-only** offline pipeline that generates antique-style terrain background images for
+the game board. It runs outside the app and CI: the generated image is committed as a static
+asset, so the running app never calls an image API. Until an asset is committed, the board
+renders with flat tile fills.
 
-The coastlines of the generated image follow the map's hex **land/sea** data. It works by
-**image-to-image**: a colour **base** is rendered from the board SVG (land/outside in one
-colour, sea in another), then a hosted model restyles it into antique watercolour. Carrying
-the regions as colour is what makes the model put water in the sea and terrain on the land
-(plain ControlNet only constrains edges, so it draws a hex grid and leaves the sea empty). A
-single shared **style profile** keeps the look consistent across maps. **No reference image
-is needed.**
+## How it works
 
-```
-board SVG ─┐
-           ├─▶ colour base (land green / sea blue, blurred → organic coastline)  ─┐
-MapDef ────┘                                                                      │
-style profile (prompt + seed + colours + strength) ───────────────────────────────┼─▶ fal.ai (Flux img2img)
-                                                                                  │        │
-                                                                                  ▼        ▼
-                                              terrain/<mapId>/base.png   terrain/<mapId>/generated.png
-                                                                                           │
-                                                                                           ▼  (resize → webp)
-                                                  packages/web/src/assets/terrain/<mapId>.webp  ← committed asset
-```
+1. Render a flat land/sea **control** image from the board SVG (`assets/maps/<map>/board.svg`):
+   green = land, blue = sea, with the hex coastline domain-warped into organic shores.
+2. Send the control plus a shared **style reference**
+   (`assets/style-ref.jpeg`) to a multi-image instruction-**edit** model (fal.ai
+   `nano-banana-pro/edit`), which redraws the control's land/sea layout in the reference's
+   hand-drawn style.
+3. Convert to `background.webp` at the board's aspect ratio.
 
-The base is rendered headlessly with `sharp` + `jsdom` (no browser), so the CLI runs anywhere.
+Everything that controls the look lives in one shared profile,
+[`profiles/map.json`](profiles/map.json) — see [`profiles/README.md`](profiles/README.md).
 
-## Preview the colour base (no API key, no cost)
-
-The base is what conditions generation — its land/sea regions and coastlines. Render it on
-its own, free:
+## Commands
 
 ```bash
-pnpm build:libs                                      # build the engine (one time / after engine changes)
-pnpm --filter @sengoku-jidai/terrain gen:base rivers # render only the colour base
+# Preview only the land/sea control (no API key, no cost). Writes terrain/<map>/control.png.
+pnpm --filter @sengoku-jidai/terrain gen:map-control <mapId> [--amplitude <px>]
+
+# Full pipeline (needs FAL_KEY). Writes the control, intermediates, and background.webp.
+pnpm --filter @sengoku-jidai/terrain gen:map <mapId>
 ```
 
-It writes **`terrain/rivers/base.png`** (repo root) — the green land / blue sea map with
-softened (organic) coastlines. The quickest way to sanity-check a new map before spending a
-generation.
+`--amplitude <px>` overrides the profile's coastline-warp amplitude (max pixel displacement;
+0 disables) so you can sweep distortion cheaply with the fal-free control render.
 
-## Generate a terrain background (full pipeline)
+## Output location
 
-This calls the hosted **fal.ai** API, so it needs an API key (no reference image required):
+Both commands write to `TERRAIN_OUT_DIR/<mapId>/` if `TERRAIN_OUT_DIR` is set, otherwise the
+git-ignored repo-local `terrain/<mapId>/`. To ship a generated background, copy
+`background.webp` to `packages/web/src/assets/<mapId>/background.webp` and commit it.
 
-```bash
-export FAL_KEY=...                               # see .env.example; or put it in the git-ignored .env
-pnpm build:libs                                  # build the engine first
-pnpm --filter @sengoku-jidai/terrain gen rivers  # render base → img2img → webp
-```
+## Adding a map
 
-Outputs:
-
-| Path                                           | What                                        | Commit it? |
-| ---------------------------------------------- | ------------------------------------------- | ---------- |
-| `terrain/<mapId>/base.png`                     | The colour base fed to img2img (inspection) | optional   |
-| `terrain/<mapId>/generated.png`                | The raw full-res generation (inspection)    | optional   |
-| `packages/web/src/assets/terrain/<mapId>.webp` | The bundled board background                | **yes**    |
-
-Inspect the outputs, and when you're happy, **commit the `.webp`**. The web board picks it up
-automatically (Vite bundles `src/assets/terrain/*.webp`); until an asset is committed, the
-board renders with flat tile fills as before.
-
-## Tuning the style
-
-Everything that controls the look lives in [`profiles/antique.json`](profiles/antique.json),
-shared by every map (full field list in [`profiles/README.md`](profiles/README.md)):
-
-- `prompt` / `seed` — locked text + seed for consistency.
-- `strength` — the key dial. Too low keeps the flat base (no texture); too high reshapes the
-  geography; **0.92** adds antique texture while preserving the layout.
-- `landColor` / `seaColor` — the base colours that carry land vs. water into the result.
-- `blurSigma` — softens hex corners into organic coastlines (a hard hex edge makes the model
-  draw a grid).
-- `model` — the fal.ai image-to-image endpoint (default `fal-ai/flux/dev/image-to-image`).
-
-To restyle every map, tune one profile and regenerate. A second art style is a second profile.
-
-## Adding terrain for a future map
-
-1. Author the map's SVG (tile ids `#tileN`) and its `MapDefinition` (registered in the engine).
-2. Add the map's SVG path to `SVG_BY_MAP` in [`src/mapSources.ts`](src/mapSources.ts).
-3. `pnpm --filter @sengoku-jidai/terrain gen:base <mapId>` and check the colour base.
-4. `pnpm --filter @sengoku-jidai/terrain gen <mapId>` and review the result.
-5. Commit `packages/web/src/assets/terrain/<mapId>.webp`. No per-map style work is needed.
+1. Add the board SVG at `assets/maps/<mapId>/board.svg`.
+2. Add an `SVG_BY_MAP` entry in `src/mapSources.ts`.
+3. Run `gen:map <mapId>` and promote the resulting `background.webp`.

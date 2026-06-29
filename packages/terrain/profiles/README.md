@@ -1,95 +1,28 @@
-# Style profiles
+# Map profile
 
-Each profile defines one shared art style, applied to every map so backgrounds
-look like siblings. `antique.json` is the default. No reference image is needed —
-the regions and style come entirely from the colour base and the prompt.
+[`map.json`](map.json) is the single shared profile for terrain generation. One style is
+applied to every map so backgrounds look like siblings.
 
-## Tuning
+## `base` — the land/sea control
 
-- `prompt` / `seed`: locked text + seed for consistency.
-- `strength`: image-to-image denoise. The key dial — too low keeps the flat colour
-  base (no texture), too high reshapes the geography; ~0.92 adds antique texture
-  while preserving the land/sea layout.
-- `landColor` / `seaColor`: the colours painted into the base for land vs. sea. They
-  carry the regions into the result, so the model knows where water goes.
-- `blurSigma`: Gaussian blur on the base — rounds the hex corners into organic
-  coastlines (a hard hex coastline makes the model draw a grid).
-- `model`: the fal.ai image-to-image endpoint (default `fal-ai/flux/dev/image-to-image`).
-- `guidanceScale` / `numInferenceSteps` / `enableSafetyChecker`: standard model knobs.
-  Safety is off by default because fal's checker false-positives on these flat bases.
-- `outputSize` / `webpQuality`: final asset dimensions (matched to the board viewBox
-  aspect) and webp quality.
+- `landColor` / `seaColor`: fills painted into the control for land vs. sea (bold green/blue
+  read most reliably to the edit model; they never appear in the final map).
+- `outputSize.width`: control render width; height is derived from the board viewBox.
+- `organicSigma`: blur that softens the hex facets of the land mask.
+- `coastWarp`: domain-warps the coastline through a smooth noise field.
+  - `amplitude`: max displacement in pixels (kept low so the background hugs the tile
+    layout; `gen:map-control --amplitude` overrides it; 0 disables).
+  - `scale`: noise base frequency (smaller = larger bays).
+  - `seed`: noise seed.
 
-## Verified fal endpoints (matrix)
+## `edit` — the style pass
 
-Verified 2026-06-28 by fetching fal.ai model pages and OpenAPI schemas directly.
-Fields marked **UNVERIFIED** could not be confirmed from the live schema/docs.
+- `model`: the fal.ai multi-image edit endpoint (default `fal-ai/nano-banana-pro/edit`).
+- `styleRef`: path (relative to the package root) to the style reference image.
+- `resolution`: `1K` / `2K` / `4K`.
+- `seed`: locked seed for reproducibility.
+- `prompt`: instructions mapping green→land and blue→sea in the reference's style.
 
-| method tag              | endpoint id                                        | source/control image param                                                  | strength/conditioning param                                                      | extras                                                                                                                                                                                                                                                                                                                                                                       |
-| ----------------------- | -------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `flux-img2img`          | `fal-ai/flux/dev/image-to-image`                   | `image_url`                                                                 | `strength` (0.01–1.0, default 0.95)                                              | No `image_size` param — output dims follow input image                                                                                                                                                                                                                                                                                                                       |
-| `flux-controlnet-canny` | `fal-ai/flux-control-lora-canny/image-to-image`    | `control_lora_image_url` (canny edge control); `image_url` (i2i base image) | `control_lora_strength` (float, default 1); `strength` (i2i blend, default 0.85) | Both a base img and a canny control img are accepted; original candidate `fal-ai/flux-controlnet-canny` returned 404                                                                                                                                                                                                                                                         |
-| `recraft-v3`            | `fal-ai/recraft/v3/image-to-image`                 | `image_url`                                                                 | `strength` (0–1, default 0.5)                                                    | `style` field accepted (string enum, e.g. `"realistic_image"`); `style_id` for custom styles; original candidate `fal-ai/recraft-v3/image-to-image` returned 404                                                                                                                                                                                                             |
-| `sdxl-map-lora`         | `fal-ai/fast-sdxl/image-to-image`                  | `image_url`                                                                 | `strength` (0.05–1.0, default 0.95)                                              | `loras` array shape: `[{ path: string, scale?: number (0–1, default 1), force?: boolean }]`; chosen LoRA URL: `https://civitai.com/api/download/models/427437` (Fantasy Map – Heavy, SDXL 1.0, trigger word: `fantasy map`) — **UNVERIFIED** (URL resolves on civitai; fal.ai accepts civitai download URLs per docs, but this specific URL has not been test-called on fal) |
-| `sd35-large`            | `fal-ai/stable-diffusion-v35-large/image-to-image` | `image_url`                                                                 | `strength` (0.01–1.0, default 0.83)                                              | Also accepts `controlnet`, `loras`, `ip_adapter` objects                                                                                                                                                                                                                                                                                                                     |
+## `webpQuality`
 
-### Notes
-
-- `fal-ai/flux-controlnet-canny` (the originally guessed canny endpoint) returned HTTP 404.
-  The confirmed i2i canny endpoint is `fal-ai/flux-control-lora-canny/image-to-image`.
-  A pure-canny text-to-image variant also exists at `fal-ai/flux-lora-canny` (takes `image_url`
-  as the canny source, no explicit conditioning-scale param).
-- `fal-ai/recraft-v3/image-to-image` (the originally guessed Recraft endpoint) returned HTTP 404.
-  The confirmed path is `fal-ai/recraft/v3/image-to-image`.
-- The `flux-img2img` baseline (`fal-ai/flux/dev/image-to-image`) schema does **not** include an
-  `image_size` parameter — output dimensions follow the input image.
-- LoRA URL for `sdxl-map-lora`: `https://civitai.com/api/download/models/427437`
-  (civitai model 382959 "Fantasy Map – Heavy", safetensors, ~218 MB, SDXL 1.0).
-  Marked **UNVERIFIED** because no live fal.ai call was made to confirm it loads.
-  Confidence: medium — civitai download URLs are documented as supported by fal.ai fast-sdxl.
-
-## Comparison harness (gen:matrix)
-
-Use `pnpm --filter @sengoku-jidai/terrain gen:matrix <mapId>` to render and compare candidates side-by-side.
-
-**Prerequisite:** set `FAL_KEY` (see `.env.example`, or put it in the git-ignored `.env`). Each full run makes ~15 fal.ai calls (one per candidate in `matrix.json`). To generate the whole matrix for the bundled `rivers` map:
-
-```bash
-pnpm --filter @sengoku-jidai/terrain gen:matrix rivers
-```
-
-### What it does
-
-Reads `profiles/matrix.json`, renders the shared colour base once, runs every candidate configuration through fal.ai, and writes:
-
-- `terrain/<mapId>/candidates/_base.png` — the colour base
-- `terrain/<mapId>/candidates/<label>.png` — per-candidate result
-- `terrain/<mapId>/candidates/contact-sheet.png` — all candidates in a grid (failed candidates appear as dark cells)
-
-The committed `.webp` and `antique.json` are **not** touched.
-
-### How to explore
-
-1. Edit `profiles/matrix.json` to add, trim, or modify candidates:
-   - Add a new entry to `candidates[]` with a unique `label`, plus `method`, `model`, `prompt`, and `seed`. Set the method's dial: `strength` for the img2img-style methods, `conditioningScale` for `flux-controlnet-canny` (and `loraUrl` / `style` where the method uses them).
-   - Change prompts, dials, or models to compare different approaches on the same map.
-   - Delete entries to exclude them from the next run.
-
-2. Re-run:
-
-   ```bash
-   pnpm --filter @sengoku-jidai/terrain gen:matrix rivers
-   ```
-
-3. Open `terrain/rivers/candidates/contact-sheet.png` to compare the results.
-
-### Manual promotion
-
-Once you pick a winner from the contact sheet:
-
-1. Copy its `model`, `prompt`, `strength`, and `seed` into `profiles/antique.json`.
-2. Run:
-   ```bash
-   pnpm --filter @sengoku-jidai/terrain gen <mapId>
-   ```
-3. This emits the committed `<mapId>.webp` and keeps `antique.json` stable for all future maps.
+Final webp quality (1–100).

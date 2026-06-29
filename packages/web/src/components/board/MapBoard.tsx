@@ -1,6 +1,6 @@
 import type { PlayerAreaView, SeatId } from "@sengoku-jidai/engine";
 import { useEffect, useRef } from "react";
-import rawMapSvg from "../../../../../cloned_map.svg?raw";
+import rawMapSvg from "../../../../../assets/maps/rivers/board.svg?raw";
 import { SEAT_SOLID, TILE_LAND_FILL, TILE_SEA_FILL, tileFill } from "./tileFill.js";
 import { slotIdForSpace } from "./slotMapping.js";
 
@@ -452,7 +452,7 @@ function decorate(
   for (const area of areas) {
     const tile = svg.querySelector<SVGGraphicsElement>(`#${CSS.escape(area.id)}`);
     if (!tile) {
-      throw new Error(`cloned_map.svg has no element for area "${area.id}"`);
+      throw new Error(`board.svg has no element for area "${area.id}"`);
     }
     // Supplied tiles keep their natural map colour; a translucent overlay provides the tint.
     // Unsupplied-owned tiles get the stripe pattern. Unowned tiles keep their authored colour.

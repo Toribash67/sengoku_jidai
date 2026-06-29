@@ -1,7 +1,7 @@
 import type { OperationCard } from "./state.js";
 
 /**
- * The Rivers operation-card deck. Each id IS the artwork filename in `cards/rivers/`
+ * The Rivers operation-card deck. Each id IS the artwork filename in `assets/maps/rivers/cards/`
  * (`<id>.png`), so the web needs no id→file mapping. Card-specific abilities are not yet
  * implemented; for now any card may be discarded to reroll a combat's dice.
  */

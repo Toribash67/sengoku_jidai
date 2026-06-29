@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveTerrain } from "../../src/components/board/terrainImages.js";
 
 const modules = {
-  "/src/assets/terrain/rivers.webp": "/assets/rivers.hash.webp"
+  "/src/assets/rivers/background.webp": "/assets/rivers.hash.webp"
 };
 
 describe("resolveTerrain", () => {
