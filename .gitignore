@@ -10,6 +10,9 @@ test-results/
 # Large local-only source material (rulebook PDF, map scans) — kept on disk, never committed
 source-material/
 
+# Terrain generation scratch output (gen:map / gen:map-control default dir)
+/terrain/
+
 # Visual brainstorming companion
 .superpowers/
 
