@@ -7,6 +7,7 @@ import { renderLandMask } from "./masks.js";
 import { mapControlPath, mapSvgPath } from "./mapSources.js";
 import { loadMapProfile } from "./mapProfile.js";
 import { outputHeightForViewBox } from "./mapPipeline.js";
+import { parseMapControlArgs } from "./mapControlArgs.js";
 
 /**
  * Render the flat land/sea control image for a map and write it to a committed asset. This is
@@ -14,15 +15,19 @@ import { outputHeightForViewBox } from "./mapPipeline.js";
  * control is always readily available in the repo and regenerable when the warp/profile changes.
  */
 async function main(): Promise<void> {
-  const mapId = process.argv[2];
-  if (!mapId) {
-    throw new Error("usage: pnpm --filter @sengoku-jidai/terrain gen:map-control <mapId>");
-  }
+  const { mapId, amplitude } = parseMapControlArgs(process.argv.slice(2));
   const profile = loadMapProfile(fileURLToPath(new URL("../profiles/map.json", import.meta.url)));
   const { base } = profile;
   const svgMarkup = readFileSync(mapSvgPath(mapId), "utf8");
   const width = base.outputSize.width;
   const height = outputHeightForViewBox(svgMarkup, width);
+
+  const coastWarp = { ...base.coastWarp, amplitude: amplitude ?? base.coastWarp.amplitude };
+  console.log(
+    `[terrain] coastWarp amplitude: ${coastWarp.amplitude} ${
+      amplitude === undefined ? "(profile)" : "(override)"
+    }`
+  );
 
   const landMask = await renderLandMask({
     svgMarkup,
@@ -30,7 +35,7 @@ async function main(): Promise<void> {
     width,
     height,
     organicSigma: base.organicSigma,
-    coastWarp: base.coastWarp
+    coastWarp
   });
   const control = await renderControl({
     landMask,
