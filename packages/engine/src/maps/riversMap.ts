@@ -1,4 +1,6 @@
 import type { SeatId } from "../types.js";
+import { compileHexMap } from "./hex/compile.js";
+import { riversSource } from "./riversSource.js";
 
 /** Map-driven starting unit placement for a tile (seat + counts). */
 export interface StartingUnits {
@@ -73,96 +75,6 @@ export interface MapDefinition {
 
 export const riversMapId = "rivers";
 
-function area(
-  id: string,
-  kind: AreaKind,
-  adjacent: string[],
-  opts: {
-    hq?: SeatId;
-    valueStars?: 0 | 1 | 2;
-    harbor?: boolean;
-    shellable?: boolean;
-    ports?: string[];
-  } = {}
-): MapArea {
-  return {
-    id,
-    kind,
-    hq: opts.hq ?? null,
-    valueStars: opts.valueStars ?? 0,
-    harbor: opts.harbor ?? false,
-    shellable: opts.shellable ?? false,
-    adjacent,
-    ports: opts.ports ?? []
-  };
-}
-
-// Adjacency is the full general border graph (land, sea, and mixed land<->sea
-// edges), hand-authored by the map author 2026-06-20 and verified symmetric. It
-// replaces the earlier list that omitted land<->sea borders — notably so the
-// shellable coastal lands {10,12,19,21} each border a sea for Shell to target.
-const areaList: MapArea[] = [
-  area("tile1", "land", ["tile2", "tile6", "tile9", "tile10"]),
-  area("tile2", "land", ["tile1", "tile3", "tile6"], { valueStars: 1 }),
-  area("tile3", "sea", ["tile2", "tile4", "tile6", "tile7", "tile8"], { valueStars: 1 }),
-  area("tile4", "land", ["tile3", "tile5", "tile8"], { valueStars: 1 }),
-  area("tile5", "land", ["tile4", "tile8", "tile12", "tile13"]),
-  area("tile6", "land", ["tile1", "tile2", "tile3", "tile7", "tile10"], {
-    valueStars: 1,
-    harbor: true,
-    ports: ["tile3", "tile7"]
-  }),
-  area("tile7", "sea", ["tile3", "tile6", "tile8", "tile10", "tile11", "tile12"], {
-    valueStars: 1
-  }),
-  area("tile8", "land", ["tile3", "tile4", "tile5", "tile7", "tile12"], {
-    valueStars: 1,
-    harbor: true,
-    ports: ["tile3", "tile7"]
-  }),
-  area("tile9", "land", ["tile1", "tile10", "tile14", "tile15"], {
-    hq: "red",
-    harbor: true,
-    ports: ["tile14", "tile15"]
-  }),
-  area("tile10", "land", ["tile1", "tile6", "tile7", "tile9", "tile11", "tile15"], {
-    shellable: true
-  }),
-  area("tile11", "sea", ["tile7", "tile10", "tile12", "tile15", "tile16", "tile17"], {
-    valueStars: 1
-  }),
-  area("tile12", "land", ["tile5", "tile7", "tile8", "tile11", "tile13", "tile17"], {
-    shellable: true
-  }),
-  area("tile13", "land", ["tile5", "tile12", "tile17", "tile18"], {
-    hq: "black",
-    harbor: true,
-    ports: ["tile17", "tile18"]
-  }),
-  area("tile14", "sea", ["tile9", "tile15", "tile19", "tile22"]),
-  area("tile15", "sea", ["tile9", "tile10", "tile11", "tile14", "tile16", "tile19"], {
-    valueStars: 1
-  }),
-  area("tile16", "land", ["tile11", "tile15", "tile17", "tile19", "tile20", "tile21"], {
-    valueStars: 2,
-    harbor: true,
-    ports: ["tile11", "tile15", "tile17"]
-  }),
-  area("tile17", "sea", ["tile11", "tile12", "tile13", "tile16", "tile18", "tile21"], {
-    valueStars: 1
-  }),
-  area("tile18", "sea", ["tile13", "tile17", "tile21", "tile22"]),
-  area("tile19", "land", ["tile14", "tile15", "tile16", "tile20", "tile22"], { shellable: true }),
-  area("tile20", "land", ["tile16", "tile19", "tile21", "tile22"], { valueStars: 2 }),
-  area("tile21", "land", ["tile16", "tile17", "tile18", "tile20", "tile22"], { shellable: true }),
-  area("tile22", "sea", ["tile14", "tile18", "tile19", "tile20", "tile21"])
-];
-
-export const riversMap: MapDefinition = {
-  id: riversMapId,
-  name: "Rivers",
-  areas: Object.fromEntries(areaList.map((area) => [area.id, area])),
-  // Bonus slots match the board art in board.svg: sunbonus-tile2,
-  // moonbonus-tile4, starbonus-tile20.
-  bonusSlots: ["tile2", "tile4", "tile20"]
-};
+/** Runtime Rivers definition, compiled from the hex source (adjacency auto-derived
+ *  from shared hex edges). Topology equivalence is locked by riversSource.test.ts. */
+export const riversMap: MapDefinition = compileHexMap(riversSource).definition;
