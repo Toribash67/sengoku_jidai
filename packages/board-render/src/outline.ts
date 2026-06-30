@@ -81,6 +81,7 @@ function traceRings(edges: Edge[]): Pixel[][] {
       let prev = startKey;
       let cur = firstNext;
       used.add(usedKey(prev, cur));
+      let closed = true;
       while (cur !== startKey) {
         ring.push(points.get(cur)!);
         let moved = false;
@@ -95,10 +96,13 @@ function traceRings(edges: Edge[]): Pixel[][] {
           break;
         }
         if (!moved) {
+          closed = false;
           break; // open chain — should not happen for a valid connected tile
         }
       }
-      rings.push(ring);
+      if (closed) {
+        rings.push(ring);
+      }
     }
   }
   return rings;

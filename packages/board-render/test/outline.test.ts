@@ -32,6 +32,21 @@ describe("fuseTile", () => {
     // 6 + 6 corners, minus the 2 shared corners = 10 perimeter vertices.
     expect(rings[0]).toHaveLength(10);
   });
+
+  it("a donut tile (six hexes around an empty centre) fuses to two rings", () => {
+    // The six neighbors of (0,0), leaving the centre hex empty: the hole
+    // produces an inner ring plus the outer perimeter ring.
+    const donut: Axial[] = [
+      { q: 1, r: 0 },
+      { q: 1, r: -1 },
+      { q: 0, r: -1 },
+      { q: -1, r: 0 },
+      { q: -1, r: 1 },
+      { q: 0, r: 1 }
+    ];
+    const rings = fuseTile(donut, LAYOUT);
+    expect(rings).toHaveLength(2);
+  });
 });
 
 describe("hexEdges", () => {
