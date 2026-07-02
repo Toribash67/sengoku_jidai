@@ -307,3 +307,73 @@ const BONUS_GLYPHS: GlyphId[] = ["glyph-bonus-sun", "glyph-bonus-moon", "glyph-b
 export function bonusGlyph(index: number): GlyphId {
   return BONUS_GLYPHS[index % BONUS_GLYPHS.length]!;
 }
+
+// ===========================================================================
+// Native-scale feature art
+//
+// board.svg is authored on the same flat-top hex grid the procedural renderer
+// uses (hex radius NATIVE_HEX_SIZE = 114), so HQ bases, harbours and piers are
+// the artist's own paths rendered VERBATIM at native size — not the 40-unit
+// icon <symbol>s above (those stay as a general icon library). Each helper
+// returns art pre-translated so its geometric centre is (0,0); assemble.ts
+// places it with translate(centroid) scale(hexSize / NATIVE_HEX_SIZE), so on a
+// size-114 map (Rivers) the scale is 1 — the feature matches its tile exactly.
+// ===========================================================================
+
+/** The hex radius board.svg was authored at; native art is drawn 1:1 at this size. */
+export const NATIVE_HEX_SIZE = 114;
+
+// Geometric centres of the verbatim paths above, in their own path coordinates.
+const HQ_ART_CENTER: Record<SeatId, Pixel> = {
+  black: { x: 660.542, y: -699.311 }, // path9-5-0-3
+  red: { x: 1002.477, y: -896.765 } // path9-5-0-3-6
+};
+const HARBOR_ART_CENTER: Pixel = { x: 1301.579, y: -304.371 }; // g46 outer/inner hexes
+const PIER_ART_CENTER: Pixel = { x: 664.81867, y: -385.63547 }; // path49
+
+// path49 — a short thick dashed dock stub, drawn vertical (along ±y).
+const PIER_D = "m 664.81866,-403.19715 2e-5,35.12336 z";
+
+/** HQ base: the tile-sized coloured hex outline (board.svg path9-5-0-3 / -6). */
+export function hqBaseArt(seat: SeatId): string {
+  const d = seat === "red" ? HQ_RED_D : HQ_BLACK_D;
+  const stroke = seat === "red" ? "#e02d2d" : "#000000";
+  const c = HQ_ART_CENTER[seat];
+  return el("path", {
+    d,
+    transform: `translate(${-c.x} ${-c.y})`,
+    class: "hq-base",
+    style: `fill:none;stroke:${stroke};stroke-width:8;stroke-linecap:butt;stroke-linejoin:miter`
+  });
+}
+
+/** Harbour: two concentric hex outlines, solid outer + dashed inner (board.svg g46). */
+export function harborArt(): string {
+  const c = HARBOR_ART_CENTER;
+  return el(
+    "g",
+    { transform: `translate(${-c.x} ${-c.y})`, class: "harbor" },
+    el("path", {
+      d: HARBOR_OUTER_D,
+      style: "fill:none;stroke:#000000;stroke-width:5;stroke-linecap:butt;stroke-linejoin:miter"
+    }) +
+      el("path", {
+        d: HARBOR_INNER_D,
+        style:
+          "fill:none;stroke:#000000;stroke-width:8.09188;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:4.04592,1.61836;stroke-dashoffset:0"
+      })
+  );
+}
+
+/** Pier: a dock stub (board.svg path49), centred at (0,0) and drawn vertical.
+ *  assemble.ts rotates it to point from the harbour tile toward the sea. */
+export function pierArt(): string {
+  const c = PIER_ART_CENTER;
+  return el("path", {
+    d: PIER_D,
+    transform: `translate(${-c.x} ${-c.y})`,
+    class: "pier",
+    style:
+      "fill:#000000;stroke:#000000;stroke-width:21.4469;stroke-linecap:butt;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:2.14469,1.28682;stroke-dashoffset:2.14469"
+  });
+}

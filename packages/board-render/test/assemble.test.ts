@@ -27,10 +27,10 @@ describe("assembleBoardSvg", () => {
   });
 
   it("places HQ / star / harbor markers for the featured tiles", () => {
-    // HQ base + harbor are tile-sized concentric hex outlines (not 40-unit glyph <use>s).
+    // HQ base + harbor are the artist's tile-sized hex outlines drawn verbatim at native scale.
     expect(svg).toContain(`class="hq-base"`); // tiles A (red) + E (black)
-    expect(svg).toContain(`stroke="#e02d2d"`); // red HQ base (tile A)
-    expect(svg).toContain(`class="harbor"`); // tile D (dashed inner ring)
+    expect(svg).toContain(`stroke:#e02d2d`); // red HQ base (tile A), colour in the path style
+    expect(svg).toContain(`class="harbor"`); // tile D (concentric solid + dashed hexes)
     expect(svg).toContain(`href="#glyph-star"`); // tiles B, C (still a placed glyph)
   });
 
