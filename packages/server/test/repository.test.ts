@@ -57,3 +57,30 @@ describe("GameRepository named seats", () => {
     expect(repo.claimSeat("no-such-game", "red", "Ghost")).toBeNull();
   });
 });
+
+describe("GameRepository event projection", () => {
+  it("eventsAfter projects events per seat and drops non-public event rows", () => {
+    const db = openDatabase(":memory:");
+    runMigrations(db);
+    const repo = new GameRepository(db);
+    const game = repo.createGame("hotseat", "seed-events");
+
+    const insert = db.prepare(
+      `INSERT INTO game_events (game_id, revision, sequence, event_type, event_json, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    );
+    const now = new Date().toISOString();
+    insert.run(game.gameId, 1, 0, "passed", JSON.stringify({ type: "passed", seat: "red" }), now);
+    insert.run(
+      game.gameId,
+      1,
+      1,
+      "deckPeeked",
+      JSON.stringify({ type: "deckPeeked", cards: ["ambush"] }),
+      now
+    );
+
+    const events = repo.eventsAfter(game.gameId, "red", 0);
+    expect(events).toEqual([{ type: "passed", seat: "red" }]);
+  });
+});
