@@ -25,6 +25,9 @@ describe("riversSource compiles to the canonical Rivers topology", () => {
     expect(definition.id).toBe("rivers");
     expect(definition.name).toBe("Rivers");
     expect(definition.bonusSlots).toEqual(["tile2", "tile4", "tile20"]);
+    // Lock all 10 deployment entries verbatim (ship tiles called out; a typo in any
+    // troop count would otherwise slip through — deployment is a determinism input).
+    expect(definition.startingDeployment).toEqual(riversSource.startingDeployment);
     expect(definition.startingDeployment?.tile14).toEqual({ seat: "red", ship: 3 });
     expect(definition.startingDeployment?.tile18).toEqual({ seat: "black", ship: 3 });
   });

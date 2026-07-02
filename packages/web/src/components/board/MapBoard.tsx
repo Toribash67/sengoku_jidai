@@ -398,7 +398,7 @@ function decorate(
   for (const area of areas) {
     const tile = svg.querySelector<SVGGraphicsElement>(`#${CSS.escape(area.id)}`);
     if (!tile) {
-      throw new Error(`board.svg has no element for area "${area.id}"`);
+      throw new Error(`assembled board SVG has no element for area "${area.id}"`);
     }
     // Supplied tiles keep their natural map colour; a translucent overlay provides the tint.
     // Unsupplied-owned tiles get the stripe pattern. Unowned tiles keep their authored colour.

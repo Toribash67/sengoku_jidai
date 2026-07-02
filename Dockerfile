@@ -4,7 +4,8 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages ./packages
-# The web build inlines the canonical map (packages/web imports ../../../../../assets/maps/rivers/board.svg?raw).
+# The web renders Rivers procedurally from riversSource (no board.svg?raw import), but the
+# terrain package still uses assets/maps/rivers/board.svg as its land/sea mask source.
 # Card art lives under packages/web/src/assets (web-sized webp), copied via `COPY packages`.
 COPY assets ./assets
 

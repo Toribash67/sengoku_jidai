@@ -13,18 +13,15 @@ export interface StartingUnits {
  * Static topology for the "Rivers" board (the base General Orders: Sengoku Jidai map).
  *
  * This is the engine-owned, rules-relevant map: area ids, kinds, adjacency, and
- * scoring/supply-relevant facts. Visual layout (SVG coordinates, hit targets) is
- * owned by the web package and references these area ids.
+ * scoring/supply-relevant facts. Visual layout (hex coordinates, rendering) is
+ * derived by `board-render` from the same source and references these area ids.
  *
- * Source of truth is the hand-drawn `board.svg`, whose clone ids encode the
- * topology declaratively:
- *   - `move-tileN`            -> land area N (the SVG's `move` prefix == the Advance action)
- *   - `bombard/sail-tileN`    -> sea area N
- *   - `basered/baseblack-tileN` -> HQ areas
- *   - `harbor-tileN`          -> land area with a harbor
- *   - `shell-tileN`           -> coastal land area that can be Shelled from sea
- *   - `stars1/stars2-tileN`   -> value (victory) stars on the area
- *   - `pier-tileX-tileY`      -> a pier linking harbor land X to sea Y
+ * Source of truth is `riversSource` (see `./riversSource.js`): a `HexMapSource`
+ * whose per-tile hex clusters + feature flags compile (via `compileHexMap`) to
+ * this `MapDefinition`, with adjacency AUTO-DERIVED from shared hex edges. The
+ * hex layout was reconstructed from the historical hand-drawn `board.svg`, and
+ * `riversSource.test.ts` locks the compiled topology to a frozen snapshot of the
+ * former hand-authored graph.
  *
  * Connectivity is one general adjacency graph plus a ports overlay:
  *   - adjacent       : every area sharing a border (land, sea, or mixed). Used for
