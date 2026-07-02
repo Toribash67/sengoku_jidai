@@ -1,0 +1,222 @@
+{
+  "tile1": {
+    "id": "tile1",
+    "kind": "land",
+    "hq": null,
+    "valueStars": 0,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile10", "tile2", "tile6", "tile9"],
+    "ports": []
+  },
+  "tile2": {
+    "id": "tile2",
+    "kind": "land",
+    "hq": null,
+    "valueStars": 1,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile1", "tile3", "tile6"],
+    "ports": []
+  },
+  "tile3": {
+    "id": "tile3",
+    "kind": "sea",
+    "hq": null,
+    "valueStars": 1,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile2", "tile4", "tile6", "tile7", "tile8"],
+    "ports": []
+  },
+  "tile4": {
+    "id": "tile4",
+    "kind": "land",
+    "hq": null,
+    "valueStars": 1,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile3", "tile5", "tile8"],
+    "ports": []
+  },
+  "tile5": {
+    "id": "tile5",
+    "kind": "land",
+    "hq": null,
+    "valueStars": 0,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile12", "tile13", "tile4", "tile8"],
+    "ports": []
+  },
+  "tile6": {
+    "id": "tile6",
+    "kind": "land",
+    "hq": null,
+    "valueStars": 1,
+    "harbor": true,
+    "shellable": false,
+    "adjacent": ["tile1", "tile10", "tile2", "tile3", "tile7"],
+    "ports": ["tile3", "tile7"]
+  },
+  "tile7": {
+    "id": "tile7",
+    "kind": "sea",
+    "hq": null,
+    "valueStars": 1,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile10", "tile11", "tile12", "tile3", "tile6", "tile8"],
+    "ports": []
+  },
+  "tile8": {
+    "id": "tile8",
+    "kind": "land",
+    "hq": null,
+    "valueStars": 1,
+    "harbor": true,
+    "shellable": false,
+    "adjacent": ["tile12", "tile3", "tile4", "tile5", "tile7"],
+    "ports": ["tile3", "tile7"]
+  },
+  "tile9": {
+    "id": "tile9",
+    "kind": "land",
+    "hq": "red",
+    "valueStars": 0,
+    "harbor": true,
+    "shellable": false,
+    "adjacent": ["tile1", "tile10", "tile14", "tile15"],
+    "ports": ["tile14", "tile15"]
+  },
+  "tile10": {
+    "id": "tile10",
+    "kind": "land",
+    "hq": null,
+    "valueStars": 0,
+    "harbor": false,
+    "shellable": true,
+    "adjacent": ["tile1", "tile11", "tile15", "tile6", "tile7", "tile9"],
+    "ports": []
+  },
+  "tile11": {
+    "id": "tile11",
+    "kind": "sea",
+    "hq": null,
+    "valueStars": 1,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile10", "tile12", "tile15", "tile16", "tile17", "tile7"],
+    "ports": []
+  },
+  "tile12": {
+    "id": "tile12",
+    "kind": "land",
+    "hq": null,
+    "valueStars": 0,
+    "harbor": false,
+    "shellable": true,
+    "adjacent": ["tile11", "tile13", "tile17", "tile5", "tile7", "tile8"],
+    "ports": []
+  },
+  "tile13": {
+    "id": "tile13",
+    "kind": "land",
+    "hq": "black",
+    "valueStars": 0,
+    "harbor": true,
+    "shellable": false,
+    "adjacent": ["tile12", "tile17", "tile18", "tile5"],
+    "ports": ["tile17", "tile18"]
+  },
+  "tile14": {
+    "id": "tile14",
+    "kind": "sea",
+    "hq": null,
+    "valueStars": 0,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile15", "tile19", "tile22", "tile9"],
+    "ports": []
+  },
+  "tile15": {
+    "id": "tile15",
+    "kind": "sea",
+    "hq": null,
+    "valueStars": 1,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile10", "tile11", "tile14", "tile16", "tile19", "tile9"],
+    "ports": []
+  },
+  "tile16": {
+    "id": "tile16",
+    "kind": "land",
+    "hq": null,
+    "valueStars": 2,
+    "harbor": true,
+    "shellable": false,
+    "adjacent": ["tile11", "tile15", "tile17", "tile19", "tile20", "tile21"],
+    "ports": ["tile11", "tile15", "tile17"]
+  },
+  "tile17": {
+    "id": "tile17",
+    "kind": "sea",
+    "hq": null,
+    "valueStars": 1,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile11", "tile12", "tile13", "tile16", "tile18", "tile21"],
+    "ports": []
+  },
+  "tile18": {
+    "id": "tile18",
+    "kind": "sea",
+    "hq": null,
+    "valueStars": 0,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile13", "tile17", "tile21", "tile22"],
+    "ports": []
+  },
+  "tile19": {
+    "id": "tile19",
+    "kind": "land",
+    "hq": null,
+    "valueStars": 0,
+    "harbor": false,
+    "shellable": true,
+    "adjacent": ["tile14", "tile15", "tile16", "tile20", "tile22"],
+    "ports": []
+  },
+  "tile20": {
+    "id": "tile20",
+    "kind": "land",
+    "hq": null,
+    "valueStars": 2,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile16", "tile19", "tile21", "tile22"],
+    "ports": []
+  },
+  "tile21": {
+    "id": "tile21",
+    "kind": "land",
+    "hq": null,
+    "valueStars": 0,
+    "harbor": false,
+    "shellable": true,
+    "adjacent": ["tile16", "tile17", "tile18", "tile20", "tile22"],
+    "ports": []
+  },
+  "tile22": {
+    "id": "tile22",
+    "kind": "sea",
+    "hq": null,
+    "valueStars": 0,
+    "harbor": false,
+    "shellable": false,
+    "adjacent": ["tile14", "tile18", "tile19", "tile20", "tile21"],
+    "ports": []
+  }
+}

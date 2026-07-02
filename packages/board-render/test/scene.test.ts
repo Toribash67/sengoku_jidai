@@ -41,4 +41,12 @@ describe("buildScene", () => {
     expect(scene.viewBox.x + scene.viewBox.width).toBeGreaterThanOrEqual(Math.max(...allX));
     expect(scene.viewBox.y + scene.viewBox.height).toBeGreaterThanOrEqual(Math.max(...allY));
   });
+
+  it("places a bonus glyph on each bonus-slot tile, by slot order", () => {
+    const b = scene.tiles.find((t) => t.id === "B")!;
+    expect(b.bonusGlyph).toBe("glyph-bonus-sun");
+    expect(b.glyphAnchors.bonus).toBeDefined();
+    const a = scene.tiles.find((t) => t.id === "A")!;
+    expect(a.bonusGlyph).toBeUndefined();
+  });
 });

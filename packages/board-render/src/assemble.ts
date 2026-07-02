@@ -38,6 +38,9 @@ function featureGlyphs(tile: SceneTile): string {
   if (tile.features.harbor && tile.glyphAnchors.harbor) {
     out.push(ASSETS.place("glyph-harbor", tile.glyphAnchors.harbor));
   }
+  if (tile.bonusGlyph && tile.glyphAnchors.bonus) {
+    out.push(ASSETS.place(tile.bonusGlyph, tile.glyphAnchors.bonus));
+  }
   for (const port of tile.ports) {
     out.push(
       el("line", {

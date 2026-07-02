@@ -195,6 +195,9 @@ importers:
 
   packages/web:
     dependencies:
+      "@sengoku-jidai/board-render":
+        specifier: workspace:*
+        version: link:../board-render
       "@sengoku-jidai/engine":
         specifier: workspace:*
         version: link:../engine

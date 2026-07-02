@@ -1,8 +1,11 @@
 import type { PlayerAreaView, SeatId } from "@sengoku-jidai/engine";
+import { compileHexMap, riversSource } from "@sengoku-jidai/engine";
+import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
 import { useEffect, useRef } from "react";
-import rawMapSvg from "../../../../../assets/maps/rivers/board.svg?raw";
 import { SEAT_SOLID, TILE_LAND_FILL, TILE_SEA_FILL, tileFill } from "./tileFill.js";
 import { slotIdForSpace } from "./slotMapping.js";
+
+const RIVERS_SVG = assembleBoardSvg(buildScene(compileHexMap(riversSource)));
 
 export interface MapBoardProps {
   areas: PlayerAreaView[];
@@ -54,78 +57,21 @@ export function terrainImageAttrs(viewBox: {
 const SUPPLY_LAYER_CLASS = "map-supply";
 const SEAT_MARK: Record<SeatId, string> = { red: "#7b1f1a", black: "#15181d" };
 
-/** Shared tile geometry defs whose inline fill/stroke must be neutralized so each
- *  tile <use> can drive its own appearance. */
-const TILE_GEOMETRY_DEFS = ["path9", "path9-2", "path9-2-2", "path9-5", "path9-5-0"];
-
-/** Unit token defs in the SVG, keyed by seat. Armies are discs; ships are boats. */
-const ARMY_DEF: Record<SeatId, string> = { red: "path77", black: "path77-5" };
-const SHIP_DEF: Record<SeatId, string> = { red: "path1-7-5-4-2", black: "path1-7-5-4" };
-
-/** Static example unit instances in the SVG; hidden so only live units render. */
-const EXAMPLE_UNIT_IDS = ["red-army1", "black-army1", "red-ship1", "black-ship1"];
+/** Unit token defs in the procedural SVG, keyed by seat. Armies are discs; ships are boats. */
+const ARMY_DEF: Record<SeatId, string> = { red: "unit-army-red", black: "unit-army-black" };
+const SHIP_DEF: Record<SeatId, string> = { red: "unit-ship-red", black: "unit-ship-black" };
 
 /** Max tokens drawn in a stack; larger counts still show this many, with the real total. */
 const MAX_STACK_TOKENS = 5;
 
-const STRIPE_PATTERNS = `
-<pattern id="stripe-red" patternUnits="userSpaceOnUse" width="26" height="26" patternTransform="rotate(45)">
-  <rect width="26" height="26" fill="#d5d3c4"/>
-  <rect width="13" height="26" fill="#c0392b"/>
-</pattern>
-<pattern id="stripe-black" patternUnits="userSpaceOnUse" width="26" height="26" patternTransform="rotate(45)">
-  <rect width="26" height="26" fill="#d5d3c4"/>
-  <rect width="13" height="26" fill="#2f343c"/>
-</pattern>
-<pattern id="stripe-source" patternUnits="userSpaceOnUse" width="22" height="22" patternTransform="rotate(45)">
-  <rect width="11" height="22" fill="#2f9e44"/>
-</pattern>`;
-
-/** Record each tile's authored fill (its inline override, else its geometry def's fill)
- *  on a data attribute, so unowned tiles can keep the colours from the SVG after the
- *  shared defs are neutralized. Must run BEFORE neutralizeTileDefs. */
-function captureAuthoredFills(svg: SVGSVGElement): void {
-  for (const tile of svg.querySelectorAll<SVGUseElement>('use[id^="tile"]')) {
-    if (!/^tile\d+$/.test(tile.id)) {
-      continue;
-    }
-    let authored = tile.style.fill;
-    if (!authored) {
-      const def = tile.href.baseVal ? svg.querySelector<SVGElement>(tile.href.baseVal) : null;
-      authored = def ? getComputedStyle(def).fill : "";
-    }
+/** One-time prep on the assembled SVG. Procedural tiles already carry their authored fill on
+ *  `data-authored-fill` and the stripe patterns ship in <defs>, so this only ensures the
+ *  attribute is mirrored onto `dataset.authoredFill` (camelCase) for the decorate pass. */
+function prepareSvg(svg: SVGSVGElement): void {
+  for (const tile of svg.querySelectorAll<SVGPathElement>("path.tile")) {
+    const authored = tile.getAttribute("data-authored-fill");
     if (authored) {
       tile.dataset.authoredFill = authored;
-    }
-  }
-}
-
-/** One-time prep on the injected SVG: capture authored fills, neutralize tile-def styling
- *  (so per-tile fill/stroke wins), and inject stripe patterns. */
-function prepareSvg(svg: SVGSVGElement): void {
-  captureAuthoredFills(svg);
-  for (const id of EXAMPLE_UNIT_IDS) {
-    const example = svg.querySelector<SVGElement>(`#${CSS.escape(id)}`);
-    if (example) {
-      example.style.display = "none";
-    }
-  }
-  for (const id of TILE_GEOMETRY_DEFS) {
-    const def = svg.querySelector<SVGElement>(`#${CSS.escape(id)}`);
-    if (def) {
-      def.style.fill = "inherit";
-      def.style.stroke = "inherit";
-      def.style.strokeWidth = "inherit";
-    }
-  }
-  const defs = svg.querySelector("defs");
-  if (defs && !defs.querySelector("#stripe-red")) {
-    const parsed = new DOMParser().parseFromString(
-      `<svg xmlns="${SVG_NS}">${STRIPE_PATTERNS}</svg>`,
-      "image/svg+xml"
-    );
-    for (const node of Array.from(parsed.documentElement.childNodes)) {
-      defs.appendChild(svg.ownerDocument.importNode(node, true));
     }
   }
 }
@@ -452,7 +398,7 @@ function decorate(
   for (const area of areas) {
     const tile = svg.querySelector<SVGGraphicsElement>(`#${CSS.escape(area.id)}`);
     if (!tile) {
-      throw new Error(`board.svg has no element for area "${area.id}"`);
+      throw new Error(`assembled board SVG has no element for area "${area.id}"`);
     }
     // Supplied tiles keep their natural map colour; a translucent overlay provides the tint.
     // Unsupplied-owned tiles get the stripe pattern. Unowned tiles keep their authored colour.
@@ -625,7 +571,7 @@ export function MapBoard({
     if (!host) {
       return;
     }
-    host.innerHTML = rawMapSvg;
+    host.innerHTML = RIVERS_SVG;
     const svg = host.querySelector("svg");
     if (svg) {
       prepareSvg(svg);
