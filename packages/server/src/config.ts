@@ -1,14 +1,25 @@
 import { z } from "zod";
 
-const configSchema = z.object({
-  nodeEnv: z.enum(["development", "test", "production"]),
-  host: z.string().min(1),
-  port: z.number().int().positive(),
-  webOrigin: z.string().url(),
-  sqlitePath: z.string().min(1),
-  sessionSecret: z.string().min(12),
-  logLevel: z.string().min(1)
-});
+const configSchema = z
+  .object({
+    nodeEnv: z.enum(["development", "test", "production"]),
+    host: z.string().min(1),
+    port: z.number().int().positive(),
+    webOrigin: z.string().url(),
+    sqlitePath: z.string().min(1),
+    sessionSecret: z.string().min(12),
+    logLevel: z.string().min(1)
+  })
+  .superRefine((config, ctx) => {
+    if (config.nodeEnv === "production" && /change-me/i.test(config.sessionSecret)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sessionSecret"],
+        message:
+          "SESSION_SECRET must be set to a real secret in production (placeholder value detected)."
+      });
+    }
+  });
 
 export type ServerConfig = z.infer<typeof configSchema>;
 
