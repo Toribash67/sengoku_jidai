@@ -1,7 +1,31 @@
-import { ASSETS, hqGlyph } from "./assets.js";
+import { ASSETS } from "./assets.js";
 import type { BoardScene, SceneTile } from "./scene.js";
-import type { Pixel } from "@sengoku-jidai/engine";
+import type { Pixel, SeatId } from "@sengoku-jidai/engine";
+import { hexCorners } from "./outline.js";
 import { el } from "./svg.js";
+
+/** HQ-base outline colour per seat (matches board.svg basered/baseblack strokes). */
+const HQ_STROKE: Record<SeatId, string> = { red: "#e02d2d", black: "#000000" };
+
+/** A flat-top hexagon outline centred on `c`, sized to `radius` (a fraction of the tile hex).
+ *  HQ base and harbor markers are tile-sized concentric hex outlines in board.svg, not small
+ *  icons — so they are drawn from the hex geometry rather than a 40-unit glyph symbol. */
+function hexOutline(
+  c: Pixel,
+  radius: number,
+  opts: { stroke: string; width: number; dash?: string; cls: string }
+): string {
+  const pts = hexCorners(c, radius);
+  const d = "M" + pts.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join("L") + "Z";
+  return el("path", {
+    d,
+    fill: "none",
+    stroke: opts.stroke,
+    "stroke-width": opts.width,
+    ...(opts.dash ? { "stroke-dasharray": opts.dash } : {}),
+    class: opts.cls
+  });
+}
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
@@ -27,19 +51,35 @@ function tilePath(tile: SceneTile): string {
   });
 }
 
-function featureGlyphs(tile: SceneTile): string {
+function featureGlyphs(tile: SceneTile, hexSize: number): string {
   const out: string[] = [];
-  if (tile.features.hq && tile.glyphAnchors.hq) {
-    out.push(ASSETS.place(hqGlyph(tile.features.hq), tile.glyphAnchors.hq));
+  // HQ base + harbor are tile-sized concentric hex outlines (board.svg basered/baseblack + g46),
+  // not 40-unit icons. HQ is the outer coloured ring; harbor is an inner dashed ring, so both
+  // read clearly when a tile has both (tile9, tile13).
+  if (tile.features.hq) {
+    out.push(
+      hexOutline(tile.centroid, hexSize * 0.88, {
+        stroke: HQ_STROKE[tile.features.hq],
+        width: 8,
+        cls: "hq-base"
+      })
+    );
+  }
+  if (tile.features.harbor) {
+    out.push(
+      hexOutline(tile.centroid, hexSize * 0.72, {
+        stroke: "#000000",
+        width: 5,
+        dash: "16 10",
+        cls: "harbor"
+      })
+    );
   }
   if (tile.features.valueStars > 0 && tile.glyphAnchors.stars) {
-    out.push(ASSETS.place("glyph-star", tile.glyphAnchors.stars));
-  }
-  if (tile.features.harbor && tile.glyphAnchors.harbor) {
-    out.push(ASSETS.place("glyph-harbor", tile.glyphAnchors.harbor));
+    out.push(ASSETS.place("glyph-star", tile.glyphAnchors.stars, 1.4));
   }
   if (tile.bonusGlyph && tile.glyphAnchors.bonus) {
-    out.push(ASSETS.place(tile.bonusGlyph, tile.glyphAnchors.bonus));
+    out.push(ASSETS.place(tile.bonusGlyph, tile.glyphAnchors.bonus, 1.4));
   }
   for (const port of tile.ports) {
     out.push(
@@ -49,9 +89,10 @@ function featureGlyphs(tile: SceneTile): string {
         x2: port.toPoint.x.toFixed(2),
         y2: port.toPoint.y.toFixed(2),
         class: "pier",
-        stroke: "#5a4632",
-        "stroke-width": 4,
-        "stroke-dasharray": "8 6"
+        stroke: "#4a3620",
+        "stroke-width": 8,
+        "stroke-linecap": "round",
+        "stroke-dasharray": "18 12"
       })
     );
   }
@@ -90,7 +131,13 @@ export function assembleBoardSvg(scene: BoardScene): string {
       )
       .join("")
   );
-  const features = el("g", { id: "features" }, scene.tiles.map(featureGlyphs).join(""));
+  // Features are purely decorative and must never intercept tile clicks — piers/HQ rings can
+  // overlap a tile's centre (its Playwright/click hit-point), which would swallow the click.
+  const features = el(
+    "g",
+    { id: "features", "pointer-events": "none" },
+    scene.tiles.map((t) => featureGlyphs(t, scene.hexSize)).join("")
+  );
   const slots = el("g", { id: "order-slots" }, scene.tiles.map(slotAnchors).join(""));
 
   return el(

@@ -26,11 +26,12 @@ describe("assembleBoardSvg", () => {
     expect(svg).toContain(`id="stripe-red"`);
   });
 
-  it("places HQ / star / harbor glyphs for the featured tiles", () => {
-    expect(svg).toContain(`href="#glyph-hq-red"`); // tile A
-    expect(svg).toContain(`href="#glyph-hq-black"`); // tile E
-    expect(svg).toContain(`href="#glyph-star"`); // tiles B, C
-    expect(svg).toContain(`href="#glyph-harbor"`); // tile D
+  it("places HQ / star / harbor markers for the featured tiles", () => {
+    // HQ base + harbor are tile-sized concentric hex outlines (not 40-unit glyph <use>s).
+    expect(svg).toContain(`class="hq-base"`); // tiles A (red) + E (black)
+    expect(svg).toContain(`stroke="#e02d2d"`); // red HQ base (tile A)
+    expect(svg).toContain(`class="harbor"`); // tile D (dashed inner ring)
+    expect(svg).toContain(`href="#glyph-star"`); // tiles B, C (still a placed glyph)
   });
 
   it("emits invisible order-slot anchors at the slotIdForSpace ids", () => {

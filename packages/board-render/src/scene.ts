@@ -11,6 +11,8 @@ export interface BoardScene {
   viewBox: { x: number; y: number; width: number; height: number };
   tiles: SceneTile[];
   hexGrid: Edge[];
+  /** Flat-top hex radius (layout size), used to draw tile-sized markers (HQ base, harbor). */
+  hexSize: number;
 }
 
 export interface SceneTile {
@@ -135,6 +137,7 @@ export function buildScene(compiled: CompiledMap): BoardScene {
       height: maxY - minY + 2 * MARGIN
     },
     tiles,
-    hexGrid
+    hexGrid,
+    hexSize: layout.size
   };
 }
