@@ -1,4 +1,4 @@
-import type { LegalPlacement, OperationCard } from "@sengoku-jidai/engine";
+import type { LegalPlacement, OperationCard } from "@sengoku-jidai/engine/client";
 
 /** When several placement spaces of the same type are open (e.g. Reinforce 6 and 5), a
  *  player always wants the largest, so the panel offers only the biggest per type. The

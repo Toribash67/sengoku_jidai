@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PlayerGameView } from "@sengoku-jidai/engine";
+import type { PlayerGameView } from "@sengoku-jidai/engine/client";
 import type { GameSeatInfo } from "@sengoku-jidai/shared";
 import { shouldPoll } from "./polling.js";
 

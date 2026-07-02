@@ -3,7 +3,7 @@ import type {
   LegalMove,
   LegalStrike,
   OperationCard
-} from "@sengoku-jidai/engine";
+} from "@sengoku-jidai/engine/client";
 
 /** A base order (or operation-card play) that has been "armed": the player picked a verb and
  *  now chooses one of its candidate tiles. A move arms advance/sail destinations; a strike arms

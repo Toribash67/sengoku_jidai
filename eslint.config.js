@@ -113,6 +113,18 @@ export default tseslint.config(
     {
       group: ["node:*", "fastify", "@fastify/*", "better-sqlite3"],
       message: "The web client runs in the browser: no Node APIs, HTTP servers, or databases."
+    },
+    {
+      regex: "^@sengoku-jidai/engine$",
+      message: "Import from @sengoku-jidai/engine/client — the curated client-safe engine surface."
+    }
+  ]),
+  // Web tests get the same engine restriction (one boundary() per file set: a later
+  // flat-config entry for the same rule would replace, not extend, the src patterns).
+  boundary("packages/web/test", [
+    {
+      regex: "^@sengoku-jidai/engine$",
+      message: "Import from @sengoku-jidai/engine/client — the curated client-safe engine surface."
     }
   ])
 );

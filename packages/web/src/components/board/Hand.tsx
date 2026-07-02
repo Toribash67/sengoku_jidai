@@ -1,4 +1,4 @@
-import type { OperationCard } from "@sengoku-jidai/engine";
+import type { OperationCard } from "@sengoku-jidai/engine/client";
 import { cardBack, cardImage, cardLabel } from "./cardImages.js";
 
 interface HandProps {

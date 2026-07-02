@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import type { SeatId } from "@sengoku-jidai/engine";
+import type { SeatId } from "@sengoku-jidai/engine/client";
 import type { GameSeatInfo } from "@sengoku-jidai/shared";
 
 interface ClaimSeatPromptProps {

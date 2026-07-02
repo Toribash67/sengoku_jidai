@@ -1,4 +1,4 @@
-import type { PendingCombat } from "@sengoku-jidai/engine";
+import type { PendingCombat } from "@sengoku-jidai/engine/client";
 
 interface CombatPanelProps {
   pendingCombat: PendingCombat;

@@ -1,4 +1,4 @@
-import type { PendingChoice, PendingDecision } from "@sengoku-jidai/engine";
+import type { PendingChoice, PendingDecision } from "@sengoku-jidai/engine/client";
 
 interface PendingDecisionPanelProps {
   decision: PendingDecision;

@@ -10,7 +10,7 @@ import type {
   PlayerGameEvent,
   PlayerGameView,
   SeatId
-} from "@sengoku-jidai/engine";
+} from "@sengoku-jidai/engine/client";
 import {
   type ArmedOrder,
   armMove,
@@ -19,7 +19,7 @@ import {
   resolveArmedTile,
   verbAvailability
 } from "./components/board/orders.js";
-import { getMap } from "@sengoku-jidai/engine";
+import { getMap } from "@sengoku-jidai/engine/client";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ActionBar } from "./components/board/ActionBar.js";
 import { AreaDetails } from "./components/board/AreaDetails.js";

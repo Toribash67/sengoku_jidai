@@ -1,4 +1,4 @@
-import type { LegalPlacement, LegalPlan } from "@sengoku-jidai/engine";
+import type { LegalPlacement, LegalPlan } from "@sengoku-jidai/engine/client";
 import { cardLabel } from "./cardImages.js";
 import { UNIT_NOUN, VERB, sumCounts, type ComposerState } from "./composer.js";
 import type { VerbAvailability } from "./orders.js";
