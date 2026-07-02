@@ -131,9 +131,11 @@ export function assembleBoardSvg(scene: BoardScene): string {
       )
       .join("")
   );
+  // Features are purely decorative and must never intercept tile clicks — piers/HQ rings can
+  // overlap a tile's centre (its Playwright/click hit-point), which would swallow the click.
   const features = el(
     "g",
-    { id: "features" },
+    { id: "features", "pointer-events": "none" },
     scene.tiles.map((t) => featureGlyphs(t, scene.hexSize)).join("")
   );
   const slots = el("g", { id: "order-slots" }, scene.tiles.map(slotAnchors).join(""));
