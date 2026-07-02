@@ -9,7 +9,10 @@ export type GlyphId =
   | "glyph-hq-red"
   | "glyph-hq-black"
   | "glyph-star"
-  | "glyph-harbor";
+  | "glyph-harbor"
+  | "glyph-bonus-sun"
+  | "glyph-bonus-moon"
+  | "glyph-bonus-star";
 
 const SEAT_FILL: Record<SeatId, string> = { red: "#c0392b", black: "#2f343c" };
 
@@ -188,6 +191,61 @@ const HARBOR = symbol(
 );
 
 // ---------------------------------------------------------------------------
+// Bonus-slot glyphs — g73 (sun), g74 (moon), g75 (star) from board.svg.
+// Each group consists of a black pointer-triangle (path73-*) plus an icon overlay.
+// Bounding box for all three: width ≈36.051, height ≈124.886 (triangle dominates).
+// Centres: g73=(1458.119,-462.144), g74=(1548.556,-469.113), g75=(1599.500,-484.679).
+// Scale 40/124.886 ≈ 0.3203 maps to a 40-unit-tall symbol; overflow:visible shows full art.
+// Transform order: scale(s) translate(-cx -cy) — same as STAR/HARBOR.
+// ---------------------------------------------------------------------------
+
+// g73 = SUN: black triangle + sunburst crosshair (g70 with matrix transform)
+const BONUS_SUN = symbol(
+  "glyph-bonus-sun",
+  "-20 -20 40 40",
+  40,
+  40,
+  `<g transform="scale(0.3203) translate(-1458.119 462.144)">` +
+    `<path style="display:inline;fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5.061;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" d="m 1440.0936,-399.70138 v -124.88597 l 36.0514,62.44298 z" id="path73-7" />` +
+    `<g id="g70" transform="matrix(0.55253622,0,0,0.55253622,627.34293,-42.737156)" style="display:inline;fill:#ffffff;fill-opacity:1">` +
+    `<circle style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:3.36476;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" id="path68" cx="1500.6144" cy="-759.05829" r="18.427582" />` +
+    `<rect style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" id="rect70" width="60.964928" height="7.3106251" x="1470.132" y="-762.71362" />` +
+    `<rect style="display:inline;fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" id="rect70-5" width="60.964928" height="7.3106251" x="493.87686" y="-1601.4852" transform="rotate(45)" />` +
+    `<rect style="display:inline;fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" id="rect70-6" width="60.964928" height="7.3106251" x="-789.54077" y="-1504.2698" transform="rotate(90)" />` +
+    `<rect style="display:inline;fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" id="rect70-3" width="60.964928" height="7.3106251" x="-1628.3124" y="-528.01465" transform="rotate(135)" />` +
+    `</g>` +
+    `</g>`
+);
+
+// g74 = MOON: black triangle + crescent (g71)
+const BONUS_MOON = symbol(
+  "glyph-bonus-moon",
+  "-20 -20 40 40",
+  40,
+  40,
+  `<g transform="scale(0.3203) translate(-1548.556 469.113)">` +
+    `<path style="display:inline;fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5.061;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" d="m 1530.5305,-406.67006 v -124.88597 l 36.0514,62.44298 z" id="path73-8" />` +
+    `<g id="g71" style="display:inline">` +
+    `<path d="m 1545.6847,-484.26723 a 15.154405,15.154405 0 0 0 -15.1542,15.15419 15.154405,15.154405 0 0 0 15.1542,15.15419 15.154405,15.154405 0 0 0 12.4695,-6.54079 11.043303,11.043303 0 0 1 -6.9109,2.43067 11.043303,11.043303 0 0 1 -11.0442,-11.04407 11.043303,11.043303 0 0 1 11.0442,-11.04273 11.043303,11.043303 0 0 1 6.9109,2.42933 15.154405,15.154405 0 0 0 -12.4695,-6.54079 z" style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke-width:2.7671;stroke-dashoffset:0.1" id="path70" />` +
+    `</g>` +
+    `</g>`
+);
+
+// g75 = STAR: black triangle + 5-pointed star (g72 with translate + inner matrix)
+const BONUS_STAR = symbol(
+  "glyph-bonus-star",
+  "-20 -20 40 40",
+  40,
+  40,
+  `<g transform="scale(0.3203) translate(-1599.500 484.679)">` +
+    `<path style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5.061;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" d="m 1581.4742,-422.23606 v -124.88597 l 36.0514,62.44298 z" id="path73" />` +
+    `<g id="g72" transform="translate(173.04385,126.55382)" style="display:inline;fill:#ffffff;fill-opacity:1">` +
+    `<path style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" id="path67" d="m 1500.6144,-676.3158 4.815,13.85223 14.6622,0.2988 -11.6863,8.85994 4.2467,14.0369 -12.0376,-8.37649 -12.0376,8.37649 4.2467,-14.0369 -11.6863,-8.85994 14.6621,-0.2988 z" transform="matrix(0.82636572,0,0,0.82636572,184.3431,-69.959397)" />` +
+    `</g>` +
+    `</g>`
+);
+
+// ---------------------------------------------------------------------------
 // Stripe patterns (duplicated from web tileFill.ts / board render usage)
 // ---------------------------------------------------------------------------
 const STRIPE_PATTERNS = [
@@ -204,9 +262,19 @@ const STRIPE_PATTERNS = [
     `</pattern>`
 ].join("\n");
 
-const SYMBOLS = [ARMY_RED, ARMY_BLACK, SHIP_RED, SHIP_BLACK, HQ_BLACK, HQ_RED, STAR, HARBOR].join(
-  "\n"
-);
+const SYMBOLS = [
+  ARMY_RED,
+  ARMY_BLACK,
+  SHIP_RED,
+  SHIP_BLACK,
+  HQ_BLACK,
+  HQ_RED,
+  STAR,
+  HARBOR,
+  BONUS_SUN,
+  BONUS_MOON,
+  BONUS_STAR
+].join("\n");
 
 export const ASSETS = {
   defs: `${SYMBOLS}\n${STRIPE_PATTERNS}`,
@@ -227,4 +295,12 @@ export function shipGlyph(seat: SeatId): GlyphId {
 
 export function hqGlyph(seat: SeatId): GlyphId {
   return seat === "red" ? "glyph-hq-red" : "glyph-hq-black";
+}
+
+const BONUS_GLYPHS: GlyphId[] = ["glyph-bonus-sun", "glyph-bonus-moon", "glyph-bonus-star"];
+
+/** Cosmetic bonus marker for the Nth bonus slot (cycles for maps with >3 slots).
+ *  The real bonus is drawn randomly at setup; the icon is flavour only. */
+export function bonusGlyph(index: number): GlyphId {
+  return BONUS_GLYPHS[index % BONUS_GLYPHS.length]!;
 }

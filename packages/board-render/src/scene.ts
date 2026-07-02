@@ -1,6 +1,7 @@
 import { axialToPixel } from "@sengoku-jidai/engine";
 import type { Axial, CompiledMap, HexLayout, MapArea, Pixel, SeatId } from "@sengoku-jidai/engine";
 import { fuseTile, hexEdges, type Edge } from "./outline.js";
+import { bonusGlyph, type GlyphId } from "./assets.js";
 
 // Duplicated from web tileFill.ts (board-render cannot import the web package).
 const TILE_LAND_FILL = "#d5d3c4";
@@ -19,7 +20,8 @@ export interface SceneTile {
   centroid: Pixel;
   authoredFill: string;
   features: { hq?: SeatId; valueStars: 0 | 1 | 2; harbor: boolean };
-  glyphAnchors: { hq?: Pixel; stars?: Pixel; harbor?: Pixel };
+  glyphAnchors: { hq?: Pixel; stars?: Pixel; harbor?: Pixel; bonus?: Pixel };
+  bonusGlyph?: GlyphId;
   slots: Record<string, Pixel>;
   ports: { to: string; from: Pixel; toPoint: Pixel }[];
 }
@@ -75,12 +77,16 @@ export function buildScene(compiled: CompiledMap): BoardScene {
   const tiles: SceneTile[] = [];
   const hexGrid: Edge[] = [];
 
+  const bonusIndex = new Map<string, number>();
+  compiled.definition.bonusSlots.forEach((id, i) => bonusIndex.set(id, i));
+
   // First pass: geometry + centroids (needed before ports can reference sea centroids).
   for (const area of Object.values(compiled.definition.areas)) {
     const hexes = compiled.layout.tiles[area.id]!.hexes;
     const centroid = centroidOf(hexes, layout);
     centroids.set(area.id, centroid);
     hexGrid.push(...hexEdges(hexes, layout));
+    const bonusSlot = bonusIndex.get(area.id);
     tiles.push({
       id: area.id,
       kind: area.kind,
@@ -92,8 +98,13 @@ export function buildScene(compiled: CompiledMap): BoardScene {
         hq: area.hq ? centroid : undefined,
         stars:
           area.valueStars > 0 ? { x: centroid.x, y: centroid.y - layout.size * 0.4 } : undefined,
-        harbor: area.harbor ? { x: centroid.x, y: centroid.y + layout.size * 0.4 } : undefined
+        harbor: area.harbor ? { x: centroid.x, y: centroid.y + layout.size * 0.4 } : undefined,
+        bonus:
+          bonusSlot !== undefined
+            ? { x: centroid.x - layout.size * 0.45, y: centroid.y + layout.size * 0.25 }
+            : undefined
       },
+      bonusGlyph: bonusSlot !== undefined ? bonusGlyph(bonusSlot) : undefined,
       slots: slotsFor(area, centroid, layout.size),
       ports: []
     });
