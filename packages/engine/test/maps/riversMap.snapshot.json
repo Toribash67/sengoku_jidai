@@ -6,12 +6,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile10",
-      "tile2",
-      "tile6",
-      "tile9"
-    ],
+    "adjacent": ["tile10", "tile2", "tile6", "tile9"],
     "ports": []
   },
   "tile2": {
@@ -21,11 +16,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile1",
-      "tile3",
-      "tile6"
-    ],
+    "adjacent": ["tile1", "tile3", "tile6"],
     "ports": []
   },
   "tile3": {
@@ -35,13 +26,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile2",
-      "tile4",
-      "tile6",
-      "tile7",
-      "tile8"
-    ],
+    "adjacent": ["tile2", "tile4", "tile6", "tile7", "tile8"],
     "ports": []
   },
   "tile4": {
@@ -51,11 +36,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile3",
-      "tile5",
-      "tile8"
-    ],
+    "adjacent": ["tile3", "tile5", "tile8"],
     "ports": []
   },
   "tile5": {
@@ -65,12 +46,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile12",
-      "tile13",
-      "tile4",
-      "tile8"
-    ],
+    "adjacent": ["tile12", "tile13", "tile4", "tile8"],
     "ports": []
   },
   "tile6": {
@@ -80,17 +56,8 @@
     "valueStars": 1,
     "harbor": true,
     "shellable": false,
-    "adjacent": [
-      "tile1",
-      "tile10",
-      "tile2",
-      "tile3",
-      "tile7"
-    ],
-    "ports": [
-      "tile3",
-      "tile7"
-    ]
+    "adjacent": ["tile1", "tile10", "tile2", "tile3", "tile7"],
+    "ports": ["tile3", "tile7"]
   },
   "tile7": {
     "id": "tile7",
@@ -99,14 +66,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile10",
-      "tile11",
-      "tile12",
-      "tile3",
-      "tile6",
-      "tile8"
-    ],
+    "adjacent": ["tile10", "tile11", "tile12", "tile3", "tile6", "tile8"],
     "ports": []
   },
   "tile8": {
@@ -116,17 +76,8 @@
     "valueStars": 1,
     "harbor": true,
     "shellable": false,
-    "adjacent": [
-      "tile12",
-      "tile3",
-      "tile4",
-      "tile5",
-      "tile7"
-    ],
-    "ports": [
-      "tile3",
-      "tile7"
-    ]
+    "adjacent": ["tile12", "tile3", "tile4", "tile5", "tile7"],
+    "ports": ["tile3", "tile7"]
   },
   "tile9": {
     "id": "tile9",
@@ -135,16 +86,8 @@
     "valueStars": 0,
     "harbor": true,
     "shellable": false,
-    "adjacent": [
-      "tile1",
-      "tile10",
-      "tile14",
-      "tile15"
-    ],
-    "ports": [
-      "tile14",
-      "tile15"
-    ]
+    "adjacent": ["tile1", "tile10", "tile14", "tile15"],
+    "ports": ["tile14", "tile15"]
   },
   "tile10": {
     "id": "tile10",
@@ -153,14 +96,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": true,
-    "adjacent": [
-      "tile1",
-      "tile11",
-      "tile15",
-      "tile6",
-      "tile7",
-      "tile9"
-    ],
+    "adjacent": ["tile1", "tile11", "tile15", "tile6", "tile7", "tile9"],
     "ports": []
   },
   "tile11": {
@@ -170,14 +106,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile10",
-      "tile12",
-      "tile15",
-      "tile16",
-      "tile17",
-      "tile7"
-    ],
+    "adjacent": ["tile10", "tile12", "tile15", "tile16", "tile17", "tile7"],
     "ports": []
   },
   "tile12": {
@@ -187,14 +116,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": true,
-    "adjacent": [
-      "tile11",
-      "tile13",
-      "tile17",
-      "tile5",
-      "tile7",
-      "tile8"
-    ],
+    "adjacent": ["tile11", "tile13", "tile17", "tile5", "tile7", "tile8"],
     "ports": []
   },
   "tile13": {
@@ -204,16 +126,8 @@
     "valueStars": 0,
     "harbor": true,
     "shellable": false,
-    "adjacent": [
-      "tile12",
-      "tile17",
-      "tile18",
-      "tile5"
-    ],
-    "ports": [
-      "tile17",
-      "tile18"
-    ]
+    "adjacent": ["tile12", "tile17", "tile18", "tile5"],
+    "ports": ["tile17", "tile18"]
   },
   "tile14": {
     "id": "tile14",
@@ -222,12 +136,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile15",
-      "tile19",
-      "tile22",
-      "tile9"
-    ],
+    "adjacent": ["tile15", "tile19", "tile22", "tile9"],
     "ports": []
   },
   "tile15": {
@@ -237,14 +146,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile10",
-      "tile11",
-      "tile14",
-      "tile16",
-      "tile19",
-      "tile9"
-    ],
+    "adjacent": ["tile10", "tile11", "tile14", "tile16", "tile19", "tile9"],
     "ports": []
   },
   "tile16": {
@@ -254,19 +156,8 @@
     "valueStars": 2,
     "harbor": true,
     "shellable": false,
-    "adjacent": [
-      "tile11",
-      "tile15",
-      "tile17",
-      "tile19",
-      "tile20",
-      "tile21"
-    ],
-    "ports": [
-      "tile11",
-      "tile15",
-      "tile17"
-    ]
+    "adjacent": ["tile11", "tile15", "tile17", "tile19", "tile20", "tile21"],
+    "ports": ["tile11", "tile15", "tile17"]
   },
   "tile17": {
     "id": "tile17",
@@ -275,14 +166,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile11",
-      "tile12",
-      "tile13",
-      "tile16",
-      "tile18",
-      "tile21"
-    ],
+    "adjacent": ["tile11", "tile12", "tile13", "tile16", "tile18", "tile21"],
     "ports": []
   },
   "tile18": {
@@ -292,12 +176,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile13",
-      "tile17",
-      "tile21",
-      "tile22"
-    ],
+    "adjacent": ["tile13", "tile17", "tile21", "tile22"],
     "ports": []
   },
   "tile19": {
@@ -307,13 +186,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": true,
-    "adjacent": [
-      "tile14",
-      "tile15",
-      "tile16",
-      "tile20",
-      "tile22"
-    ],
+    "adjacent": ["tile14", "tile15", "tile16", "tile20", "tile22"],
     "ports": []
   },
   "tile20": {
@@ -323,12 +196,7 @@
     "valueStars": 2,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile16",
-      "tile19",
-      "tile21",
-      "tile22"
-    ],
+    "adjacent": ["tile16", "tile19", "tile21", "tile22"],
     "ports": []
   },
   "tile21": {
@@ -338,13 +206,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": true,
-    "adjacent": [
-      "tile16",
-      "tile17",
-      "tile18",
-      "tile20",
-      "tile22"
-    ],
+    "adjacent": ["tile16", "tile17", "tile18", "tile20", "tile22"],
     "ports": []
   },
   "tile22": {
@@ -354,13 +216,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": false,
-    "adjacent": [
-      "tile14",
-      "tile18",
-      "tile19",
-      "tile20",
-      "tile21"
-    ],
+    "adjacent": ["tile14", "tile18", "tile19", "tile20", "tile21"],
     "ports": []
   }
 }

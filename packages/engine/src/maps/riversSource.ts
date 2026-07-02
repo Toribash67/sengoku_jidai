@@ -12,45 +12,98 @@ export const riversSource: HexMapSource = {
   name: "Rivers",
   layout: { size: 114, originX: 0, originY: 0 },
   tiles: [
-    { id: "tile1", kind: "land", hexes: [{ q: 0, r: 2 }, { q: 0, r: 3 }], features: {} },
+    {
+      id: "tile1",
+      kind: "land",
+      hexes: [
+        { q: 0, r: 2 },
+        { q: 0, r: 3 }
+      ],
+      features: {}
+    },
     { id: "tile2", kind: "land", hexes: [{ q: 1, r: 1 }], features: { valueStars: 1 } },
     { id: "tile3", kind: "sea", hexes: [{ q: 2, r: 1 }], features: { valueStars: 1 } },
     { id: "tile4", kind: "land", hexes: [{ q: 3, r: 0 }], features: { valueStars: 1 } },
-    { id: "tile5", kind: "land", hexes: [{ q: 4, r: 0 }, { q: 4, r: 1 }], features: {} },
     {
-      id: "tile6", kind: "land", hexes: [{ q: 1, r: 2 }],
-      features: { valueStars: 1, harbor: true }, ports: ["tile3", "tile7"]
+      id: "tile5",
+      kind: "land",
+      hexes: [
+        { q: 4, r: 0 },
+        { q: 4, r: 1 }
+      ],
+      features: {}
+    },
+    {
+      id: "tile6",
+      kind: "land",
+      hexes: [{ q: 1, r: 2 }],
+      features: { valueStars: 1, harbor: true },
+      ports: ["tile3", "tile7"]
     },
     { id: "tile7", kind: "sea", hexes: [{ q: 2, r: 2 }], features: { valueStars: 1 } },
     {
-      id: "tile8", kind: "land", hexes: [{ q: 3, r: 1 }],
-      features: { valueStars: 1, harbor: true }, ports: ["tile3", "tile7"]
+      id: "tile8",
+      kind: "land",
+      hexes: [{ q: 3, r: 1 }],
+      features: { valueStars: 1, harbor: true },
+      ports: ["tile3", "tile7"]
     },
     {
-      id: "tile9", kind: "land", hexes: [{ q: 0, r: 4 }],
-      features: { hq: "red", harbor: true }, ports: ["tile14", "tile15"]
+      id: "tile9",
+      kind: "land",
+      hexes: [{ q: 0, r: 4 }],
+      features: { hq: "red", harbor: true },
+      ports: ["tile14", "tile15"]
     },
     { id: "tile10", kind: "land", hexes: [{ q: 1, r: 3 }], features: { shellable: true } },
     { id: "tile11", kind: "sea", hexes: [{ q: 2, r: 3 }], features: { valueStars: 1 } },
     { id: "tile12", kind: "land", hexes: [{ q: 3, r: 2 }], features: { shellable: true } },
     {
-      id: "tile13", kind: "land", hexes: [{ q: 4, r: 2 }],
-      features: { hq: "black", harbor: true }, ports: ["tile17", "tile18"]
+      id: "tile13",
+      kind: "land",
+      hexes: [{ q: 4, r: 2 }],
+      features: { hq: "black", harbor: true },
+      ports: ["tile17", "tile18"]
     },
-    { id: "tile14", kind: "sea", hexes: [{ q: 0, r: 5 }, { q: 0, r: 6 }], features: {} },
+    {
+      id: "tile14",
+      kind: "sea",
+      hexes: [
+        { q: 0, r: 5 },
+        { q: 0, r: 6 }
+      ],
+      features: {}
+    },
     { id: "tile15", kind: "sea", hexes: [{ q: 1, r: 4 }], features: { valueStars: 1 } },
     {
-      id: "tile16", kind: "land", hexes: [{ q: 2, r: 4 }],
-      features: { valueStars: 2, harbor: true }, ports: ["tile11", "tile15", "tile17"]
+      id: "tile16",
+      kind: "land",
+      hexes: [{ q: 2, r: 4 }],
+      features: { valueStars: 2, harbor: true },
+      ports: ["tile11", "tile15", "tile17"]
     },
     { id: "tile17", kind: "sea", hexes: [{ q: 3, r: 3 }], features: { valueStars: 1 } },
-    { id: "tile18", kind: "sea", hexes: [{ q: 4, r: 3 }, { q: 4, r: 4 }], features: {} },
+    {
+      id: "tile18",
+      kind: "sea",
+      hexes: [
+        { q: 4, r: 3 },
+        { q: 4, r: 4 }
+      ],
+      features: {}
+    },
     { id: "tile19", kind: "land", hexes: [{ q: 1, r: 5 }], features: { shellable: true } },
     { id: "tile20", kind: "land", hexes: [{ q: 2, r: 5 }], features: { valueStars: 2 } },
     { id: "tile21", kind: "land", hexes: [{ q: 3, r: 4 }], features: { shellable: true } },
     {
-      id: "tile22", kind: "sea",
-      hexes: [{ q: 1, r: 6 }, { q: 2, r: 6 }, { q: 3, r: 5 }], features: {}
+      id: "tile22",
+      kind: "sea",
+      hexes: [
+        { q: 1, r: 6 },
+        { q: 2, r: 6 },
+        { q: 3, r: 5 }
+      ],
+      features: {}
     }
   ],
   startingDeployment: {
