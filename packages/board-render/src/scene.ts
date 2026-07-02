@@ -98,8 +98,13 @@ export function buildScene(compiled: CompiledMap): BoardScene {
       features: { hq: area.hq ?? undefined, valueStars: area.valueStars, harbor: area.harbor },
       glyphAnchors: {
         hq: area.hq ? centroid : undefined,
+        // Value-star badge sits in the tile's top-right corner (as on board.svg): toward the
+        // flat-top hex's upper-right vertex (+0.5, -√3/2), at ~0.745× the centre→vertex distance
+        // (the inset board.svg uses), so the badge hugs the corner without leaving the tile.
         stars:
-          area.valueStars > 0 ? { x: centroid.x, y: centroid.y - layout.size * 0.4 } : undefined,
+          area.valueStars > 0
+            ? { x: centroid.x + layout.size * 0.37, y: centroid.y - layout.size * 0.645 }
+            : undefined,
         harbor: area.harbor ? { x: centroid.x, y: centroid.y + layout.size * 0.4 } : undefined,
         bonus:
           bonusSlot !== undefined

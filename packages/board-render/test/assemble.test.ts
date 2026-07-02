@@ -31,7 +31,8 @@ describe("assembleBoardSvg", () => {
     expect(svg).toContain(`class="hq-base"`); // tiles A (red) + E (black)
     expect(svg).toContain(`stroke:#e02d2d`); // red HQ base (tile A), colour in the path style
     expect(svg).toContain(`class="harbor"`); // tile D (concentric solid + dashed hexes)
-    expect(svg).toContain(`href="#glyph-star"`); // tiles B, C (still a placed glyph)
+    expect(svg).toContain(`class="star"`); // tiles B, C (native star badges)
+    expect(svg).toContain(`fill:#ce3485`); // the pink star fill from board.svg
   });
 
   it("emits invisible order-slot anchors at the slotIdForSpace ids", () => {

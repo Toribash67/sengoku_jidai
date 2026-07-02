@@ -96,7 +96,7 @@ const SHIP_BLACK = symbol(
   40,
   20,
   `<g transform="scale(0.4267) translate(-1298.931 445.640)">` +
-    `<path d="${SHIP_BLACK_D}" fill="${SEAT_FILL.black}" stroke="#fffefe" stroke-width="4"/>` +
+    `<path d="${SHIP_BLACK_D}" fill="${SEAT_FILL.black}" stroke="#000000" stroke-width="4"/>` +
     `</g>`
 );
 
@@ -376,4 +376,35 @@ export function pierArt(): string {
     style:
       "fill:#000000;stroke:#000000;stroke-width:21.4469;stroke-linecap:butt;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:2.14469,1.28682;stroke-dashoffset:2.14469"
   });
+}
+
+/** Native length of the pier stub (path49), so assemble.ts can seat it starting at the tile edge. */
+export const PIER_ART_LENGTH = 35.12336;
+
+// Value-star badges. board.svg draws the 1-star as a circle badge (g64) and the
+// 2-star as an elongated pill with two stars (g63). Both share STAR_PATH_D and
+// are rendered verbatim at native scale, pre-centred at (0,0) on the badge.
+const STAR_BADGE = `<g transform="translate(36.771176,10.01285)"><path d="${STAR_PATH_D}" transform="matrix(0.30500519,0,0,0.30500519,873.57673,-447.29887)" style="fill:#ce3485;stroke:#ffffff;stroke-width:4.91795"/></g>`;
+
+/** 1-star badge — board.svg g64 (black circle + one star), centred on the circle. */
+export function star1Art(): string {
+  return el(
+    "g",
+    { transform: "translate(-1297.8433 635.729)", class: "star" },
+    `<circle cx="1297.8433" cy="-635.729" r="25.298941" style="fill:#000000;stroke:#ffffff;stroke-width:2"/>` +
+      STAR_BADGE
+  );
+}
+
+/** 2-star badge — board.svg g63 (tilted black pill + two stars), centred on the pill. */
+export function star2Art(): string {
+  const inner =
+    `<ellipse cx="1063.4695" cy="-885.24939" rx="37.737999" ry="25.06002" transform="rotate(15)" style="fill:#000000;stroke:#ffffff;stroke-width:2"/>` +
+    `<g transform="rotate(45,1178.7099,-624.84933)"><path d="${STAR_PATH_D}" transform="matrix(0.30500519,0,0,0.30500519,873.57673,-447.29887)" style="fill:#ce3485;stroke:#ffffff;stroke-width:4.91795"/></g>` +
+    `<g transform="rotate(45,1182.2796,-610.47442)"><path d="${STAR_PATH_D}" transform="matrix(0.30500519,0,0,0.30500519,873.57673,-447.29887)" style="fill:#ce3485;stroke:#ffffff;stroke-width:4.91795"/></g>`;
+  return el(
+    "g",
+    { transform: "translate(-1294.143 561.608)", class: "star" },
+    el("g", { transform: "rotate(-45,1297.2825,-616.34605)" }, inner)
+  );
 }

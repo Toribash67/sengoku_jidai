@@ -1,4 +1,13 @@
-import { ASSETS, NATIVE_HEX_SIZE, harborArt, hqBaseArt, pierArt } from "./assets.js";
+import {
+  ASSETS,
+  NATIVE_HEX_SIZE,
+  PIER_ART_LENGTH,
+  harborArt,
+  hqBaseArt,
+  pierArt,
+  star1Art,
+  star2Art
+} from "./assets.js";
 import type { BoardScene, SceneTile } from "./scene.js";
 import type { Pixel } from "@sengoku-jidai/engine";
 import { el } from "./svg.js";
@@ -44,13 +53,16 @@ function placePier(from: Pixel, to: Pixel, hexSize: number): string {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const len = Math.hypot(dx, dy) || 1;
-  // Sit the stub on the shared edge (one apothem out from the centre along the land→sea line).
-  const apothem = (hexSize * Math.sqrt(3)) / 2;
-  const mx = from.x + (dx / len) * apothem;
-  const my = from.y + (dy / len) * apothem;
+  const ux = dx / len;
+  const uy = dy / len;
+  const s = hexSize / NATIVE_HEX_SIZE;
+  // Start the pier at the tile edge (one apothem out) and let it extend into the water, rather
+  // than straddling the edge — so shift the stub's centre out by half its (scaled) length.
+  const apothem = (hexSize * Math.sqrt(3)) / 2 + (PIER_ART_LENGTH * s) / 2;
+  const mx = from.x + ux * apothem;
+  const my = from.y + uy * apothem;
   // The art is drawn vertical (90°); rotate so its long axis aligns with the land→sea direction.
   const angle = (Math.atan2(dy, dx) * 180) / Math.PI - 90;
-  const s = hexSize / NATIVE_HEX_SIZE;
   return el(
     "g",
     {
@@ -71,7 +83,8 @@ function featureGlyphs(tile: SceneTile, hexSize: number): string {
     out.push(placeNative(harborArt(), tile.centroid, hexSize));
   }
   if (tile.features.valueStars > 0 && tile.glyphAnchors.stars) {
-    out.push(ASSETS.place("glyph-star", tile.glyphAnchors.stars, 1.4));
+    const art = tile.features.valueStars === 2 ? star2Art() : star1Art();
+    out.push(placeNative(art, tile.glyphAnchors.stars, hexSize));
   }
   if (tile.bonusGlyph && tile.glyphAnchors.bonus) {
     out.push(ASSETS.place(tile.bonusGlyph, tile.glyphAnchors.bonus, 1.4));
