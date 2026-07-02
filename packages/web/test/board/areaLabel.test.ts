@@ -1,4 +1,4 @@
-import type { MapArea } from "@sengoku-jidai/engine";
+import type { MapArea } from "@sengoku-jidai/engine/client";
 import { describe, expect, it } from "vitest";
 import { describeArea } from "../../src/components/board/areaLabel.js";
 

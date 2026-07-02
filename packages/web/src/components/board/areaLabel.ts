@@ -1,4 +1,4 @@
-import type { MapArea } from "@sengoku-jidai/engine";
+import type { MapArea } from "@sengoku-jidai/engine/client";
 
 /** A short, human-readable label for an area, derived from its traits — never the raw
  *  engine id (players never see "tile9" on the board). Used for the selected-area heading

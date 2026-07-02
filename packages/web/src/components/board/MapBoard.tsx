@@ -1,5 +1,5 @@
-import type { PlayerAreaView, SeatId } from "@sengoku-jidai/engine";
-import { compileHexMap, riversSource } from "@sengoku-jidai/engine";
+import type { PlayerAreaView, SeatId } from "@sengoku-jidai/engine/client";
+import { compileHexMap, riversSource } from "@sengoku-jidai/engine/client";
 import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
 import { useEffect, useRef } from "react";
 import { SEAT_SOLID, TILE_LAND_FILL, TILE_SEA_FILL, tileFill } from "./tileFill.js";

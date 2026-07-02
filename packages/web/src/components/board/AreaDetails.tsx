@@ -1,4 +1,4 @@
-import type { MapArea, PlayerAreaView, PlayerGameView } from "@sengoku-jidai/engine";
+import type { MapArea, PlayerAreaView, PlayerGameView } from "@sengoku-jidai/engine/client";
 
 interface AreaDetailsProps {
   area: PlayerAreaView;

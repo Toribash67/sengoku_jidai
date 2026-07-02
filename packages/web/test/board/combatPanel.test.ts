@@ -1,4 +1,4 @@
-import type { PendingCombat } from "@sengoku-jidai/engine";
+import type { PendingCombat } from "@sengoku-jidai/engine/client";
 import { describe, expect, it } from "vitest";
 import { describeCombat } from "../../src/components/board/CombatPanel.js";
 

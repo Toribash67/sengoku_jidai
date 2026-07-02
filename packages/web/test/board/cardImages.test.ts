@@ -1,5 +1,5 @@
-import type { OperationCard } from "@sengoku-jidai/engine";
-import { RIVERS_CARDS } from "@sengoku-jidai/engine";
+import type { OperationCard } from "@sengoku-jidai/engine/client";
+import { RIVERS_CARDS } from "@sengoku-jidai/engine/client";
 import { describe, expect, it } from "vitest";
 import { cardBack, cardImage, cardLabel } from "../../src/components/board/cardImages.js";
 

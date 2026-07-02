@@ -3,7 +3,12 @@ import type {
   PlayerGameViewEnvelope,
   SubmitCommandResponse
 } from "@sengoku-jidai/shared";
-import type { Command, PlayerGameEvent, PlayerGameView, SeatId } from "@sengoku-jidai/engine";
+import type {
+  Command,
+  PlayerGameEvent,
+  PlayerGameView,
+  SeatId
+} from "@sengoku-jidai/engine/client";
 
 export async function createGame(input: {
   name: string;
