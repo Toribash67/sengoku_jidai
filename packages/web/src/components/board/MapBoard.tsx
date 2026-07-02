@@ -64,6 +64,11 @@ const SHIP_DEF: Record<SeatId, string> = { red: "unit-ship-red", black: "unit-sh
 /** Max tokens drawn in a stack; larger counts still show this many, with the real total. */
 const MAX_STACK_TOKENS = 5;
 
+/** Rendered size of a unit token. The token symbols are authored in a 40-unit viewport, but the
+ *  board.svg counterparts are ~84 units across (army disc r≈33.6) on the 114-size hex grid, so
+ *  the tokens are rendered at that size to match the original board's proportions. */
+const UNIT_TOKEN_SIZE = 84;
+
 /** One-time prep on the assembled SVG. Procedural tiles already carry their authored fill on
  *  `data-authored-fill` and the stripe patterns ship in <defs>, so this only ensures the
  *  attribute is mirrored onto `dataset.authoredFill` (camelCase) for the decorate pass. */
@@ -158,6 +163,10 @@ function makeToken(defId: string): SVGUseElement {
   const use = document.createElementNS(SVG_NS, "use");
   use.setAttributeNS(XLINK_NS, "xlink:href", `#${defId}`);
   use.setAttribute("href", `#${defId}`);
+  // Size the token viewport so the glyph renders at board-scale (renderUnitStack measures the
+  // rendered getBBox, so stacking offsets and centring follow this size automatically).
+  use.setAttribute("width", String(UNIT_TOKEN_SIZE));
+  use.setAttribute("height", String(UNIT_TOKEN_SIZE));
   return use;
 }
 

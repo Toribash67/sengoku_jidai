@@ -279,8 +279,11 @@ const SYMBOLS = [
 export const ASSETS = {
   defs: `${SYMBOLS}\n${STRIPE_PATTERNS}`,
   place(glyph: GlyphId, at: Pixel, scale = 1): string {
-    const transform =
-      scale === 1 ? `translate(${at.x} ${at.y})` : `translate(${at.x} ${at.y}) scale(${scale})`;
+    // Each glyph symbol is a 40×40 viewport (viewBox "-20 -20 40 40") whose art is
+    // centred at content (0,0) → viewport centre (20,20). The trailing translate(-20 -20)
+    // moves that centre onto `at`, so the glyph is centred on its anchor instead of
+    // offset down-right by half the (scaled) viewport.
+    const transform = `translate(${at.x} ${at.y}) scale(${scale}) translate(-20 -20)`;
     return el("use", { href: `#${glyph}`, "xlink:href": `#${glyph}`, transform });
   }
 };
