@@ -1,31 +1,7 @@
-import { ASSETS } from "./assets.js";
+import { ASSETS, NATIVE_HEX_SIZE, harborArt, hqBaseArt, pierArt } from "./assets.js";
 import type { BoardScene, SceneTile } from "./scene.js";
-import type { Pixel, SeatId } from "@sengoku-jidai/engine";
-import { hexCorners } from "./outline.js";
+import type { Pixel } from "@sengoku-jidai/engine";
 import { el } from "./svg.js";
-
-/** HQ-base outline colour per seat (matches board.svg basered/baseblack strokes). */
-const HQ_STROKE: Record<SeatId, string> = { red: "#e02d2d", black: "#000000" };
-
-/** A flat-top hexagon outline centred on `c`, sized to `radius` (a fraction of the tile hex).
- *  HQ base and harbor markers are tile-sized concentric hex outlines in board.svg, not small
- *  icons — so they are drawn from the hex geometry rather than a 40-unit glyph symbol. */
-function hexOutline(
-  c: Pixel,
-  radius: number,
-  opts: { stroke: string; width: number; dash?: string; cls: string }
-): string {
-  const pts = hexCorners(c, radius);
-  const d = "M" + pts.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join("L") + "Z";
-  return el("path", {
-    d,
-    fill: "none",
-    stroke: opts.stroke,
-    "stroke-width": opts.width,
-    ...(opts.dash ? { "stroke-dasharray": opts.dash } : {}),
-    class: opts.cls
-  });
-}
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
@@ -51,29 +27,48 @@ function tilePath(tile: SceneTile): string {
   });
 }
 
+/** Place native-scale feature art centred on a tile centroid. Native art is authored at
+ *  NATIVE_HEX_SIZE, so it is scaled to the map's hex size — 1:1 on a size-114 map. */
+function placeNative(art: string, centroid: Pixel, hexSize: number): string {
+  const s = hexSize / NATIVE_HEX_SIZE;
+  return el(
+    "g",
+    { transform: `translate(${centroid.x.toFixed(2)} ${centroid.y.toFixed(2)}) scale(${s})` },
+    art
+  );
+}
+
+/** Place a pier stub on the edge between a harbour tile and one of its sea neighbours,
+ *  rotated to point from land into the water. `from` is the tile centroid, `to` the sea's. */
+function placePier(from: Pixel, to: Pixel, hexSize: number): string {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy) || 1;
+  // Sit the stub on the shared edge (one apothem out from the centre along the land→sea line).
+  const apothem = (hexSize * Math.sqrt(3)) / 2;
+  const mx = from.x + (dx / len) * apothem;
+  const my = from.y + (dy / len) * apothem;
+  // The art is drawn vertical (90°); rotate so its long axis aligns with the land→sea direction.
+  const angle = (Math.atan2(dy, dx) * 180) / Math.PI - 90;
+  const s = hexSize / NATIVE_HEX_SIZE;
+  return el(
+    "g",
+    {
+      transform: `translate(${mx.toFixed(2)} ${my.toFixed(2)}) rotate(${angle.toFixed(2)}) scale(${s})`
+    },
+    pierArt()
+  );
+}
+
 function featureGlyphs(tile: SceneTile, hexSize: number): string {
   const out: string[] = [];
-  // HQ base + harbor are tile-sized concentric hex outlines (board.svg basered/baseblack + g46),
-  // not 40-unit icons. HQ is the outer coloured ring; harbor is an inner dashed ring, so both
-  // read clearly when a tile has both (tile9, tile13).
+  // HQ base + harbour are the artist's tile-sized hex outlines (board.svg path9-5-0-3/-6 + g46),
+  // drawn verbatim at native scale so they line up with the tile edge (both appear on tile9/tile13).
   if (tile.features.hq) {
-    out.push(
-      hexOutline(tile.centroid, hexSize * 0.88, {
-        stroke: HQ_STROKE[tile.features.hq],
-        width: 8,
-        cls: "hq-base"
-      })
-    );
+    out.push(placeNative(hqBaseArt(tile.features.hq), tile.centroid, hexSize));
   }
   if (tile.features.harbor) {
-    out.push(
-      hexOutline(tile.centroid, hexSize * 0.72, {
-        stroke: "#000000",
-        width: 5,
-        dash: "16 10",
-        cls: "harbor"
-      })
-    );
+    out.push(placeNative(harborArt(), tile.centroid, hexSize));
   }
   if (tile.features.valueStars > 0 && tile.glyphAnchors.stars) {
     out.push(ASSETS.place("glyph-star", tile.glyphAnchors.stars, 1.4));
@@ -82,19 +77,7 @@ function featureGlyphs(tile: SceneTile, hexSize: number): string {
     out.push(ASSETS.place(tile.bonusGlyph, tile.glyphAnchors.bonus, 1.4));
   }
   for (const port of tile.ports) {
-    out.push(
-      el("line", {
-        x1: port.from.x.toFixed(2),
-        y1: port.from.y.toFixed(2),
-        x2: port.toPoint.x.toFixed(2),
-        y2: port.toPoint.y.toFixed(2),
-        class: "pier",
-        stroke: "#4a3620",
-        "stroke-width": 8,
-        "stroke-linecap": "round",
-        "stroke-dasharray": "18 12"
-      })
-    );
+    out.push(placePier(port.from, port.toPoint, hexSize));
   }
   return out.join("");
 }
