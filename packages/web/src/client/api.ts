@@ -1,5 +1,6 @@
 import type {
   CreateGameResponse,
+  MapDetail,
   PlayerGameViewEnvelope,
   SubmitCommandResponse
 } from "@sengoku-jidai/shared";
@@ -40,6 +41,10 @@ export async function fetchEvents(
   return request(`/api/games/${gameId}/events?after=${after}`, {
     headers: authHeaders(token)
   });
+}
+
+export async function fetchMap(mapId: string): Promise<MapDetail> {
+  return request(`/api/maps/${mapId}`);
 }
 
 export async function fetchGameView(
