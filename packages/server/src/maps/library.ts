@@ -130,6 +130,75 @@ export class MapLibrary {
     };
   }
 
+  /** Boot-time registration of every stored map. A row that fails to parse or
+   *  compile (e.g. engine schema drift) is logged and skipped — one bad map must
+   *  not take the server down. Games referencing a skipped map 500 until fixed. */
+  loadAll(log?: { error: (obj: object, msg: string) => void }): void {
+    const rows = this.db.prepare("SELECT id, source_json FROM maps").all() as Pick<
+      MapRow,
+      "id" | "source_json"
+    >[];
+    for (const row of rows) {
+      try {
+        const source = JSON.parse(row.source_json) as HexMapSource;
+        registerMap(compileHexMap(source).definition);
+      } catch (err) {
+        log?.error({ err, mapId: row.id }, "Skipping stored map that failed to load");
+      }
+    }
+  }
+
+  update(id: string, source: HexMapSourceDto): MapResult<MapDetail> {
+    const guard = this.writeGuard(id);
+    if (guard) {
+      return { ok: false, error: guard };
+    }
+    const candidate: HexMapSource = { ...source, id };
+    const invalid = this.validate(candidate);
+    if (invalid) {
+      return { ok: false, error: { code: "invalidMap", message: invalid } };
+    }
+    const now = new Date().toISOString();
+    this.db
+      .prepare("UPDATE maps SET name = ?, source_json = ?, updated_at = ? WHERE id = ?")
+      .run(candidate.name, JSON.stringify(candidate), now, id);
+    registerMap(compileHexMap(candidate).definition);
+    return {
+      ok: true,
+      value: { id, name: candidate.name, builtin: false, updatedAt: now, source: candidate }
+    };
+  }
+
+  delete(id: string): MapResult<null> {
+    const guard = this.writeGuard(id);
+    if (guard) {
+      return { ok: false, error: guard };
+    }
+    this.db.prepare("DELETE FROM maps WHERE id = ?").run(id);
+    // The in-memory registry entry is left behind until restart — harmless:
+    // create-game existence checks go through the library, and uuid ids
+    // cannot collide with a future upload.
+    return { ok: true, value: null };
+  }
+
+  /** Shared update/delete preconditions: built-ins are read-only, the row must
+   *  exist, and maps referenced by any game are immutable (upload a copy). */
+  private writeGuard(id: string): MapLibraryError | null {
+    if (BUILTIN_SOURCES.some((source) => source.id === id)) {
+      return { code: "builtinMap", message: "Built-in maps cannot be modified." };
+    }
+    if (this.db.prepare("SELECT 1 FROM maps WHERE id = ?").get(id) === undefined) {
+      return { code: "mapNotFound", message: "Map was not found." };
+    }
+    if (this.db.prepare("SELECT 1 FROM games WHERE map_id = ? LIMIT 1").get(id) !== undefined) {
+      return {
+        code: "mapInUse",
+        message: "Games already reference this map; upload a copy instead."
+      };
+    }
+    return null;
+  }
+
   /**
    * Full upload validation: engine structural rules, compilation, then a dry-run
    * game setup under a fixed throwaway id (`DRY_RUN_MAP_ID`). The throwaway

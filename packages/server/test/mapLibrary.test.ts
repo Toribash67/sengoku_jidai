@@ -1,5 +1,6 @@
 import { FIXTURE_HEX_MAP, getMap } from "@sengoku-jidai/engine";
 import { describe, expect, it } from "vitest";
+import type { SqliteDatabase } from "../src/persistence/database.js";
 import { openDatabase, runMigrations } from "../src/persistence/database.js";
 import { MapLibrary } from "../src/maps/library.js";
 
@@ -7,6 +8,12 @@ function makeLibrary(): MapLibrary {
   const db = openDatabase(":memory:");
   runMigrations(db);
   return new MapLibrary(db);
+}
+
+function makeDb(): SqliteDatabase {
+  const db = openDatabase(":memory:");
+  runMigrations(db);
+  return db;
 }
 
 /** A fresh copy of the SP1 fixture map (the library rewrites ids; never mutate the import). */
@@ -89,5 +96,106 @@ describe("MapLibrary create/get/list", () => {
     if (result.ok) return;
     expect(result.error.code).toBe("invalidMap");
     expect(result.error.message).toContain("bonus");
+  });
+});
+
+describe("MapLibrary update/delete", () => {
+  it("updates an unreferenced map in place and re-registers it", () => {
+    const db = makeDb();
+    const library = new MapLibrary(db);
+    const created = library.create(fixtureSource());
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const renamed = { ...fixtureSource(), name: "Fixture v2" };
+    const updated = library.update(created.value.id, renamed);
+    expect(updated.ok).toBe(true);
+    if (!updated.ok) return;
+    expect(updated.value.id).toBe(created.value.id);
+    expect(updated.value.name).toBe("Fixture v2");
+    expect(library.get(created.value.id)?.name).toBe("Fixture v2");
+    expect(getMap(created.value.id).name).toBe("Fixture v2");
+  });
+
+  it("rejects update and delete once a game references the map", () => {
+    const db = makeDb();
+    const library = new MapLibrary(db);
+    const created = library.create(fixtureSource());
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO games (id, map_id, mode, ruleset_id, ruleset_version, ruleset_hash, status, current_revision, created_at, updated_at)
+       VALUES ('g1', ?, 'hotseat', 'r', '1', 'h', 'active', 0, ?, ?)`
+    ).run(created.value.id, now, now);
+
+    const updated = library.update(created.value.id, fixtureSource());
+    expect(updated).toMatchObject({ ok: false, error: { code: "mapInUse" } });
+    const deleted = library.delete(created.value.id);
+    expect(deleted).toMatchObject({ ok: false, error: { code: "mapInUse" } });
+  });
+
+  it("deletes an unreferenced map", () => {
+    const library = new MapLibrary(makeDb());
+    const created = library.create(fixtureSource());
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    expect(library.delete(created.value.id)).toMatchObject({ ok: true });
+    expect(library.get(created.value.id)).toBeNull();
+    expect(library.has(created.value.id)).toBe(false);
+  });
+
+  it("protects built-ins from update and delete", () => {
+    const library = new MapLibrary(makeDb());
+    expect(library.update("rivers", fixtureSource())).toMatchObject({
+      ok: false,
+      error: { code: "builtinMap" }
+    });
+    expect(library.delete("rivers")).toMatchObject({ ok: false, error: { code: "builtinMap" } });
+  });
+
+  it("returns mapNotFound for unknown ids", () => {
+    const library = new MapLibrary(makeDb());
+    expect(library.update("nope", fixtureSource())).toMatchObject({
+      ok: false,
+      error: { code: "mapNotFound" }
+    });
+    expect(library.delete("nope")).toMatchObject({ ok: false, error: { code: "mapNotFound" } });
+  });
+});
+
+describe("MapLibrary loadAll", () => {
+  it("registers every stored map at boot", () => {
+    const db = makeDb();
+    const writer = new MapLibrary(db);
+    const created = writer.create(fixtureSource());
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    // A fresh library over the same db (simulating a restart) re-registers.
+    // registerMap is idempotent (replace), so re-loading is safe.
+    const booted = new MapLibrary(db);
+    booted.loadAll();
+    expect(getMap(created.value.id).id).toBe(created.value.id);
+  });
+
+  it("skips a corrupt row and keeps loading the rest", () => {
+    const db = makeDb();
+    const library = new MapLibrary(db);
+    const good = library.create(fixtureSource());
+    expect(good.ok).toBe(true);
+    if (!good.ok) return;
+
+    const now = new Date().toISOString();
+    db.prepare(
+      "INSERT INTO maps (id, name, source_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
+    ).run("corrupt-map", "Corrupt", "{not json", now, now);
+
+    const errors: string[] = [];
+    new MapLibrary(db).loadAll({ error: (_obj, msg) => errors.push(msg) });
+    expect(errors).toHaveLength(1);
+    expect(getMap(good.value.id).id).toBe(good.value.id);
   });
 });
