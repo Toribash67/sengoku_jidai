@@ -1,4 +1,4 @@
-import type { PlayerAreaView, SeatId } from "@sengoku-jidai/engine";
+import type { PlayerAreaView, SeatId } from "@sengoku-jidai/engine/client";
 
 /** Default tile colours for unowned areas, matching the original artwork palette. */
 export const TILE_LAND_FILL = "#d5d3c4";

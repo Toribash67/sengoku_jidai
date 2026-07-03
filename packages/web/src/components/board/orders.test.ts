@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { LegalCommandSummary, LegalMove, LegalStrike } from "@sengoku-jidai/engine";
+import type { LegalCommandSummary, LegalMove, LegalStrike } from "@sengoku-jidai/engine/client";
 import {
   armMove,
   armStrike,

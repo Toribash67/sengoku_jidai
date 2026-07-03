@@ -1,4 +1,4 @@
-import type { OperationCard } from "@sengoku-jidai/engine";
+import type { OperationCard } from "@sengoku-jidai/engine/client";
 import ambush from "../../assets/rivers/cards/ambush.webp";
 import commandeer from "../../assets/rivers/cards/commandeer.webp";
 import counterattack from "../../assets/rivers/cards/counterattack.webp";

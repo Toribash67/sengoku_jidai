@@ -1,4 +1,4 @@
-import type { LegalPlacement } from "@sengoku-jidai/engine";
+import type { LegalPlacement } from "@sengoku-jidai/engine/client";
 import { describe, expect, it } from "vitest";
 import { largestPlacementPerType } from "../../src/components/board/composer.js";
 

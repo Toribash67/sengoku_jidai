@@ -1,4 +1,4 @@
-import type { ActionType } from "@sengoku-jidai/engine";
+import type { ActionType } from "@sengoku-jidai/engine/client";
 
 /** SVG order-slot prefix per on-map action type (engine "advance" = SVG "move"). */
 const SLOT_PREFIX: Partial<Record<ActionType, string>> = {

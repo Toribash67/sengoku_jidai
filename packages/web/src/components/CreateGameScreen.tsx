@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import type { SeatId } from "@sengoku-jidai/engine";
+import type { SeatId } from "@sengoku-jidai/engine/client";
 
 interface CreateGameScreenProps {
   busy: boolean;
