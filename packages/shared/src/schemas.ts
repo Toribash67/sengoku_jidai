@@ -91,11 +91,61 @@ export const commandSchema = z.discriminatedUnion("type", [
   })
 ]);
 
+/** Axial hex coordinate (mirrors engine `Axial`). */
+export const axialSchema = z.object({ q: z.number().int(), r: z.number().int() });
+
+/** Flat-top hex layout (mirrors engine `HexLayout`). */
+export const hexLayoutSchema = z.object({
+  size: z.number().positive(),
+  originX: z.number(),
+  originY: z.number()
+});
+
+export const hexTileFeaturesSchema = z.object({
+  hq: seatIdSchema.optional(),
+  valueStars: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
+  harbor: z.boolean().optional(),
+  shellable: z.boolean().optional()
+});
+
+export const hexTileSourceSchema = z.object({
+  id: z.string().min(1),
+  kind: z.enum(["land", "sea"]),
+  hexes: z.array(axialSchema).min(1),
+  features: hexTileFeaturesSchema,
+  ports: z.array(z.string().min(1)).optional()
+});
+
+export const startingUnitsSchema = z.object({
+  seat: seatIdSchema,
+  troop: z.number().int().nonnegative().optional(),
+  ship: z.number().int().nonnegative().optional()
+});
+
+/**
+ * Wire mirror of the engine's `HexMapSource` (packages/engine/src/maps/hex/source.ts).
+ * Must match that interface exactly; the server carries a compile-time drift guard
+ * (see packages/server/src/maps/library.ts).
+ */
+export const hexMapSourceSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().trim().min(1).max(120),
+  layout: hexLayoutSchema,
+  tiles: z.array(hexTileSourceSchema).min(1),
+  startingDeployment: z.record(startingUnitsSchema),
+  bonusSlots: z.array(z.string().min(1))
+});
+
+export const mapParamsSchema = z.object({
+  mapId: z.string().min(1)
+});
+
 export const createGameRequestSchema = z.object({
   mode: gameModeSchema.default("hotseat"),
   seed: z.string().optional(),
   name: z.string().trim().min(1).max(80).optional(),
-  side: seatIdSchema.optional()
+  side: seatIdSchema.optional(),
+  mapId: z.string().min(1).optional()
 });
 
 export const claimGameRequestSchema = z.object({
@@ -126,3 +176,4 @@ export type CommandDto = z.infer<typeof commandSchema>;
 export type CreateGameRequest = z.infer<typeof createGameRequestSchema>;
 export type SubmitCommandRequest = z.infer<typeof submitCommandRequestSchema>;
 export type ClaimGameRequest = z.infer<typeof claimGameRequestSchema>;
+export type HexMapSourceDto = z.infer<typeof hexMapSourceSchema>;

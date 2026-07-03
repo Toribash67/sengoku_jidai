@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { commandSchema, gameModeSchema, seatIdSchema } from "./schemas.js";
+import type { commandSchema, gameModeSchema, hexMapSourceSchema, seatIdSchema } from "./schemas.js";
 
 export type SeatId = z.infer<typeof seatIdSchema>;
 export type GameMode = z.infer<typeof gameModeSchema>;
@@ -55,4 +55,25 @@ export type ServerMessage<View = unknown, Event = unknown> =
 export interface PresenceState {
   seat: SeatId;
   connected: boolean;
+}
+
+export interface MapSummary {
+  id: string;
+  name: string;
+  tileCount: number;
+  builtin: boolean;
+  /** ISO timestamp for library maps; null for built-ins (which live in code). */
+  updatedAt: string | null;
+}
+
+export interface ListMapsResponse {
+  maps: MapSummary[];
+}
+
+export interface MapDetail {
+  id: string;
+  name: string;
+  builtin: boolean;
+  updatedAt: string | null;
+  source: z.infer<typeof hexMapSourceSchema>;
 }
