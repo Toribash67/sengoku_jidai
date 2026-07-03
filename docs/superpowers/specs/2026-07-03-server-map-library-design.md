@@ -80,15 +80,18 @@ right after `runMigrations`, before any route is registered.
    engine's message.
 3. **`compileHexMap(source)`** — must succeed.
 4. **Dry-run `createInitialState`** — register the compiled definition under a
-   **throwaway id** (`dryrun-<uuid>`, compiled from a copy of the source with that id)
-   and attempt a game setup with a fixed seed. This catches playability failures the
-   structural validator deliberately doesn't enforce — notably
+   **fixed throwaway id** (`map-library-dry-run`, compiled from a copy of the source
+   with that id) and attempt a game setup with a fixed seed. This catches playability
+   failures the structural validator deliberately doesn't enforce — notably
    `bonusSlots.length > rules.bonusSet.length` and any future setup-time invariant —
    as 400s at upload instead of 500s at game creation. The real id is registered only
    after the whole pipeline passes; this matters on **update**, where registering the
    new definition before the dry run would corrupt live games under the existing id
-   if validation then failed. The throwaway entry lingers until restart — harmless
-   and unreachable.
+   if validation then failed. Because every validation reuses the same fixed id,
+   `registerMap` simply replaces the previous dry-run entry — the registry holds at
+   most one dry-run entry at a time, and it's unreachable from the outside the same
+   way the leftover entries from `delete()` are (create-game existence checks go
+   through the library, never the raw registry).
 
 ### API routes (`packages/server/src/api/routes.ts`)
 

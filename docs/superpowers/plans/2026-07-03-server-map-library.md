@@ -412,6 +412,14 @@ export type MapResult<T> = { ok: true; value: T } | { ok: false; error: MapLibra
 
 const BUILTIN_SOURCES: readonly HexMapSource[] = [riversSource];
 
+/**
+ * Fixed id used for the dry-run validation pass (see `validate()`). Every
+ * validation reuses this single id, so `registerMap` simply replaces the
+ * previous dry-run entry instead of accumulating a new one per attempt. Safe
+ * because the server is single-threaded and validations never interleave.
+ */
+const DRY_RUN_MAP_ID = "map-library-dry-run";
+
 interface MapRow {
   id: string;
   name: string;
@@ -500,22 +508,24 @@ export class MapLibrary {
 
   /**
    * Full upload validation: engine structural rules, compilation, then a dry-run
-   * game setup under a throwaway id. The throwaway registration is deliberate —
-   * registering the REAL id before validation passes would, on update, corrupt
-   * live games if a later stage then failed. The stale `dryrun-*` entry is
-   * unreachable (uuid) and vanishes on restart.
+   * game setup under a fixed throwaway id (`DRY_RUN_MAP_ID`). The throwaway
+   * registration is deliberate — registering the REAL id before validation
+   * passes would, on update, corrupt live games if a later stage then failed.
+   * The dry-run entry is unreachable from the outside (create-game existence
+   * checks go through the library, never the raw registry) and, because every
+   * validation reuses the same id, the registry holds at most one dry-run
+   * entry at a time — no unbounded growth.
    * Returns the failure message, or null when valid.
    */
   private validate(candidate: HexMapSource): string | null {
     try {
       validateHexMap(candidate);
-      const dryRunId = `dryrun-${randomUUID()}`;
-      registerMap(compileHexMap({ ...candidate, id: dryRunId }).definition);
+      registerMap(compileHexMap({ ...candidate, id: DRY_RUN_MAP_ID }).definition);
       createInitialState({
-        gameId: dryRunId,
+        gameId: DRY_RUN_MAP_ID,
         mode: "hotseat",
-        seed: "map-library-dry-run",
-        mapId: dryRunId
+        seed: DRY_RUN_MAP_ID,
+        mapId: DRY_RUN_MAP_ID
       });
       return null;
     } catch (err) {
