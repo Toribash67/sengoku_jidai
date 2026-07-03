@@ -1,7 +1,12 @@
 import { FIXTURE_HEX_MAP } from "@sengoku-jidai/engine";
+import fastify from "fastify";
 import { describe, expect, it } from "vitest";
+import { registerApiRoutes } from "../src/api/routes.js";
 import { buildApp } from "../src/app.js";
 import type { ServerConfig } from "../src/config.js";
+import { MapLibrary } from "../src/maps/library.js";
+import { openDatabase, runMigrations } from "../src/persistence/database.js";
+import { GameRepository } from "../src/persistence/repository.js";
 
 function testConfig(): ServerConfig {
   return {
@@ -154,7 +159,11 @@ describe("games on custom maps", () => {
   });
 
   it("404s game creation on an unknown mapId without creating anything", async () => {
-    const app = buildApp(testConfig());
+    const db = openDatabase(":memory:");
+    runMigrations(db);
+    const app = fastify({ logger: { level: "silent" } });
+    registerApiRoutes(app, new GameRepository(db), new MapLibrary(db));
+
     const created = await app.inject({
       method: "POST",
       url: "/api/games",
@@ -162,7 +171,12 @@ describe("games on custom maps", () => {
     });
     expect(created.statusCode).toBe(404);
     expect(created.json().error.code).toBe("mapNotFound");
+
+    const gameCount = db.prepare("SELECT COUNT(*) AS n FROM games").get() as { n: number };
+    expect(gameCount.n).toBe(0);
+
     await app.close();
+    db.close();
   });
 
   it("still creates rivers games when mapId is omitted (default path unchanged)", async () => {
