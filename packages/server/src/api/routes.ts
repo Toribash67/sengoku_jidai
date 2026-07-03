@@ -101,9 +101,14 @@ export function registerApiRoutes(
       return sendError(reply, 400, "invalidRequest", "Request body is invalid.");
     }
 
+    if (parsed.data.mapId !== undefined && !mapLibrary.has(parsed.data.mapId)) {
+      return sendError(reply, 404, "mapNotFound", "Map was not found.");
+    }
+
     const game = repository.createGame(parsed.data.mode, parsed.data.seed, {
       creatorName: parsed.data.name,
-      creatorSide: parsed.data.side
+      creatorSide: parsed.data.side,
+      mapId: parsed.data.mapId
     });
     return reply.send(game);
   });

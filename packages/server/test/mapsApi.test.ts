@@ -108,3 +108,72 @@ describe("maps API", () => {
     await app.close();
   });
 });
+
+describe("games on custom maps", () => {
+  it("uploads a map, creates a game on it, and plays a command", async () => {
+    const app = buildApp(testConfig());
+
+    const uploaded = await app.inject({
+      method: "POST",
+      url: "/api/maps",
+      payload: fixturePayload()
+    });
+    expect(uploaded.statusCode).toBe(201);
+    const mapId = uploaded.json().id as string;
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      payload: { mode: "hotseat", seed: "custom-map-seed", mapId }
+    });
+    expect(created.statusCode).toBe(200);
+    const game = created.json();
+    expect(game.view.mapId).toBe(mapId);
+
+    const activeSeat = game.view.activeSeat as "red" | "black";
+    const token = game.seats.find((s: { seat: string }) => s.seat === activeSeat).token;
+    const command = await app.inject({
+      method: "POST",
+      url: `/api/games/${game.gameId}/commands`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: { baseRevision: 0, clientCommandId: "cmd-1", command: { type: "pass" } }
+    });
+    expect(command.statusCode).toBe(200);
+    expect(command.json().revision).toBe(1);
+
+    // The played map is now immutable.
+    const put = await app.inject({
+      method: "PUT",
+      url: `/api/maps/${mapId}`,
+      payload: fixturePayload()
+    });
+    expect(put.statusCode).toBe(409);
+    expect(put.json().error.code).toBe("mapInUse");
+
+    await app.close();
+  });
+
+  it("404s game creation on an unknown mapId without creating anything", async () => {
+    const app = buildApp(testConfig());
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      payload: { mode: "hotseat", mapId: "no-such-map" }
+    });
+    expect(created.statusCode).toBe(404);
+    expect(created.json().error.code).toBe("mapNotFound");
+    await app.close();
+  });
+
+  it("still creates rivers games when mapId is omitted (default path unchanged)", async () => {
+    const app = buildApp(testConfig());
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      payload: { mode: "hotseat", seed: "rivers-default" }
+    });
+    expect(created.statusCode).toBe(200);
+    expect(created.json().view.mapId).toBe("rivers");
+    await app.close();
+  });
+});

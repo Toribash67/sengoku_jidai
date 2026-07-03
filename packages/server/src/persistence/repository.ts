@@ -88,11 +88,16 @@ export class GameRepository {
   createGame(
     mode: GameMode,
     seed?: string,
-    opts: { creatorName?: string; creatorSide?: SeatId } = {}
+    opts: { creatorName?: string; creatorSide?: SeatId; mapId?: string } = {}
   ): CreatedGame {
     const gameId = randomUUID();
     const now = new Date().toISOString();
-    const state = createInitialState({ gameId, mode, seed: seed ?? randomUUID() });
+    const state = createInitialState({
+      gameId,
+      mode,
+      seed: seed ?? randomUUID(),
+      mapId: opts.mapId
+    });
     const creatorSide: SeatId = opts.creatorSide ?? "red";
     const named = opts.creatorName !== undefined;
     const seatTokens: SeatTokenRecord[] = [];
