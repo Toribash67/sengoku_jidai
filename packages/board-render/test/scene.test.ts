@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { compileHexMap, FIXTURE_HEX_MAP } from "@sengoku-jidai/engine";
 import { buildScene } from "../src/scene.js";
+import { NATIVE_HEX_SIZE, ORDER_TOKEN_RADIUS } from "../src/assets.js";
 
 const scene = buildScene(compileHexMap(FIXTURE_HEX_MAP));
 const byId = (id: string) => scene.tiles.find((t) => t.id === id)!;
@@ -27,19 +28,35 @@ describe("buildScene", () => {
     expect(Object.keys(byId("B").slots).sort()).toEqual(["move-B", "shell-B"]); // shellable land
   });
 
-  it("anchors order slots on the top edge of the tile's topmost hex (as on board.svg)", () => {
-    const apothem = (scene.hexSize * Math.sqrt(3)) / 2;
-    // Single slot: centred on the top edge of A's only hex (centre 0,0).
-    expect(byId("A").slots["move-A"]!.x).toBeCloseTo(0, 1);
-    expect(byId("A").slots["move-A"]!.y).toBeCloseTo(-apothem, 1);
-    // Pair: primary (sail) left of secondary (bombard), both straddling the same edge.
+  it("nests order tokens corner-on-corner in the topmost hex's NW/NE vertices (as on board.svg)", () => {
+    // Measured from board.svg: every token centre sits at (R - tokenR) along the
+    // centre→vertex axis — the token's outer corner coincides exactly with the region's
+    // corner. Primary (move/sail) at the NW vertex (120°), secondary (shell/bombard) NE (60°).
+    const size = scene.hexSize;
+    const nest = size - ORDER_TOKEN_RADIUS * (size / NATIVE_HEX_SIZE);
+    // Single move token: NW corner of A's only hex (centre 0,0).
+    expect(byId("A").slots["move-A"]!.x).toBeCloseTo(-0.5 * nest, 1);
+    expect(byId("A").slots["move-A"]!.y).toBeCloseTo(-(Math.sqrt(3) / 2) * nest, 1);
+    // Sea pair: sail NW, bombard NE of C's hex (centre 0,197.45).
     const sail = byId("C").slots["sail-C"]!;
     const bombard = byId("C").slots["bombard-C"]!;
-    expect(sail.y).toBeCloseTo(byId("C").centroid.y - apothem, 1);
+    expect(sail.x).toBeCloseTo(-0.5 * nest, 1);
+    expect(bombard.x).toBeCloseTo(0.5 * nest, 1);
+    expect(sail.y).toBeCloseTo(197.45 - (Math.sqrt(3) / 2) * nest, 1);
     expect(bombard.y).toBeCloseTo(sail.y, 5);
-    expect(sail.x).toBeLessThan(bombard.x);
     // Multi-hex tile B anchors on its topmost hex (centre 171,-98.73), not the tile centroid.
-    expect(byId("B").slots["move-B"]!.y).toBeCloseTo(-98.73 - apothem, 1);
+    expect(byId("B").slots["move-B"]!.x).toBeCloseTo(171 - 0.5 * nest, 1);
+    expect(byId("B").slots["move-B"]!.y).toBeCloseTo(-98.73 - (Math.sqrt(3) / 2) * nest, 1);
+  });
+
+  it("anchors value-star badges in the SE corner, clear of the order tokens (as on board.svg)", () => {
+    // Measured from board.svg: badge centres sit at 0.745R (1-star) / 0.713R (2-star pill)
+    // along the SE vertex axis (300°) of the hex — the opposite side from the order tokens.
+    const size = scene.hexSize;
+    const b = byId("B").glyphAnchors.stars!; // B: valueStars 1, badge hex = bottommost hex
+    const anchorHex = { x: 171, y: 98.73 }; // B's bottommost hex centre
+    expect(b.x).toBeCloseTo(anchorHex.x + 0.5 * 0.745 * size, 1);
+    expect(b.y).toBeCloseTo(anchorHex.y + (Math.sqrt(3) / 2) * 0.745 * size, 1);
   });
 
   it("emits a pier from harbor D to its port sea tile C", () => {

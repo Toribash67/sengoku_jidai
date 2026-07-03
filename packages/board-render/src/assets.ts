@@ -272,6 +272,11 @@ const STRIPE_PATTERNS = [
 // ---------------------------------------------------------------------------
 export type OrderKind = "move" | "sail" | "bombard" | "shell";
 
+/** Native circumradius of the token's black hex (path width 189.646 × inner matrix
+ *  1.1965682 × outer 0.25, halved). scene.ts nests tokens so this corner-to-centre
+ *  distance lands the token's outer vertex exactly on the region's vertex. */
+export const ORDER_TOKEN_RADIUS = 28.3653;
+
 const ORDER_ART_CENTER: Record<OrderKind, Pixel> = {
   move: { x: 490.0928, y: -403.1972 },
   sail: { x: 532.6411, y: -378.6319 },

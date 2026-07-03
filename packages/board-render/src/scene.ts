@@ -1,7 +1,7 @@
 import { axialToPixel } from "@sengoku-jidai/engine";
 import type { Axial, CompiledMap, HexLayout, MapArea, Pixel, SeatId } from "@sengoku-jidai/engine";
 import { fuseTile, hexEdges, type Edge } from "./outline.js";
-import { bonusGlyph, type GlyphId } from "./assets.js";
+import { bonusGlyph, NATIVE_HEX_SIZE, ORDER_TOKEN_RADIUS, type GlyphId } from "./assets.js";
 
 // Duplicated from web tileFill.ts (board-render cannot import the web package).
 const TILE_LAND_FILL = "#d5d3c4";
@@ -49,10 +49,27 @@ function centroidOf(hexes: Axial[], layout: HexLayout): Pixel {
   return { x: x / hexes.length, y: y / hexes.length };
 }
 
+/** Topmost hex centre of a (possibly fused) tile; leftmost on ties. */
+function topmostHex(hexes: Axial[], layout: HexLayout): Pixel {
+  return hexes
+    .map((h) => axialToPixel(h, layout))
+    .reduce((a, b) => (b.y < a.y - 0.01 || (Math.abs(b.y - a.y) <= 0.01 && b.x < a.x) ? b : a));
+}
+
+/** Bottommost hex centre of a tile; rightmost on ties (dual of topmostHex, for SE features). */
+function bottommostHex(hexes: Axial[], layout: HexLayout): Pixel {
+  return hexes
+    .map((h) => axialToPixel(h, layout))
+    .reduce((a, b) => (b.y > a.y + 0.01 || (Math.abs(b.y - a.y) <= 0.01 && b.x > a.x) ? b : a));
+}
+
 /** Order-slot ids for a tile, matching web slotIdForSpace: land→move, sea→sail+bombard,
- *  shellable land→shell. As on board.svg, the symbols sit ON the top edge of the tile's
- *  topmost hex: a single token centred on the edge midpoint, a pair straddling it with the
- *  primary action (move/sail) on the left. The occupancy dot anchors to the same point. */
+ *  shellable land→shell. As on board.svg, each token nests corner-on-corner into a vertex
+ *  of the tile's topmost hex: the token centre sits at (R - tokenR) along the centre→vertex
+ *  axis, so the token's outer corner lands exactly on the region's corner. The primary
+ *  action (move/sail) takes the NW vertex (120°), the secondary (shell/bombard) the NE
+ *  (60°). Value-star badges live in the SE corner, so tokens never collide with them.
+ *  The occupancy dot anchors to the token centre. */
 function slotsFor(area: MapArea, hexes: Axial[], layout: HexLayout): Record<string, Pixel> {
   const ids: string[] = [];
   if (area.kind === "land") {
@@ -63,15 +80,15 @@ function slotsFor(area: MapArea, hexes: Axial[], layout: HexLayout): Record<stri
   } else {
     ids.push(`sail-${area.id}`, `bombard-${area.id}`);
   }
-  // Topmost hex of the (possibly fused) tile; leftmost on ties.
-  const anchor = hexes
-    .map((h) => axialToPixel(h, layout))
-    .reduce((a, b) => (b.y < a.y - 0.01 || (Math.abs(b.y - a.y) <= 0.01 && b.x < a.x) ? b : a));
-  const edgeY = anchor.y - (layout.size * Math.sqrt(3)) / 2;
+  const anchor = topmostHex(hexes, layout);
+  const nest = layout.size - ORDER_TOKEN_RADIUS * (layout.size / NATIVE_HEX_SIZE);
   const slots: Record<string, Pixel> = {};
-  const spread = ids.length > 1 ? layout.size * 0.25 : 0;
   ids.forEach((id, i) => {
-    slots[id] = { x: anchor.x + (i === 0 ? -spread : spread), y: edgeY };
+    // NW vertex direction (-0.5, -√3/2) for the primary token, NE (+0.5, -√3/2) secondary.
+    slots[id] = {
+      x: anchor.x + (i === 0 ? -0.5 : 0.5) * nest,
+      y: anchor.y - (Math.sqrt(3) / 2) * nest
+    };
   });
   return slots;
 }
@@ -101,12 +118,20 @@ export function buildScene(compiled: CompiledMap): BoardScene {
       features: { hq: area.hq ?? undefined, valueStars: area.valueStars, harbor: area.harbor },
       glyphAnchors: {
         hq: area.hq ? centroid : undefined,
-        // Value-star badge sits in the tile's top-right corner (as on board.svg): toward the
-        // flat-top hex's upper-right vertex (+0.5, -√3/2), at ~0.745× the centre→vertex distance
-        // (the inset board.svg uses), so the badge hugs the corner without leaving the tile.
+        // Value-star badge sits in the SE corner (as on board.svg, measured): along the
+        // lower-right vertex axis (+0.5, +√3/2) at 0.745× the centre→vertex distance for the
+        // 1-star circle, 0.713× for the wider 2-star pill — opposite the order tokens, which
+        // own the NW/NE corners. Anchored on the bottommost hex of a fused tile.
         stars:
           area.valueStars > 0
-            ? { x: centroid.x + layout.size * 0.37, y: centroid.y - layout.size * 0.645 }
+            ? (() => {
+                const hex = bottommostHex(hexes, layout);
+                const dist = (area.valueStars === 2 ? 0.713 : 0.745) * layout.size;
+                return {
+                  x: hex.x + 0.5 * dist,
+                  y: hex.y + (Math.sqrt(3) / 2) * dist
+                };
+              })()
             : undefined,
         harbor: area.harbor ? { x: centroid.x, y: centroid.y + layout.size * 0.4 } : undefined,
         bonus:
