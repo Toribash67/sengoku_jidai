@@ -26,13 +26,19 @@ Priority labels in this document:
 packages/
   engine/
     src/
-      types.ts
-      setup.ts
-      resolveCommand.ts
-      validateCommand.ts
+      client.ts          # curated client-safe surface: @sengoku-jidai/engine/client
+      types.ts, state.ts, rules.ts, commands.ts   # domain types + rules config
+      game.ts, resolve.ts, validate.ts, view.ts   # setup, resolution, legality, projections
+      ...                # further flat rule modules (conflict, supply, scoring, rng, cards, ...)
       maps/
-      rules/
-      test/
+        hex/             # hex map source format, validation, compiler
+    test/
+  board-render/          # pure SVG board scene builder (map data -> SVG strings)
+    src/
+    scripts/             # dev-only preview tooling
+  terrain/               # dev-only AI terrain-image pipeline; never shipped in the app
+    src/
+    profiles/
   server/
     src/
       server.ts
@@ -40,18 +46,23 @@ packages/
       persistence/
       realtime/
       sessions/
+    migrations/
+    test/
   web/
     src/
       App.tsx
       components/
-      board/
+        board/
       client/
       state/
       styles/
+    test/
   shared/
     src/
       api.ts
       schemas.ts
+assets/
+  maps/                  # board + card artwork per map
 tests/
   e2e/
 deploy/
@@ -76,12 +87,14 @@ playwright.config.ts
 
 `packages/shared` is part of the MVP. It owns API schemas, HTTP payload types, WebSocket message types, and other client/server contract definitions. The engine owns game-domain types and rules; shared should not become a second rules package.
 
+`packages/board-render` builds the board SVG scene from engine map data; it depends only on the engine and produces plain strings (no DOM, no React), so both the web client and dev tooling can use it. `packages/terrain` is a development-only pipeline that generates the antique-style terrain background images; it depends only on the engine and is excluded from the shipped app.
+
 ## Technology Stack
 
 - Language: TypeScript across engine, server, and web.
 - Client: Vite, React, TypeScript.
 - Server: Node.js, TypeScript, Fastify.
-- Realtime: WebSocket as a **Soon** feature. The MVP uses HTTP view fetch and command submission.
+- Realtime: WebSocket as a **Soon** feature. Today the client uses HTTP view fetch, command submission, and interval polling while waiting on the opponent.
 - Storage: SQLite for the first durable implementation; Postgres can replace it later behind the same persistence interface.
 - Board rendering: SVG first. Move specific layers to Canvas only if SVG becomes a measurable bottleneck.
 - Tests: fast unit tests for the engine, API/service tests for the server, Playwright for browser smoke/workflow tests.
@@ -105,7 +118,6 @@ playwright.config.ts
 **Soon**
 
 - Structured logging through Fastify's logger.
-- Runtime config validation at startup.
 
 **Later**
 
@@ -162,7 +174,9 @@ LOG_LEVEL=info
 
 In development, `API_PORT` and `WEB_PORT` are separate because Vite serves the web app and proxies API traffic to Fastify. In the production container, Fastify should serve the built web assets and API from one process; use container `PORT=80` there and map the NAS host port through Docker.
 
-The server should validate configuration at startup and fail fast with a clear error if required values are missing or malformed.
+The server validates configuration at startup (Zod, `server/src/config.ts`) and fails fast with a clear error if required values are missing or malformed. In production it additionally refuses placeholder session secrets (any value containing `change-me`), so a stack deployed with the example value fails at boot instead of running with a known secret.
+
+Two additional variables serve only the dev-only terrain pipeline and are never read at app runtime: `FAL_KEY` and `TERRAIN_OUT_DIR`.
 
 **Soon**
 
@@ -172,40 +186,41 @@ The server should validate configuration at startup and fail fast with a clear e
 
 ## Package Boundaries
 
-**MVP**
-
 Allowed imports:
 
 ```txt
-engine -> no app packages
-shared -> no app packages
-server -> engine, shared
-web -> shared, engine view/legal-preview helpers
-tests/e2e -> public app/API only
+engine       -> no app packages
+shared       -> no app packages
+board-render -> engine
+terrain      -> engine (dev-only; never shipped)
+server       -> engine, shared
+web          -> shared, board-render, @sengoku-jidai/engine/client
+tests/e2e    -> public app/API only
 ```
 
-The engine must not import server, web, persistence, React, DOM, HTTP, or WebSocket code. The web must not import server-only modules or authoritative-state internals that are not safe for clients. If an engine helper is used by the web, it must operate on `PlayerGameView` or another explicitly client-safe input.
+The engine must not import server, web, persistence, React, DOM, HTTP, WebSocket, or Node APIs. The web must not import server-only modules or authoritative-state internals that are not safe for clients.
 
-**Soon**
+These boundaries are enforced by per-package `no-restricted-imports` rules in `eslint.config.js`, scoped to each package's `src/` (tests and scripts keep Node access for fixtures and tooling).
 
-- Enforce package boundaries with ESLint import rules once packages exist.
+The engine publishes a curated client-safe surface as the `@sengoku-jidai/engine/client` subpath (`packages/engine/src/client.ts`): static map data and geometry, the public card list, the `Command` type, and the per-seat view/legality types — nothing that touches authoritative `GameState`, the RNG, deck order, or command resolution. The web may import the engine only through this subpath (lint-enforced); new client-visible engine exports are added there, never by relaxing the web lint rule. Server-side code uses the root engine export.
 
 ## Runtime Model
 
-The core state transition should be a pure engine call:
+The core state transition is a pure engine call:
 
 ```ts
-resolveCommand(previousState, actor, command, rulesConfig) -> CommandResult
+resolveCommand(previousState, actor, command) -> CommandResult
 
 interface CommandActor {
   seat: SeatId;
-  playerId: PlayerId;
 }
 ```
 
+The rules configuration is not a separate parameter: it is embedded in the state as `state.rules` (a `RulesConfig`), which keeps every input to a replay serialized inside the snapshot itself.
+
 This is an internal engine boundary used by the server and tests. `previousState` is not part of the public API and is never supplied by the client. For real requests, the server loads the current authoritative state from persistence, derives `actor` from the authenticated session, and then calls the engine.
 
-`CommandResult` should be a discriminated union:
+`CommandResult` is a discriminated union:
 
 ```ts
 type CommandResult =
@@ -217,7 +232,6 @@ type CommandResult =
   | {
       status: "rejected";
       reason: RejectionReason;
-      events?: GameEvent[];
     };
 ```
 
@@ -240,8 +254,8 @@ Responsibilities:
 - Resolve commands into a new state and event list.
 - Resolve deterministic randomness for dice and shuffled decks.
 - Score the game and detect game end.
-- Provide helper functions for legal action previews.
-- Produce player-visible and spectator-visible state projections.
+- Provide helper functions for legal action previews (embedded in each player view).
+- Produce player-visible state projections (spectator projections are **Later**).
 
 The engine should not know about:
 
@@ -252,35 +266,42 @@ The engine should not know about:
 - Browser layout.
 - React components.
 
-Initial public API:
+Public API:
 
 ```ts
-createGame(options) -> GameState
-resolveCommand(state, actor, command, rulesConfig) -> CommandResult
-legalCommandsForState(state, playerId, rulesConfig) -> LegalCommandSummary
-legalCommandsForView(view, rulesConfig) -> LegalCommandSummary
-playerView(state, playerId) -> PlayerGameView
-spectatorView(state) -> SpectatorGameView
-playerEvents(events, viewer, context) -> PlayerGameEvent[]
+createInitialState(options) -> GameState
+resolveCommand(state, actor, command) -> CommandResult
+legalCommandsForState(state, seat) -> LegalCommandSummary
+playerView(state, seat) -> PlayerGameView      // embeds the seat's LegalCommandSummary as view.legal
+playerEvents(events, viewer) -> PlayerGameEvent[]
 serializeState(state) -> JsonGameState
-deserializeState(json) -> GameState
+deserializeState(json) -> GameState            // validates schema version AND shape (Zod)
 ```
+
+The client does not compute legality itself: the server embeds the acting seat's `LegalCommandSummary` in every `PlayerGameView` (`view.legal`), so no view-input legality helper is needed. A `spectatorView` projection is a **Later** addition.
+
+`playerEvents` projects engine events for one seat and is fail-closed: it filters through an exhaustive allowlist of public event types, so an event type added without an explicit visibility decision never reaches a client (adding a `GameEvent` variant is a compile error until it is classified there).
 
 The exact area and rules representation can evolve. The important early constraint is that all engine inputs and outputs remain serializable and deterministic.
 
-Commands should include a specific command for answering pending decisions:
+Commands are player intent per action space, plus the interactive-combat and pending-decision steps:
 
 ```ts
 type Command =
-  | { type: "placeCommander"; /* action payload */ }
+  | { type: "advance" | "sail"; spaceId: string; moves: Move[]; card?: OperationCard }
+  | { type: "bombard" | "shell"; spaceId: string; targetAreaId: string }
+  | { type: "reinforce" | "embark"; spaceId: string; placements: Placement[] }
+  | { type: "plan"; spaceId: string }
+  | { type: "pass" }
+  | { type: "combatRoll" | "combatReroll" | "combatResolve"; pendingId: string }
   | { type: "choosePendingDecision"; pendingId: string; choice: PendingChoice };
 ```
 
-When `state.pendingDecision` exists, the engine should reject unrelated commands unless the rules explicitly allow interrupts.
+When `state.pendingDecision` or `state.pendingCombat` exists, the engine rejects unrelated commands: a paused combat accepts only its own `combatRoll`/`combatReroll`/`combatResolve` steps, and a pending decision accepts only `choosePendingDecision`.
 
 Map ownership is split by responsibility. The engine owns gameplay topology: area ids, adjacency, action slots, setup, supply/scoring properties, and rule-relevant map facts. The web package owns visual layout: SVG coordinates, labels, hit targets, and responsive presentation. Visual geometry may reference engine area ids, but legal relationships must come from engine map data.
 
-Authoritative state must be plain JSON-compatible data: no `Date`, `Map`, `Set`, class instances, functions, `undefined`, or cyclic references. Every serialized state should include a `schemaVersion`. Deserialization should validate shape and version. Once persisted games exist, state migrations should be explicit.
+Authoritative state must be plain JSON-compatible data: no `Date`, `Map`, `Set`, class instances, functions, `undefined`, or cyclic references. Every serialized state includes a `schemaVersion` (currently 3). `deserializeState` validates both the version and the full shape (a Zod schema in `stateSchema.ts`, compile-checked against the `GameState` type), so corrupted snapshots fail loudly at load. Once persisted games exist beyond local experimentation, state migrations should be explicit.
 
 ## Server
 
@@ -314,7 +335,7 @@ For hotseat, one browser/session bundle may control both seats. For private mult
 
 Hotseat is the first target. The browser may hold both seat tokens for one game. The UI should show the active seat clearly and provide an explicit seat-switch control when both seats are available in the same browser.
 
-For `mode=hotseat`, `POST /api/games` should return a `seats` array containing resume tokens for both local seats. For private multiplayer, game creation returns only the creator's seat token and the second seat is claimed through `/join`.
+`POST /api/games` returns a `seats` array containing resume tokens for both seats in every mode. For hotseat, the browser keeps both. For private multiplayer, the creator names themselves and picks a side at creation; their client keeps the creator token and turns the other seat's token into an invite link (`/g/:gameId#<token>` — the token rides in the URL fragment so it never reaches server logs). The invited player opens the link and `POST /claim` records their name and marks the seat claimed.
 
 Hotseat seat switching should request a fresh `PlayerGameView` for the selected seat. Do not swap seats by revealing the authoritative state client-side.
 
@@ -356,7 +377,7 @@ Client state should be split into:
 
 The client should avoid copying engine-owned structures into editable React state. Components should render from selectors over the latest authoritative view plus ephemeral UI state.
 
-Legal-preview helpers used by the client should accept a player-visible state projection. The server may keep hidden information in the authoritative state, but the client should only receive data visible to that seat.
+The client renders legal actions from `view.legal`, the per-seat `LegalCommandSummary` the server embeds in every `PlayerGameView`. The server may keep hidden information in the authoritative state, but the client only receives data visible to that seat.
 
 Main layout:
 
@@ -380,17 +401,20 @@ Hit targets should be based on area ids, not DOM position. Components should rec
 
 ## Communication
 
-The MVP communication model is HTTP view fetch plus command submission. Add WebSocket as a **Soon** feature once the command/view loop is working. HTTP view fetch and WebSocket updates should feed the same client reconciliation path.
+The communication model is HTTP view fetch plus command submission. While it is not the viewer's turn (or a seat is still open), the client polls the view on an interval (`web/src/state/polling.ts`); WebSocket push remains a **Soon** replacement for that polling. HTTP view fetch and WebSocket updates should feed the same client reconciliation path.
 
-Initial HTTP API:
+HTTP API:
 
 ```txt
 POST /api/games
 GET  /api/games/:gameId
-POST /api/games/:gameId/join
+POST /api/games/:gameId/claim
 POST /api/games/:gameId/commands
 GET  /api/games/:gameId/events?after=:revision
+GET  /healthz
 ```
+
+`POST /claim` is authenticated by the seat token like every other route: the invited player opens the invite link (which carries their seat token), and `/claim` records their display name and marks the seat claimed. There is no separate join handshake that mints tokens.
 
 Soon WebSocket endpoint:
 
@@ -419,7 +443,7 @@ Typical command flow:
 3. Server validates the session and derives the actor.
 4. Server loads the authoritative state snapshot for the game.
 5. Server checks that the stored game revision still equals `baseRevision`.
-6. Server calls `resolveCommand(state, actor, command, rulesConfig)`.
+6. Server calls `resolveCommand(state, actor, command)`.
 7. Server persists the accepted command attempt, events, and new state snapshot at revision `N + 1`.
 8. Server replies to the submitting client with an updated player view or projected events.
 9. Server broadcasts the new player view or event bundle to connected clients.
@@ -432,7 +456,7 @@ Command submission should be transactional:
 3. Return the original result if `(game_id, seat, client_command_id)` was already recorded, whether accepted or rejected.
 4. Reject if `current_revision !== baseRevision`.
 5. Load or verify the authoritative state snapshot for `baseRevision`.
-6. Call the engine with `resolveCommand(state, actor, command, rulesConfig)`.
+6. Call the engine with `resolveCommand(state, actor, command)`.
 7. Insert the command attempt, events, and state snapshot for `revision = baseRevision + 1` if accepted.
 8. Update `games.current_revision` with a compare-and-swap condition such as `WHERE current_revision = baseRevision`.
 9. Commit.
@@ -440,13 +464,13 @@ Command submission should be transactional:
 
 Minimal response contracts:
 
-- `POST /api/games` returns a `PlayerGameViewEnvelope` plus seat token data.
-- `GET /api/games/:gameId` returns a `PlayerGameViewEnvelope`.
-- `POST /api/games/:gameId/join` returns a `PlayerGameViewEnvelope` plus seat token data.
-- `POST /api/games/:gameId/commands` returns `{ accepted, revision, view | events }`, where client-facing views are `PlayerGameView` values.
+- `POST /api/games` returns a `PlayerGameViewEnvelope` plus both seats' resume tokens and seat info.
+- `GET /api/games/:gameId` returns a `PlayerGameViewEnvelope` plus seat info.
+- `POST /api/games/:gameId/claim` returns a `PlayerGameViewEnvelope` plus seat info.
+- `POST /api/games/:gameId/commands` returns `{ accepted, revision, view, events }`, where client-facing views are `PlayerGameView` values and events are per-seat `PlayerGameEvent[]`.
 - Stale revision returns `409 Conflict`.
 - Invalid session returns `401 Unauthorized`.
-- Wrong seat, wrong turn, or forbidden action returns `403 Forbidden`.
+- Wrong seat or wrong game returns `403 Forbidden`.
 - Engine-rejected illegal command returns `422 Unprocessable Entity`.
 
 Client-facing views should use an explicit envelope:
@@ -596,11 +620,11 @@ For the prototype, storing a full state snapshot after every accepted command is
 
 Rejected commands do not advance the game revision. Engine-rejected commands may be stored for audit/debugging with `result_status = rejected`, `base_revision`, and no `accepted_revision`; malformed transport requests can remain request logs only. Accepted commands must always have an `accepted_revision`.
 
-Initial status values:
+Status values:
 
 ```txt
 game.status = setup | active | complete | abandoned
-game_seats.status = open | claimed | abandoned
+game_seats.status = open | claimed        (abandoned is reserved for later)
 game_command_attempts.result_status = accepted | rejected
 ```
 
@@ -711,7 +735,7 @@ type ServerMessage =
   | { type: "presence"; gameId: string; players: PresenceState[] };
 ```
 
-The client can initially process only `view` and `commandRejected`. Add event-only rendering once the UI needs smoother animations or richer logs. Event bundles sent to clients must be projected per seat just like views; raw `GameEvent` values may contain hidden card or deck information.
+The client can initially process only `view` and `commandRejected`. Add event-only rendering once the UI needs smoother animations or richer logs. Event bundles sent to clients must be projected per seat just like views; this is implemented — every client-bound event path (command responses, duplicate-command replays, `GET /events`) goes through the engine's fail-closed `playerEvents(events, viewer)` filter.
 
 Client reconciliation rules:
 
@@ -736,13 +760,13 @@ WebSocket behavior:
 
 ## Sessions And Seats
 
-Start with lightweight anonymous sessions:
+Sessions are lightweight and anonymous:
 
-- Creating a hotseat game returns a game id plus resume tokens for both local seats.
-- Creating a private multiplayer game returns a resume token for the creator's seat.
-- Joining a private multiplayer game returns a resume token for the joined seat.
-- The browser stores the token locally.
-- The server hashes tokens before storing them.
+- Creating a game returns the game id plus resume tokens for both seats.
+- In private multiplayer, the second seat's token is shared as an invite link and the invited
+  player claims the seat (names it) with `POST /claim` using that token.
+- The browser stores its token locally; the invite token travels in the URL fragment.
+- The server hashes tokens before storing them (`game_sessions.token_hash`).
 
 This supports local hotseat and private-link multiplayer without requiring accounts. User accounts can be added later without changing the engine.
 
@@ -782,7 +806,7 @@ Engine tests:
 - Verify that initial seed plus ordered accepted command records, including actors, replay to the same final state.
 - Verify that `serializeState(deserializeState(state))` round-trips exactly.
 - Verify that random outcomes are stable across test runs.
-- Verify that `legalCommandsForState`, `legalCommandsForView`, and `resolveCommand` agree: every legal command resolves and illegal commands reject.
+- Verify that `legalCommandsForState` and `resolveCommand` agree: every legal command resolves and illegal commands reject.
 - Verify map invariants: valid adjacency, valid setup, valid slots, and no dangling ids.
 - Include golden tests for important rule examples once exact rules are encoded.
 
@@ -813,13 +837,13 @@ Recommended first E2E flow:
 
 ## Development Milestones
 
-1. Scaffold TypeScript monorepo and build/test scripts.
-2. Add engine types, placeholder map, and fake command resolution.
-3. Add SQLite-backed server game creation, command submission, migrations, and state snapshots.
-4. Add React client that creates a game and renders a placeholder board from a player view.
-5. Add Playwright smoke test for create/select/submit/refresh.
-6. Replace fake command resolution with first real rules.
-7. Add WebSocket updates.
-8. Add cards, pending decisions, and richer animations/logs.
+1. Scaffold TypeScript monorepo and build/test scripts. — **done**
+2. Add engine types, placeholder map, and fake command resolution. — **done**
+3. Add SQLite-backed server game creation, command submission, migrations, and state snapshots. — **done**
+4. Add React client that creates a game and renders a placeholder board from a player view. — **done**
+5. Add Playwright smoke test for create/select/submit/refresh. — **done**
+6. Replace fake command resolution with first real rules. — **done** (full Rivers rules incl. interactive combat)
+7. Add WebSocket updates. — **open** (HTTP polling is the interim)
+8. Add cards, pending decisions, and richer animations/logs. — **partial** (cards drawn/discard-to-reroll and pending decisions work; card abilities are the next rules task)
 
-This order proves the application plumbing before committing to exact board geometry or complete rules modeling.
+This order proved the application plumbing before committing to exact board geometry or complete rules modeling.
