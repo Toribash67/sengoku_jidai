@@ -103,11 +103,13 @@ function slotAnchors(tile: SceneTile, hexSize: number): string {
       const kind = id.slice(0, id.indexOf("-")) as OrderKind;
       // The visible token (native-scale board.svg art) plus the invisible anchor circle the
       // web positions occupancy dots on — kept separate so the dot lands on the token's hex
-      // centre, not the bbox centre skewed by the icon overflowing the token.
+      // centre, not the bbox centre skewed by the icon overflowing the token. board.svg
+      // authors the token defs upside down and places every order group inside
+      // rotate(180,...), so each token spins 180° about its own centre.
       const art = el("use", {
         href: `#order-art-${kind}`,
         "xlink:href": `#order-art-${kind}`,
-        transform: `translate(${at.x.toFixed(2)} ${at.y.toFixed(2)}) scale(${s})`
+        transform: `translate(${at.x.toFixed(2)} ${at.y.toFixed(2)}) scale(${s}) rotate(180)`
       });
       const anchor = el("circle", {
         id,
