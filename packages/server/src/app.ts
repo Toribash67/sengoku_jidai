@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { registerApiRoutes } from "./api/routes.js";
 import type { ServerConfig } from "./config.js";
+import { MapLibrary } from "./maps/library.js";
 import { openDatabase, runMigrations } from "./persistence/database.js";
 import { GameRepository } from "./persistence/repository.js";
 
@@ -17,12 +18,14 @@ export function buildApp(config: ServerConfig) {
   const db = openDatabase(config.sqlitePath);
   runMigrations(db);
   const repository = new GameRepository(db);
+  const mapLibrary = new MapLibrary(db);
+  mapLibrary.loadAll(app.log);
 
   app.register(cors, {
     origin: config.nodeEnv === "production" ? false : config.webOrigin
   });
 
-  registerApiRoutes(app, repository);
+  registerApiRoutes(app, repository, mapLibrary);
 
   if (config.nodeEnv === "production") {
     const webDistPath = resolve(process.cwd(), "packages/web/dist");

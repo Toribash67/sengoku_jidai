@@ -3,14 +3,97 @@ import {
   createGameRequestSchema,
   eventQuerySchema,
   gameParamsSchema,
+  hexMapSourceSchema,
+  mapParamsSchema,
   submitCommandRequestSchema
 } from "@sengoku-jidai/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { bearerToken, hashToken } from "../sessions/tokens.js";
 import type { GameRepository, SessionRecord } from "../persistence/repository.js";
+import type { MapLibrary, MapLibraryError } from "../maps/library.js";
 
-export function registerApiRoutes(app: FastifyInstance, repository: GameRepository): void {
+const MAP_ERROR_STATUS: Record<MapLibraryError["code"], number> = {
+  invalidMap: 400,
+  builtinMap: 403,
+  mapNotFound: 404,
+  mapInUse: 409
+};
+
+export function registerApiRoutes(
+  app: FastifyInstance,
+  repository: GameRepository,
+  mapLibrary: MapLibrary
+): void {
   app.get("/healthz", async () => ({ ok: true }));
+
+  app.get("/api/maps", async () => ({ maps: mapLibrary.list() }));
+
+  app.get("/api/maps/:mapId", async (request, reply) => {
+    const params = mapParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Map id is invalid.");
+    }
+    const map = mapLibrary.get(params.data.mapId);
+    if (!map) {
+      return sendError(reply, 404, "mapNotFound", "Map was not found.");
+    }
+    return reply.send(map);
+  });
+
+  app.post("/api/maps", async (request, reply) => {
+    const body = hexMapSourceSchema.safeParse(request.body ?? {});
+    if (!body.success) {
+      return sendError(reply, 400, "invalidMap", "Map source is malformed.");
+    }
+    const result = mapLibrary.create(body.data);
+    if (!result.ok) {
+      return sendError(
+        reply,
+        MAP_ERROR_STATUS[result.error.code],
+        result.error.code,
+        result.error.message
+      );
+    }
+    return reply.status(201).send(result.value);
+  });
+
+  app.put("/api/maps/:mapId", async (request, reply) => {
+    const params = mapParamsSchema.safeParse(request.params);
+    const body = hexMapSourceSchema.safeParse(request.body ?? {});
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Map id is invalid.");
+    }
+    if (!body.success) {
+      return sendError(reply, 400, "invalidMap", "Map source is malformed.");
+    }
+    const result = mapLibrary.update(params.data.mapId, body.data);
+    if (!result.ok) {
+      return sendError(
+        reply,
+        MAP_ERROR_STATUS[result.error.code],
+        result.error.code,
+        result.error.message
+      );
+    }
+    return reply.send(result.value);
+  });
+
+  app.delete("/api/maps/:mapId", async (request, reply) => {
+    const params = mapParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Map id is invalid.");
+    }
+    const result = mapLibrary.delete(params.data.mapId);
+    if (!result.ok) {
+      return sendError(
+        reply,
+        MAP_ERROR_STATUS[result.error.code],
+        result.error.code,
+        result.error.message
+      );
+    }
+    return reply.status(204).send();
+  });
 
   app.post("/api/games", async (request, reply) => {
     const parsed = createGameRequestSchema.safeParse(request.body ?? {});
