@@ -41,6 +41,21 @@ describe("assembleBoardSvg", () => {
     }
   });
 
+  it("draws the board.svg order-symbol art on every slot", () => {
+    // One visible token per order slot: land→move (A,B,D,E), shellable land→shell (B),
+    // sea→sail+bombard (C). Each token is a def instantiated with a <use> per slot.
+    const uses = (kind: string) =>
+      (svg.match(new RegExp(`<use href="#order-art-${kind}"`, "g")) ?? []).length;
+    expect(svg).toContain(`id="order-art-move"`);
+    expect(uses("move")).toBe(4);
+    expect(uses("shell")).toBe(1);
+    expect(uses("sail")).toBe(1);
+    expect(uses("bombard")).toBe(1);
+    expect(svg).toContain("M 63.45577,37.504402"); // the artist's token hex path from board.svg
+    // Symbols are board art and must never intercept tile clicks.
+    expect(svg).toMatch(/id="order-slots"[^>]*pointer-events="none"/);
+  });
+
   it("emits the hidden hex-grid layer", () => {
     expect(svg).toMatch(/class="hex-grid"[^>]*display:none/);
   });

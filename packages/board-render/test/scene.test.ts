@@ -27,6 +27,21 @@ describe("buildScene", () => {
     expect(Object.keys(byId("B").slots).sort()).toEqual(["move-B", "shell-B"]); // shellable land
   });
 
+  it("anchors order slots on the top edge of the tile's topmost hex (as on board.svg)", () => {
+    const apothem = (scene.hexSize * Math.sqrt(3)) / 2;
+    // Single slot: centred on the top edge of A's only hex (centre 0,0).
+    expect(byId("A").slots["move-A"]!.x).toBeCloseTo(0, 1);
+    expect(byId("A").slots["move-A"]!.y).toBeCloseTo(-apothem, 1);
+    // Pair: primary (sail) left of secondary (bombard), both straddling the same edge.
+    const sail = byId("C").slots["sail-C"]!;
+    const bombard = byId("C").slots["bombard-C"]!;
+    expect(sail.y).toBeCloseTo(byId("C").centroid.y - apothem, 1);
+    expect(bombard.y).toBeCloseTo(sail.y, 5);
+    expect(sail.x).toBeLessThan(bombard.x);
+    // Multi-hex tile B anchors on its topmost hex (centre 171,-98.73), not the tile centroid.
+    expect(byId("B").slots["move-B"]!.y).toBeCloseTo(-98.73 - apothem, 1);
+  });
+
   it("emits a pier from harbor D to its port sea tile C", () => {
     const ports = byId("D").ports;
     expect(ports).toHaveLength(1);

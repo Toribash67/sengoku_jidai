@@ -50,8 +50,10 @@ function centroidOf(hexes: Axial[], layout: HexLayout): Pixel {
 }
 
 /** Order-slot ids for a tile, matching web slotIdForSpace: land→move, sea→sail+bombard,
- *  shellable land→shell. Fanned around the centroid so occupancy dots do not overlap. */
-function slotsFor(area: MapArea, centroid: Pixel, size: number): Record<string, Pixel> {
+ *  shellable land→shell. As on board.svg, the symbols sit ON the top edge of the tile's
+ *  topmost hex: a single token centred on the edge midpoint, a pair straddling it with the
+ *  primary action (move/sail) on the left. The occupancy dot anchors to the same point. */
+function slotsFor(area: MapArea, hexes: Axial[], layout: HexLayout): Record<string, Pixel> {
   const ids: string[] = [];
   if (area.kind === "land") {
     ids.push(`move-${area.id}`);
@@ -61,14 +63,15 @@ function slotsFor(area: MapArea, centroid: Pixel, size: number): Record<string, 
   } else {
     ids.push(`sail-${area.id}`, `bombard-${area.id}`);
   }
+  // Topmost hex of the (possibly fused) tile; leftmost on ties.
+  const anchor = hexes
+    .map((h) => axialToPixel(h, layout))
+    .reduce((a, b) => (b.y < a.y - 0.01 || (Math.abs(b.y - a.y) <= 0.01 && b.x < a.x) ? b : a));
+  const edgeY = anchor.y - (layout.size * Math.sqrt(3)) / 2;
   const slots: Record<string, Pixel> = {};
-  const radius = ids.length > 1 ? size * 0.5 : 0;
+  const spread = ids.length > 1 ? layout.size * 0.25 : 0;
   ids.forEach((id, i) => {
-    const angle = (Math.PI / 180) * (90 + (360 / ids.length) * i);
-    slots[id] = {
-      x: centroid.x + radius * Math.cos(angle),
-      y: centroid.y + radius * Math.sin(angle)
-    };
+    slots[id] = { x: anchor.x + (i === 0 ? -spread : spread), y: edgeY };
   });
   return slots;
 }
@@ -112,7 +115,7 @@ export function buildScene(compiled: CompiledMap): BoardScene {
             : undefined
       },
       bonusGlyph: bonusSlot !== undefined ? bonusGlyph(bonusSlot) : undefined,
-      slots: slotsFor(area, centroid, layout.size),
+      slots: slotsFor(area, hexes, layout),
       ports: []
     });
   }
