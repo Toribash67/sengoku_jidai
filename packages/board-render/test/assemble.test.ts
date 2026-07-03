@@ -52,6 +52,9 @@ describe("assembleBoardSvg", () => {
     expect(uses("sail")).toBe(1);
     expect(uses("bombard")).toBe(1);
     expect(svg).toContain("M 63.45577,37.504402"); // the artist's token hex path from board.svg
+    // board.svg places every order group inside rotate(180,...) — the def art is authored
+    // upside down, so each placed token must carry the same 180° spin about its centre.
+    expect(svg).toMatch(/<use href="#order-art-move"[^>]*rotate\(180\)/);
     // Symbols are board art and must never intercept tile clicks.
     expect(svg).toMatch(/id="order-slots"[^>]*pointer-events="none"/);
   });
