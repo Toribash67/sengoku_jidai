@@ -37,6 +37,7 @@ import {
 } from "./components/board/composer.js";
 import { MapBoard } from "./components/board/MapBoard.js";
 import { terrainImage } from "./components/board/terrainImages.js";
+import { ensureMapLoaded } from "./client/maps.js";
 import type { GameSeatInfo, SeatToken } from "@sengoku-jidai/shared";
 import {
   ApiError,
@@ -145,7 +146,11 @@ export function App() {
     setBusy(true);
     setError(null);
     void fetchGameView(gameId, token)
-      .then((envelope) => {
+      .then(async (envelope) => {
+        if (cancelled) {
+          return;
+        }
+        await ensureMapLoaded(envelope.view.mapId);
         if (cancelled) {
           return;
         }
@@ -239,6 +244,9 @@ export function App() {
     [game?.view.areas, selectedAreaId]
   );
 
+  // INVARIANT: render-time getMap(game.view.mapId) calls (here and below) throw on an
+  // unregistered map, so every setGame that introduces a new view must first
+  // `await ensureMapLoaded(view.mapId)` — all four new-view sites above do.
   const selectedMapArea = useMemo(
     () => (game && selectedAreaId ? (getMap(game.view.mapId).areas[selectedAreaId] ?? null) : null),
     [game, selectedAreaId]
@@ -302,6 +310,7 @@ export function App() {
     setError(null);
     try {
       const created = await createGame({ name, side });
+      await ensureMapLoaded(created.view.mapId);
       rememberSeatTokens(created.gameId, created.seats);
       const myToken = created.seats.find((s) => s.seat === created.seat)!.token;
       loadedKeyRef.current = `${created.gameId}#${myToken}`;
@@ -333,6 +342,7 @@ export function App() {
     setError(null);
     try {
       const envelope = await claimSeat(game.gameId, game.token, name);
+      await ensureMapLoaded(envelope.view.mapId);
       setGame({
         ...game,
         revision: envelope.revision,
@@ -358,6 +368,7 @@ export function App() {
     setError(null);
     try {
       const envelope = await fetchGameView(game.gameId, token);
+      await ensureMapLoaded(envelope.view.mapId);
       setGame({
         ...game,
         token,
@@ -785,6 +796,7 @@ export function App() {
       >
         <div className="board-column">
           <MapBoard
+            mapId={game.view.mapId}
             areas={game.view.areas}
             activeSeat={game.view.activeSeat}
             selectedAreaId={goldAreaId}

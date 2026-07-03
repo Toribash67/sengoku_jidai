@@ -8,7 +8,7 @@
  */
 
 // Static map data and geometry (topology and layout are public to both seats).
-export { getMap, listMaps } from "./maps/registry.js";
+export { getMap, listMaps, registerMap } from "./maps/registry.js";
 export { riversMap, riversMapId } from "./maps/riversMap.js";
 export type { AreaKind, MapArea, MapDefinition, StartingUnits } from "./maps/riversMap.js";
 export { riversSource } from "./maps/riversSource.js";

@@ -17,4 +17,14 @@ describe("slotIdForSpace", () => {
     expect(slotIdForSpace("embark-b")).toBeNull();
     expect(slotIdForSpace("plan-a")).toBeNull();
   });
+
+  it("maps action spaces on arbitrary (non-'tile') custom-map tile ids", () => {
+    expect(slotIdForSpace("advance-island-a")).toBe("move-island-a");
+    expect(slotIdForSpace("sail-deep-sea-3")).toBe("sail-deep-sea-3");
+  });
+
+  it("still returns null for support spaces and unprefixed ids", () => {
+    expect(slotIdForSpace("reinforce-3")).toBeNull();
+    expect(slotIdForSpace("plan")).toBeNull();
+  });
 });

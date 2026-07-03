@@ -1,13 +1,13 @@
 import type { PlayerAreaView, SeatId } from "@sengoku-jidai/engine/client";
-import { compileHexMap, riversSource } from "@sengoku-jidai/engine/client";
-import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
 import { useEffect, useRef } from "react";
+import { boardSvgFor } from "../../client/maps.js";
 import { SEAT_SOLID, TILE_LAND_FILL, TILE_SEA_FILL, tileFill } from "./tileFill.js";
 import { slotIdForSpace } from "./slotMapping.js";
 
-const RIVERS_SVG = assembleBoardSvg(buildScene(compileHexMap(riversSource)));
-
 export interface MapBoardProps {
+  /** The game's map id (`view.mapId`); the SVG comes from the map loader cache,
+   *  which App warms via `ensureMapLoaded` before rendering the game. */
+  mapId: string;
   areas: PlayerAreaView[];
   activeSeat: SeatId;
   selectedAreaId: string | null;
@@ -559,6 +559,7 @@ function decorate(
 }
 
 export function MapBoard({
+  mapId,
   areas,
   activeSeat,
   selectedAreaId,
@@ -580,13 +581,15 @@ export function MapBoard({
     if (!host) {
       return;
     }
-    host.innerHTML = RIVERS_SVG;
-    const svg = host.querySelector("svg");
-    if (svg) {
-      prepareSvg(svg);
-      applyTerrain(svg, terrainUrl);
+    const svg = boardSvgFor(mapId);
+    host.innerHTML =
+      svg ?? `<p role="alert">The map for this game failed to load. Refresh to retry.</p>`;
+    const svgEl = host.querySelector("svg");
+    if (svgEl) {
+      prepareSvg(svgEl);
+      applyTerrain(svgEl, terrainUrl);
     }
-  }, [terrainUrl]);
+  }, [mapId, terrainUrl]);
 
   // Re-decorate whenever state changes.
   useEffect(() => {
