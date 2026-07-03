@@ -6,7 +6,8 @@ import {
   hqBaseArt,
   pierArt,
   star1Art,
-  star2Art
+  star2Art,
+  type OrderKind
 } from "./assets.js";
 import type { BoardScene, SceneTile } from "./scene.js";
 import type { Pixel } from "@sengoku-jidai/engine";
@@ -95,11 +96,28 @@ function featureGlyphs(tile: SceneTile, hexSize: number): string {
   return out.join("");
 }
 
-function slotAnchors(tile: SceneTile): string {
+function slotAnchors(tile: SceneTile, hexSize: number): string {
+  const s = hexSize / NATIVE_HEX_SIZE;
   return Object.entries(tile.slots)
-    .map(([id, at]) =>
-      el("circle", { id, cx: at.x.toFixed(2), cy: at.y.toFixed(2), r: 0, class: "order-slot" })
-    )
+    .map(([id, at]) => {
+      const kind = id.slice(0, id.indexOf("-")) as OrderKind;
+      // The visible token (native-scale board.svg art) plus the invisible anchor circle the
+      // web positions occupancy dots on — kept separate so the dot lands on the token's hex
+      // centre, not the bbox centre skewed by the icon overflowing the token.
+      const art = el("use", {
+        href: `#order-art-${kind}`,
+        "xlink:href": `#order-art-${kind}`,
+        transform: `translate(${at.x.toFixed(2)} ${at.y.toFixed(2)}) scale(${s})`
+      });
+      const anchor = el("circle", {
+        id,
+        cx: at.x.toFixed(2),
+        cy: at.y.toFixed(2),
+        r: 0,
+        class: "order-slot"
+      });
+      return art + anchor;
+    })
     .join("");
 }
 
@@ -134,7 +152,11 @@ export function assembleBoardSvg(scene: BoardScene): string {
     { id: "features", "pointer-events": "none" },
     scene.tiles.map((t) => featureGlyphs(t, scene.hexSize)).join("")
   );
-  const slots = el("g", { id: "order-slots" }, scene.tiles.map(slotAnchors).join(""));
+  const slots = el(
+    "g",
+    { id: "order-slots", "pointer-events": "none" },
+    scene.tiles.map((t) => slotAnchors(t, scene.hexSize)).join("")
+  );
 
   return el(
     "svg",
