@@ -10,13 +10,14 @@ the server is authoritative; the client renders and submits player intent only.
 
 ## Repository layout
 
-| Package                                | Responsibility                                                                                                              |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| [`packages/engine`](packages/engine)   | Pure, deterministic game rules. No HTTP, DB, DOM, React, filesystem, or wall-clock time. JSON-compatible state.             |
-| [`packages/shared`](packages/shared)   | API schemas and client/server contracts.                                                                                    |
-| [`packages/server`](packages/server)   | Authority, persistence (SQLite), sessions, REST API, realtime delivery.                                                     |
-| [`packages/web`](packages/web)         | Rendering, interaction, local draft UI state, client API calls.                                                             |
-| [`packages/terrain`](packages/terrain) | **Dev-only** offline pipeline that generates antique-style terrain background images for the board. Not shipped in the app. |
+| Package                                          | Responsibility                                                                                                              |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| [`packages/engine`](packages/engine)             | Pure, deterministic game rules. No HTTP, DB, DOM, React, filesystem, or wall-clock time. JSON-compatible state.             |
+| [`packages/shared`](packages/shared)             | API schemas and client/server contracts.                                                                                    |
+| [`packages/server`](packages/server)             | Authority, persistence (SQLite), sessions, REST API, realtime delivery.                                                     |
+| [`packages/web`](packages/web)                   | Rendering, interaction, local draft UI state, client API calls.                                                             |
+| [`packages/board-render`](packages/board-render) | Pure SVG board scene builder (engine map data → SVG strings). Used by the web client and dev tooling.                       |
+| [`packages/terrain`](packages/terrain)           | **Dev-only** offline pipeline that generates antique-style terrain background images for the board. Not shipped in the app. |
 
 The server persists the complete authoritative game state and sends each client a
 player-specific **view**, so hidden information (hands, deck order, pending decisions)
