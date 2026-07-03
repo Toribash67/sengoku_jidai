@@ -244,6 +244,9 @@ export function App() {
     [game?.view.areas, selectedAreaId]
   );
 
+  // INVARIANT: render-time getMap(game.view.mapId) calls (here and below) throw on an
+  // unregistered map, so every setGame that introduces a new view must first
+  // `await ensureMapLoaded(view.mapId)` — all four new-view sites above do.
   const selectedMapArea = useMemo(
     () => (game && selectedAreaId ? (getMap(game.view.mapId).areas[selectedAreaId] ?? null) : null),
     [game, selectedAreaId]
