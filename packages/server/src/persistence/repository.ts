@@ -307,14 +307,14 @@ export class GameRepository {
         httpStatus: 200,
         revision: result.nextState.revision,
         view: playerView(result.nextState, session.seat),
-        events: playerEvents(result.events)
+        events: playerEvents(result.events, session.seat)
       } satisfies CommandSubmission;
     });
 
     return submit();
   }
 
-  eventsAfter(gameId: string, afterRevision: number): GameEvent[] {
+  eventsAfter(gameId: string, seat: SeatId, afterRevision: number): PlayerGameEvent[] {
     const rows = this.db
       .prepare(
         `SELECT event_json
@@ -324,7 +324,10 @@ export class GameRepository {
       )
       .all(gameId, afterRevision) as { event_json: string }[];
 
-    return rows.map((row) => JSON.parse(row.event_json) as GameEvent);
+    return playerEvents(
+      rows.map((row) => JSON.parse(row.event_json) as GameEvent),
+      seat
+    );
   }
 
   private duplicateCommandResult(
@@ -343,7 +346,7 @@ export class GameRepository {
         revision,
         view: playerView(state, seat),
         events: attempt.accepted_revision
-          ? this.eventsForRevision(gameId, attempt.accepted_revision)
+          ? playerEvents(this.eventsForRevision(gameId, attempt.accepted_revision), seat)
           : []
       };
     }

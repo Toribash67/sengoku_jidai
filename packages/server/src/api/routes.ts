@@ -139,7 +139,7 @@ export function registerApiRoutes(app: FastifyInstance, repository: GameReposito
     }
 
     return reply.send({
-      events: repository.eventsAfter(params.data.gameId, query.data.after)
+      events: repository.eventsAfter(params.data.gameId, session.seat, query.data.after)
     });
   });
 }

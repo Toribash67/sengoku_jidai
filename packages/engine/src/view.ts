@@ -29,8 +29,8 @@ import type { GameMode, GameStatus, SeatId } from "./types.js";
 import type { ActionType, BonusType } from "./rules.js";
 import type { GameEvent } from "./commands.js";
 
-/** Events as seen by a player. Identity in v1 (perfect information); the seam stays
- *  so future hidden-information redaction has a single choke point. */
+/** Events as seen by a player. Same shape as GameEvent; `playerEvents` is the single
+ *  choke point that decides which events a seat may see. */
 export type PlayerGameEvent = GameEvent;
 
 export interface PlayerAreaView {
@@ -516,8 +516,40 @@ function enumerateCounterattackMoves(
   return moves;
 }
 
-export function playerEvents(events: GameEvent[]): PlayerGameEvent[] {
-  return events;
+/** Project engine events for one seat. Fail-closed: only event types explicitly marked
+ *  visible below reach clients, so a future event carrying hidden information (card
+ *  identities, deck order) is withheld until it is deliberately classified. */
+export function playerEvents(events: GameEvent[], viewer: SeatId): PlayerGameEvent[] {
+  return events.filter((event) => isEventVisibleTo(event, viewer));
+}
+
+function isEventVisibleTo(event: GameEvent, _viewer: SeatId): boolean {
+  switch (event.type) {
+    case "commanderDeployed":
+    case "passed":
+    case "unitsMoved":
+    case "unitsPlaced":
+    case "bonusApplied":
+    case "diceRolled":
+    case "cardsDrawn":
+    case "cardDiscarded":
+    case "cardPlayed":
+    case "unitsRemoved":
+    case "areaCaptured":
+    case "capExceeded":
+    case "turnAdvanced":
+    case "recalled":
+    case "initiativeSeized":
+    case "gameEnded":
+      // All events emitted today are public for both seats: card events carry counts,
+      // not identities, and dice rolls are open information in the rules.
+      return true;
+    default: {
+      const unclassified: never = event;
+      void unclassified;
+      return false;
+    }
+  }
 }
 
 function buildPrompt(state: GameState, viewer: SeatId): string {
