@@ -65,4 +65,40 @@ describe("ensureMapLoaded", () => {
     await expect(ensureMapLoaded("missing-map")).rejects.toThrow();
     expect(boardSvgFor("missing-map")).toBeNull();
   });
+
+  it("coalesces concurrent callers into one fetch", async () => {
+    const detail = {
+      id: "custom-coalesce",
+      name: "Custom Coalesce",
+      builtin: false,
+      updatedAt: "2026-07-03T00:00:00.000Z",
+      source: { ...CUSTOM_SOURCE, id: "custom-coalesce" }
+    };
+    const mock = mockFetchOnce(200, detail);
+
+    const p1 = ensureMapLoaded("custom-coalesce");
+    const p2 = ensureMapLoaded("custom-coalesce");
+    await Promise.all([p1, p2]);
+
+    expect(mock).toHaveBeenCalledTimes(1);
+    expect(boardSvgFor("custom-coalesce")).toContain("<svg");
+  });
+
+  it("allows retrying after a failed load", async () => {
+    mockFetchOnce(404, { error: { code: "mapNotFound", message: "nope", requestId: "r" } });
+    await expect(ensureMapLoaded("custom-retry")).rejects.toThrow();
+    expect(boardSvgFor("custom-retry")).toBeNull();
+
+    const detail = {
+      id: "custom-retry",
+      name: "Custom Retry",
+      builtin: false,
+      updatedAt: "2026-07-03T00:00:00.000Z",
+      source: { ...CUSTOM_SOURCE, id: "custom-retry" }
+    };
+    mockFetchOnce(200, detail);
+
+    await ensureMapLoaded("custom-retry");
+    expect(boardSvgFor("custom-retry")).toContain("<svg");
+  });
 });
