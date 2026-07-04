@@ -994,3 +994,137 @@ button:disabled {
   display: flex;
   gap: 8px;
 }
+
+/* --- Map editor --- */
+.editor-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+.editor-header {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.editor-name {
+  flex: 0 0 260px;
+}
+.editor-status {
+  margin-left: auto;
+  font-size: 0.9em;
+}
+.editor-status.is-valid {
+  color: #2c7a34;
+}
+.editor-status.is-invalid {
+  color: #b03030;
+}
+.editor-banner,
+.editor-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: rgba(255, 220, 130, 0.35);
+}
+.editor-toast {
+  background: rgba(140, 220, 150, 0.3);
+}
+.editor-save-error {
+  padding: 8px 14px;
+  margin: 0;
+}
+.editor-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.editor-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-right: 1px solid var(--hairline);
+}
+.editor-toolbar .is-active {
+  outline: 2px solid #4a6fa5;
+}
+.editor-canvas {
+  flex: 1;
+  min-width: 0;
+  touch-action: none;
+  background: #f4f1e8;
+}
+.editor-canvas .editor-grid polygon {
+  fill: transparent;
+  stroke: rgba(0, 0, 0, 0.12);
+  stroke-width: 2;
+}
+.editor-canvas .editor-hex.is-land {
+  fill: #dcc98f;
+}
+.editor-canvas .editor-hex.is-sea {
+  fill: #9fc3d8;
+}
+.editor-canvas .editor-hex.is-selected {
+  fill-opacity: 0.75;
+  stroke: #f5a623;
+  stroke-width: 10;
+}
+.editor-canvas .editor-boundaries line {
+  stroke: #4a3b22;
+  stroke-width: 6;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.editor-canvas .editor-ports line {
+  stroke: #2b5f8a;
+  stroke-width: 5;
+  stroke-dasharray: 14 10;
+  pointer-events: none;
+}
+.editor-canvas .editor-badges {
+  pointer-events: none;
+}
+.editor-canvas .editor-badge {
+  font-size: 40px;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 6;
+}
+.editor-canvas .editor-badge tspan[data-seat="red"] {
+  fill: #b03030;
+}
+.editor-canvas .editor-badge tspan[data-seat="black"] {
+  fill: #222;
+}
+.editor-inspector {
+  width: 280px;
+  padding: 12px;
+  border-left: 1px solid var(--hairline);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.editor-tally {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.editor-port-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

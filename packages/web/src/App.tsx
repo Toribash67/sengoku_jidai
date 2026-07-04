@@ -40,7 +40,7 @@ import { terrainImage } from "./components/board/terrainImages.js";
 import { ensureMapLoaded } from "./client/maps.js";
 import type { GameSeatInfo, SeatToken } from "@sengoku-jidai/shared";
 import {
-  ApiError,
+  apiErrorMessage,
   claimSeat,
   createGame,
   fetchEvents,
@@ -58,6 +58,7 @@ import { gameUrl, inviteUrl, navigateTo, useRoute } from "./state/route.js";
 import { shouldPoll } from "./state/polling.js";
 import { CreateGameScreen } from "./components/CreateGameScreen.js";
 import { ClaimSeatPrompt } from "./components/ClaimSeatPrompt.js";
+import { EditorScreen } from "./components/editor/EditorScreen.js";
 import { MapLibraryScreen } from "./components/MapLibraryScreen.js";
 import { PlayersPanel } from "./components/PlayersPanel.js";
 
@@ -171,7 +172,7 @@ export function App() {
       })
       .catch((caught) => {
         if (!cancelled) {
-          setError(errorMessage(caught));
+          setError(apiErrorMessage(caught));
         }
       })
       .finally(() => {
@@ -329,7 +330,7 @@ export function App() {
       setEvents([]);
       navigateTo(gameUrl(created.gameId, myToken));
     } catch (caught) {
-      setError(errorMessage(caught));
+      setError(apiErrorMessage(caught));
     } finally {
       setBusy(false);
     }
@@ -351,7 +352,7 @@ export function App() {
         seatInfo: envelope.seatInfo
       });
     } catch (caught) {
-      setError(errorMessage(caught));
+      setError(apiErrorMessage(caught));
     } finally {
       setBusy(false);
     }
@@ -381,7 +382,7 @@ export function App() {
       setComposer(null);
       setArmedOrder(null);
     } catch (caught) {
-      setError(errorMessage(caught));
+      setError(apiErrorMessage(caught));
     } finally {
       setBusy(false);
     }
@@ -596,7 +597,7 @@ export function App() {
       setArmedOrder(null);
       setSelectedAreaId(null);
     } catch (caught) {
-      setError(errorMessage(caught));
+      setError(apiErrorMessage(caught));
     } finally {
       setBusy(false);
     }
@@ -617,7 +618,7 @@ export function App() {
       }
       setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
     } catch (caught) {
-      setError(errorMessage(caught));
+      setError(apiErrorMessage(caught));
     } finally {
       setBusy(false);
     }
@@ -649,7 +650,7 @@ export function App() {
       }
       setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
     } catch (caught) {
-      setError(errorMessage(caught));
+      setError(apiErrorMessage(caught));
     } finally {
       setBusy(false);
     }
@@ -675,7 +676,7 @@ export function App() {
       }
       setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
     } catch (caught) {
-      setError(errorMessage(caught));
+      setError(apiErrorMessage(caught));
     } finally {
       setBusy(false);
     }
@@ -686,16 +687,7 @@ export function App() {
   }
 
   if (route.kind === "editor") {
-    return (
-      <main className="app-shell app-empty">
-        <section className="start-panel" aria-label="Map editor">
-          <p className="muted">The map editor arrives in the next update.</p>
-          <button type="button" className="secondary-action" onClick={() => navigateTo("/maps")}>
-            Back to library
-          </button>
-        </section>
-      </main>
-    );
+    return <EditorScreen mapId={route.mapId} />;
   }
 
   if (route.kind === "create") {
@@ -1062,15 +1054,4 @@ function eventLabel(event: PlayerGameEvent): string {
       }
       return event.type;
   }
-}
-
-function errorMessage(caught: unknown): string {
-  if (caught instanceof ApiError) {
-    const body = caught.body as { error?: { message?: string } };
-    return body.error?.message ?? caught.message;
-  }
-  if (caught instanceof Error) {
-    return caught.message;
-  }
-  return "Unexpected error.";
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { MapSummary } from "@sengoku-jidai/shared";
 import { apiErrorMessage, deleteMap, listMaps } from "../client/api.js";
-import { createUrl, navigateTo } from "../state/route.js";
+import { createUrl, editorUrl, navigateTo } from "../state/route.js";
 
 export function MapLibraryScreen() {
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
@@ -40,6 +40,13 @@ export function MapLibraryScreen() {
       <section className="start-panel map-library" aria-label="Map library">
         <header className="map-library-header">
           <h1>Map library</h1>
+          <button
+            type="button"
+            className="primary-action"
+            onClick={() => navigateTo(editorUrl(null))}
+          >
+            New map
+          </button>
           <button type="button" className="secondary-action" onClick={() => navigateTo("/")}>
             Back to game
           </button>
@@ -74,6 +81,15 @@ export function MapLibraryScreen() {
                   >
                     New game
                   </button>
+                  {!map.builtin ? (
+                    <button
+                      type="button"
+                      className="secondary-action"
+                      onClick={() => navigateTo(editorUrl(map.id))}
+                    >
+                      Edit
+                    </button>
+                  ) : null}
                   {!map.builtin ? (
                     <button
                       type="button"
