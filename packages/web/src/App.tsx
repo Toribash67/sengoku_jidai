@@ -58,6 +58,7 @@ import { gameUrl, inviteUrl, navigateTo, useRoute } from "./state/route.js";
 import { shouldPoll } from "./state/polling.js";
 import { CreateGameScreen } from "./components/CreateGameScreen.js";
 import { ClaimSeatPrompt } from "./components/ClaimSeatPrompt.js";
+import { MapLibraryScreen } from "./components/MapLibraryScreen.js";
 import { PlayersPanel } from "./components/PlayersPanel.js";
 
 const MIN_PANEL_WIDTH = 260;
@@ -678,6 +679,23 @@ export function App() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (route.kind === "maps") {
+    return <MapLibraryScreen />;
+  }
+
+  if (route.kind === "editor") {
+    return (
+      <main className="app-shell app-empty">
+        <section className="start-panel" aria-label="Map editor">
+          <p className="muted">The map editor arrives in the next update.</p>
+          <button type="button" className="secondary-action" onClick={() => navigateTo("/maps")}>
+            Back to library
+          </button>
+        </section>
+      </main>
+    );
   }
 
   if (route.kind === "create") {
