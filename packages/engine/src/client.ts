@@ -15,6 +15,16 @@ export { riversSource } from "./maps/riversSource.js";
 export { compileHexMap } from "./maps/hex/compile.js";
 export type { CompiledMap, MapLayout } from "./maps/hex/compile.js";
 export type { HexMapSource } from "./maps/hex/source.js";
+export { validateHexMap } from "./maps/hex/validate.js";
+export {
+  axialKey,
+  axialToPixel,
+  neighbors,
+  NEIGHBOR_DIRS,
+  pixelToAxial
+} from "./maps/hex/coords.js";
+export type { Axial, HexLayout, Pixel } from "./maps/hex/coords.js";
+export { riversRuleset } from "./rules.js";
 
 // The public card list (identities in hands and the deck stay hidden; the set of
 // cards that exists is open information).
