@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { HexMapSource } from "@sengoku-jidai/engine/client";
+import { compileHexMap } from "@sengoku-jidai/engine/client";
+import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
 import { apiErrorMessage, fetchMap } from "../../client/api.js";
-import { docFromSource, emptyDoc } from "../../editor/doc.js";
+import { docFromSource, docToSource, emptyDoc } from "../../editor/doc.js";
 import { clearDraft, loadDraft, saveDraft, type SavedDraft } from "../../editor/draft.js";
 import { editorReducer, initialEditorState } from "../../editor/reducer.js";
 import { persistDoc } from "../../editor/save.js";
@@ -19,6 +21,7 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
   const draftTimer = useRef<number | null>(null);
 
   // Load the map (or offer a draft for /maps/new).
@@ -77,6 +80,16 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
   }, [state.doc, loading, pendingDraft]);
 
   const problem = useMemo(() => validationMessage(state.doc), [state.doc]);
+  const previewResult = useMemo(() => {
+    if (!preview) {
+      return null;
+    }
+    try {
+      return { svg: assembleBoardSvg(buildScene(compileHexMap(docToSource(state.doc)))) };
+    } catch (caught) {
+      return { error: caught instanceof Error ? caught.message : String(caught) };
+    }
+  }, [preview, state.doc]);
 
   async function handleSave() {
     setSaving(true);
@@ -143,6 +156,9 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
         <span className={problem ? "editor-status is-invalid" : "editor-status is-valid"}>
           {problem ?? "Map is valid"}
         </span>
+        <button type="button" aria-pressed={preview} onClick={() => setPreview((p) => !p)}>
+          Preview
+        </button>
         <button
           type="button"
           className="primary-action"
@@ -191,7 +207,18 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
 
       <div className="editor-body">
         <EditorToolbar state={state} dispatch={dispatch} />
-        <EditorCanvas state={state} dispatch={dispatch} />
+        {previewResult ? (
+          previewResult.svg ? (
+            <div
+              className="editor-preview"
+              dangerouslySetInnerHTML={{ __html: previewResult.svg }}
+            />
+          ) : (
+            <p className="error-text editor-preview">Preview unavailable: {previewResult.error}</p>
+          )
+        ) : (
+          <EditorCanvas state={state} dispatch={dispatch} />
+        )}
         <InspectorPanel state={state} dispatch={dispatch} />
       </div>
     </main>
