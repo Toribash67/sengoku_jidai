@@ -1,11 +1,14 @@
 import type {
+  ApiErrorBody,
   CreateGameResponse,
+  ListMapsResponse,
   MapDetail,
   PlayerGameViewEnvelope,
   SubmitCommandResponse
 } from "@sengoku-jidai/shared";
 import type {
   Command,
+  HexMapSource,
   PlayerGameEvent,
   PlayerGameView,
   SeatId
@@ -14,10 +17,16 @@ import type {
 export async function createGame(input: {
   name: string;
   side: SeatId;
+  mapId?: string;
 }): Promise<CreateGameResponse<PlayerGameView>> {
   return request("/api/games", {
     method: "POST",
-    body: JSON.stringify({ mode: "private_multiplayer", name: input.name, side: input.side })
+    body: JSON.stringify({
+      mode: "private_multiplayer",
+      name: input.name,
+      side: input.side,
+      mapId: input.mapId
+    })
   });
 }
 
@@ -45,6 +54,25 @@ export async function fetchEvents(
 
 export async function fetchMap(mapId: string): Promise<MapDetail> {
   return request(`/api/maps/${mapId}`);
+}
+
+export async function listMaps(): Promise<ListMapsResponse> {
+  return request("/api/maps");
+}
+
+export async function createMap(source: HexMapSource): Promise<MapDetail> {
+  return request("/api/maps", { method: "POST", body: JSON.stringify(source) });
+}
+
+export async function updateMap(mapId: string, source: HexMapSource): Promise<MapDetail> {
+  return request(`/api/maps/${encodeURIComponent(mapId)}`, {
+    method: "PUT",
+    body: JSON.stringify(source)
+  });
+}
+
+export async function deleteMap(mapId: string): Promise<void> {
+  return request(`/api/maps/${encodeURIComponent(mapId)}`, { method: "DELETE" });
 }
 
 export async function fetchGameView(
@@ -101,6 +129,9 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   }
 
   const response = await fetch(url, { ...init, headers });
+  if (response.status === 204) {
+    return undefined as T;
+  }
   const body = (await response.json()) as T;
   if (!response.ok) {
     throw new ApiError(response.status, body);
@@ -115,4 +146,16 @@ export class ApiError extends Error {
   ) {
     super(`API request failed with ${status}`);
   }
+}
+
+/** Human-readable message for a failed call: the server envelope's message when present. */
+export function apiErrorMessage(caught: unknown): string {
+  if (caught instanceof ApiError) {
+    const body = caught.body as Partial<ApiErrorBody> | null;
+    const message = body?.error?.message;
+    if (typeof message === "string" && message.length > 0) {
+      return message;
+    }
+  }
+  return caught instanceof Error ? caught.message : "Something went wrong.";
 }

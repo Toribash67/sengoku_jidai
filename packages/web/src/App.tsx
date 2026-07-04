@@ -58,6 +58,7 @@ import { gameUrl, inviteUrl, navigateTo, useRoute } from "./state/route.js";
 import { shouldPoll } from "./state/polling.js";
 import { CreateGameScreen } from "./components/CreateGameScreen.js";
 import { ClaimSeatPrompt } from "./components/ClaimSeatPrompt.js";
+import { MapLibraryScreen } from "./components/MapLibraryScreen.js";
 import { PlayersPanel } from "./components/PlayersPanel.js";
 
 const MIN_PANEL_WIDTH = 260;
@@ -305,11 +306,11 @@ export function App() {
   const cardPlays = useMemo(() => game?.view.legal.cardPlays ?? [], [game?.view.legal.cardPlays]);
   const playableCards = useMemo(() => new Set(cardPlays.map((p) => p.card)), [cardPlays]);
 
-  async function handleCreate(name: string, side: SeatId) {
+  async function handleCreate(name: string, side: SeatId, mapId: string) {
     setBusy(true);
     setError(null);
     try {
-      const created = await createGame({ name, side });
+      const created = await createGame({ name, side, mapId });
       await ensureMapLoaded(created.view.mapId);
       rememberSeatTokens(created.gameId, created.seats);
       const myToken = created.seats.find((s) => s.seat === created.seat)!.token;
@@ -680,8 +681,32 @@ export function App() {
     }
   }
 
+  if (route.kind === "maps") {
+    return <MapLibraryScreen />;
+  }
+
+  if (route.kind === "editor") {
+    return (
+      <main className="app-shell app-empty">
+        <section className="start-panel" aria-label="Map editor">
+          <p className="muted">The map editor arrives in the next update.</p>
+          <button type="button" className="secondary-action" onClick={() => navigateTo("/maps")}>
+            Back to library
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   if (route.kind === "create") {
-    return <CreateGameScreen busy={busy} error={error} onCreate={handleCreate} />;
+    return (
+      <CreateGameScreen
+        busy={busy}
+        error={error}
+        preselectMapId={route.map}
+        onCreate={handleCreate}
+      />
+    );
   }
 
   if (!game) {
