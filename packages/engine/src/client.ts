@@ -24,6 +24,7 @@ export {
   pixelToAxial
 } from "./maps/hex/coords.js";
 export type { Axial, HexLayout, Pixel } from "./maps/hex/coords.js";
+export type { HexTileSource } from "./maps/hex/source.js";
 export { riversRuleset } from "./rules.js";
 
 // The public card list (identities in hands and the deck stay hidden; the set of

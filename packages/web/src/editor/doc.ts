@@ -44,9 +44,9 @@ export function docFromSource(source: HexMapSource, options: { asCopy: boolean }
     id: options.asCopy ? null : source.id,
     name: options.asCopy ? `${source.name} (copy)` : source.name,
     layout: source.layout,
-    tiles: source.tiles,
-    startingDeployment: source.startingDeployment,
-    bonusSlots: source.bonusSlots,
+    tiles: structuredClone(source.tiles),
+    startingDeployment: structuredClone(source.startingDeployment),
+    bonusSlots: [...source.bonusSlots],
     nextTileNumber: max + 1
   };
 }

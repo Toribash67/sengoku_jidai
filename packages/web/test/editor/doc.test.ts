@@ -19,6 +19,14 @@ describe("editor doc", () => {
     expect(source.bonusSlots).toEqual(riversSource.bonusSlots);
   });
 
+  it("copies the source instead of aliasing it", () => {
+    const doc = docFromSource(riversSource, { asCopy: false });
+    expect(doc.tiles).not.toBe(riversSource.tiles);
+    expect(doc.tiles[0]).not.toBe(riversSource.tiles[0]);
+    expect(doc.startingDeployment).not.toBe(riversSource.startingDeployment);
+    expect(doc.bonusSlots).not.toBe(riversSource.bonusSlots);
+  });
+
   it("loads as copy with a null id and (copy) name", () => {
     const doc = docFromSource(riversSource, { asCopy: true });
     expect(doc.id).toBeNull();
