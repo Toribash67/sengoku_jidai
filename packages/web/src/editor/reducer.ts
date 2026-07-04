@@ -178,6 +178,89 @@ function withDoc(state: EditorState, doc: EditorDoc, extra?: Partial<EditorState
   });
 }
 
+export function canMergeSelection(doc: EditorDoc, selection: string[]): boolean {
+  if (selection.length < 2) {
+    return false;
+  }
+  const tiles = selection.map((id) => doc.tiles.find((t) => t.id === id));
+  if (tiles.some((t) => t === undefined)) {
+    return false;
+  }
+  const kind = tiles[0]!.kind;
+  if (tiles.some((t) => t!.kind !== kind)) {
+    return false;
+  }
+  const union = tiles.flatMap((t) => t!.hexes);
+  return connectedComponents(union).length === 1;
+}
+
+function dedupe(ids: string[]): string[] {
+  return [...new Set(ids)];
+}
+
+function mergeSelection(doc: EditorDoc, selection: string[]): EditorDoc {
+  if (!canMergeSelection(doc, selection)) {
+    return doc;
+  }
+  const [survivorId, ...absorbedIds] = selection;
+  const absorbed = new Set(absorbedIds);
+  const mergedHexes = selection.flatMap((id) => doc.tiles.find((t) => t.id === id)!.hexes);
+
+  const startingDeployment = { ...doc.startingDeployment };
+  if (!startingDeployment[survivorId!]) {
+    const donor = absorbedIds.find((id) => startingDeployment[id]);
+    if (donor) {
+      startingDeployment[survivorId!] = startingDeployment[donor]!;
+    }
+  }
+  for (const id of absorbedIds) {
+    delete startingDeployment[id];
+  }
+
+  const bonusSlots = dedupe(doc.bonusSlots.map((id) => (absorbed.has(id) ? survivorId! : id)));
+
+  const tiles = doc.tiles
+    .filter((t) => !absorbed.has(t.id))
+    .map((t) => {
+      const base = t.id === survivorId ? { ...t, hexes: mergedHexes } : t;
+      if (!base.ports || !base.ports.some((p) => absorbed.has(p))) {
+        return base;
+      }
+      return { ...base, ports: dedupe(base.ports.map((p) => (absorbed.has(p) ? survivorId! : p))) };
+    });
+
+  return { ...doc, tiles, startingDeployment, bonusSlots };
+}
+
+function unmergeTile(doc: EditorDoc, tileId: string): EditorDoc {
+  const tile = doc.tiles.find((t) => t.id === tileId);
+  if (!tile || tile.hexes.length < 2) {
+    return doc;
+  }
+  const centers = tile.hexes.map((h) => axialToPixel(h, doc.layout));
+  const centroid = {
+    x: centers.reduce((sum, p) => sum + p.x, 0) / centers.length,
+    y: centers.reduce((sum, p) => sum + p.y, 0) / centers.length
+  };
+  let keeperIndex = 0;
+  let best = Infinity;
+  centers.forEach((p, i) => {
+    const d = (p.x - centroid.x) ** 2 + (p.y - centroid.y) ** 2;
+    if (d < best) {
+      best = d;
+      keeperIndex = i;
+    }
+  });
+  let nextNumber = doc.nextTileNumber;
+  const fresh: HexTileSource[] = tile.hexes
+    .filter((_, i) => i !== keeperIndex)
+    .map((hex) => ({ id: `t${nextNumber++}`, kind: tile.kind, hexes: [hex], features: {} }));
+  const tiles = doc.tiles
+    .map((t) => (t.id === tileId ? { ...t, hexes: [tile.hexes[keeperIndex]!] } : t))
+    .concat(fresh);
+  return { ...doc, tiles, nextTileNumber: nextNumber };
+}
+
 export function editorReducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
     case "setTool":
@@ -218,11 +301,14 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       }
       return normalize({ ...state, doc: next, past: [...state.past, state.doc], future });
     }
+    case "mergeSelection":
+      return withDoc(state, mergeSelection(state.doc, state.selection), {
+        selection: state.selection.slice(0, 1)
+      });
+    case "unmergeTile":
+      return withDoc(state, unmergeTile(state.doc, action.tileId));
     default:
-      // Remaining actions land in Tasks 8–9.
+      // Remaining actions land in Task 9.
       return state;
   }
 }
-
-// axialToPixel is unused until Task 8 wires up preview rendering; keep the import alive.
-void axialToPixel;
