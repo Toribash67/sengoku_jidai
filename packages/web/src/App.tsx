@@ -306,11 +306,11 @@ export function App() {
   const cardPlays = useMemo(() => game?.view.legal.cardPlays ?? [], [game?.view.legal.cardPlays]);
   const playableCards = useMemo(() => new Set(cardPlays.map((p) => p.card)), [cardPlays]);
 
-  async function handleCreate(name: string, side: SeatId) {
+  async function handleCreate(name: string, side: SeatId, mapId: string) {
     setBusy(true);
     setError(null);
     try {
-      const created = await createGame({ name, side });
+      const created = await createGame({ name, side, mapId });
       await ensureMapLoaded(created.view.mapId);
       rememberSeatTokens(created.gameId, created.seats);
       const myToken = created.seats.find((s) => s.seat === created.seat)!.token;
@@ -699,7 +699,14 @@ export function App() {
   }
 
   if (route.kind === "create") {
-    return <CreateGameScreen busy={busy} error={error} onCreate={handleCreate} />;
+    return (
+      <CreateGameScreen
+        busy={busy}
+        error={error}
+        preselectMapId={route.map}
+        onCreate={handleCreate}
+      />
+    );
   }
 
   if (!game) {
