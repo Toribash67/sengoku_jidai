@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { HexMapSource } from "@sengoku-jidai/engine/client";
-import { apiErrorMessage, fetchMap } from "../../client/api.js";
-import { docFromSource, emptyDoc } from "../../editor/doc.js";
+import { compileHexMap } from "@sengoku-jidai/engine/client";
+import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
+import { ApiError, apiErrorMessage, fetchMap } from "../../client/api.js";
+import { docFromSource, docToSource, emptyDoc } from "../../editor/doc.js";
 import { clearDraft, loadDraft, saveDraft, type SavedDraft } from "../../editor/draft.js";
 import { editorReducer, initialEditorState } from "../../editor/reducer.js";
 import { persistDoc } from "../../editor/save.js";
@@ -19,6 +21,8 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
+  const [conflict, setConflict] = useState(false);
   const draftTimer = useRef<number | null>(null);
 
   // Load the map (or offer a draft for /maps/new).
@@ -77,12 +81,23 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
   }, [state.doc, loading, pendingDraft]);
 
   const problem = useMemo(() => validationMessage(state.doc), [state.doc]);
+  const previewResult = useMemo(() => {
+    if (!preview) {
+      return null;
+    }
+    try {
+      return { svg: assembleBoardSvg(buildScene(compileHexMap(docToSource(state.doc)))) };
+    } catch (caught) {
+      return { error: caught instanceof Error ? caught.message : String(caught) };
+    }
+  }, [preview, state.doc]);
 
   async function handleSave() {
     setSaving(true);
     setSaveError(null);
     setSavedId(null);
     setPendingDraft(null);
+    setConflict(false);
     try {
       const previousId = state.doc.id;
       const detail = await persistDoc(state.doc);
@@ -97,6 +112,38 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
         // effect, which refetches and clears the "Saved" toast.
         window.history.replaceState(null, "", editorUrl(detail.id));
       }
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 409) {
+        setConflict(true);
+      } else {
+        setSaveError(apiErrorMessage(caught));
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveAsCopy() {
+    if (saving) {
+      return;
+    }
+    const previousId = state.doc.id;
+    const copy = { ...state.doc, id: null, name: `${state.doc.name.trim()} (copy)` };
+    setConflict(false);
+    setSaving(true);
+    setSaveError(null);
+    setSavedId(null);
+    setPendingDraft(null);
+    try {
+      const detail = await persistDoc(copy);
+      clearDraft(previousId);
+      setSavedId(detail.id);
+      dispatch({
+        type: "loadDoc",
+        doc: docFromSource(detail.source as HexMapSource, { asCopy: false })
+      });
+      // replaceState, not navigateTo — see handleSave.
+      window.history.replaceState(null, "", editorUrl(detail.id));
     } catch (caught) {
       setSaveError(apiErrorMessage(caught));
     } finally {
@@ -143,6 +190,9 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
         <span className={problem ? "editor-status is-invalid" : "editor-status is-valid"}>
           {problem ?? "Map is valid"}
         </span>
+        <button type="button" aria-pressed={preview} onClick={() => setPreview((p) => !p)}>
+          Preview
+        </button>
         <button
           type="button"
           className="primary-action"
@@ -176,6 +226,17 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
           </button>
         </div>
       ) : null}
+      {conflict ? (
+        <div className="editor-banner" role="alertdialog" aria-label="Map in use">
+          <span>This map is used by existing games and can’t be changed.</span>
+          <button type="button" disabled={saving} onClick={() => void handleSaveAsCopy()}>
+            Save as copy
+          </button>
+          <button type="button" onClick={() => setConflict(false)}>
+            Keep editing
+          </button>
+        </div>
+      ) : null}
       {saveError ? <p className="error-text editor-save-error">{saveError}</p> : null}
       {savedId ? (
         <div className="editor-toast">
@@ -191,7 +252,18 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
 
       <div className="editor-body">
         <EditorToolbar state={state} dispatch={dispatch} />
-        <EditorCanvas state={state} dispatch={dispatch} />
+        {previewResult ? (
+          previewResult.svg ? (
+            <div
+              className="editor-preview"
+              dangerouslySetInnerHTML={{ __html: previewResult.svg }}
+            />
+          ) : (
+            <p className="error-text editor-preview">Preview unavailable: {previewResult.error}</p>
+          )
+        ) : (
+          <EditorCanvas state={state} dispatch={dispatch} />
+        )}
         <InspectorPanel state={state} dispatch={dispatch} />
       </div>
     </main>

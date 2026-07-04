@@ -90,6 +90,15 @@ export function MapLibraryScreen() {
                       Edit
                     </button>
                   ) : null}
+                  {map.builtin ? (
+                    <button
+                      type="button"
+                      className="secondary-action"
+                      onClick={() => navigateTo(editorUrl(map.id))}
+                    >
+                      Edit copy
+                    </button>
+                  ) : null}
                   {!map.builtin ? (
                     <button
                       type="button"
