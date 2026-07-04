@@ -97,6 +97,7 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
     setSaveError(null);
     setSavedId(null);
     setPendingDraft(null);
+    setConflict(false);
     try {
       const previousId = state.doc.id;
       const detail = await persistDoc(state.doc);

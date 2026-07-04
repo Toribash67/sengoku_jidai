@@ -55,4 +55,17 @@ test("author a custom map, save it, and play a move on it", async ({ page }) => 
   await source.click();
   await page.getByRole("button", { name: /^Confirm/ }).click();
   await expect(page.getByText(/moved/)).toBeVisible();
+
+  // The map is now in use by the game: editing it must 409 and offer save-as-copy.
+  await page.goto("/maps");
+  await page
+    .locator(".map-row", { hasText: "E2E Custom Map" })
+    .getByRole("button", { name: "Edit" })
+    .click();
+  await page.getByLabel("Map name").fill("E2E Custom Map v2");
+  await page.getByRole("button", { name: "Save map" }).click();
+  await expect(page.getByRole("alertdialog", { name: "Map in use" })).toBeVisible();
+  await page.getByRole("button", { name: "Save as copy" }).click();
+  await expect(page.getByRole("button", { name: "New game on this map" })).toBeVisible();
+  await expect(page.getByLabel("Map name")).toHaveValue("E2E Custom Map v2 (copy)");
 });
