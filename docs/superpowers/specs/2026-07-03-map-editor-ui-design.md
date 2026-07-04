@@ -12,8 +12,10 @@ SP6 terrain)
 
 Author, manage, and play custom maps entirely in the browser: a map library
 screen, a hex editor that saves through the SP4 maps API, and a map picker on
-the create-game screen. No server or engine changes — SP5 is web-only, built on
-what SP1–SP4 already export.
+the create-game screen. No server changes and no engine logic changes; the one
+engine touch is additive re-exports in `engine/src/client.ts` (`validateHexMap`,
+hex coord helpers, `riversRuleset`) because the web may import the engine only
+through that surface.
 
 ## Scope decisions (locked)
 
