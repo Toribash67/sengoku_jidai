@@ -27,6 +27,8 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
 
   useEffect(() => {
     let cancelled = false;
+    setMaps(null);
+    setMapsFailed(false);
     listMaps()
       .then((response) => {
         if (cancelled) {
