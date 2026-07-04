@@ -97,6 +97,34 @@ describe("painting", () => {
     expect(split.features).toEqual({});
   });
 
+  it("split tie: equal-size components — discovery order decides the survivor", () => {
+    // 3-in-a-row tile; erasing the middle hex leaves two 1-hex components.
+    const base = initialEditorState({
+      ...emptyDoc(),
+      tiles: [
+        {
+          id: "t1",
+          kind: "land",
+          hexes: [
+            { q: 0, r: 0 },
+            { q: 1, r: 0 },
+            { q: 2, r: 0 }
+          ],
+          features: { valueStars: 1 }
+        }
+      ],
+      nextTileNumber: 2
+    });
+    const next = editorReducer(base, { type: "eraseHex", hex: { q: 1, r: 0 } });
+    expect(next.doc.tiles).toHaveLength(2);
+    const survivor = next.doc.tiles.find((t) => t.id === "t1")!;
+    expect(survivor.hexes).toEqual([{ q: 0, r: 0 }]); // first-discovered component wins
+    expect(survivor.features).toEqual({ valueStars: 1 });
+    const fresh = next.doc.tiles.find((t) => t.id === "t2")!;
+    expect(fresh.hexes).toEqual([{ q: 2, r: 0 }]);
+    expect(fresh.features).toEqual({});
+  });
+
   it("undo/redo round-trips the doc", () => {
     const one = run([{ type: "paintHex", kind: "land", hex: { q: 0, r: 0 } }]);
     const undone = editorReducer(one, { type: "undo" });
