@@ -49,6 +49,13 @@ describe("merge", () => {
     expect(next.selection).toEqual(["t1"]);
   });
 
+  it("a rejected merge leaves the state untouched, selection included", () => {
+    let state = fourTiles();
+    state = { ...state, selection: ["t1", "t4"] }; // disconnected — merge must be refused
+    const next = editorReducer(state, { type: "mergeSelection" });
+    expect(next).toBe(state);
+  });
+
   it("remaps inbound ports from an absorbed sea tile", () => {
     let state = initialEditorState({
       ...emptyDoc(),

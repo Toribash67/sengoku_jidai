@@ -301,10 +301,14 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       }
       return normalize({ ...state, doc: next, past: [...state.past, state.doc], future });
     }
-    case "mergeSelection":
+    case "mergeSelection": {
+      if (!canMergeSelection(state.doc, state.selection)) {
+        return state;
+      }
       return withDoc(state, mergeSelection(state.doc, state.selection), {
         selection: state.selection.slice(0, 1)
       });
+    }
     case "unmergeTile":
       return withDoc(state, unmergeTile(state.doc, action.tileId));
     default:
