@@ -232,6 +232,99 @@ function mergeSelection(doc: EditorDoc, selection: string[]): EditorDoc {
   return { ...doc, tiles, startingDeployment, bonusSlots };
 }
 
+function setFeature(doc: EditorDoc, tileId: string, patch: FeaturePatch): EditorDoc {
+  const tiles = doc.tiles.map((t) => {
+    if (t.id !== tileId) {
+      if (patch.hq && t.features.hq === patch.hq) {
+        const { hq: _stolen, ...rest } = t.features;
+        return { ...t, features: rest };
+      }
+      return t;
+    }
+    const features = { ...t.features };
+    if ("hq" in patch) {
+      if (patch.hq) {
+        features.hq = patch.hq;
+      } else {
+        delete features.hq;
+      }
+    }
+    if (patch.valueStars !== undefined) {
+      if (patch.valueStars > 0) {
+        features.valueStars = patch.valueStars;
+      } else {
+        delete features.valueStars;
+      }
+    }
+    if (patch.harbor !== undefined) {
+      if (patch.harbor) {
+        features.harbor = true;
+      } else {
+        delete features.harbor;
+      }
+    }
+    if (patch.shellable !== undefined) {
+      if (patch.shellable) {
+        features.shellable = true;
+      } else {
+        delete features.shellable;
+      }
+    }
+    const next: HexTileSource = { ...t, features };
+    if (patch.harbor === false) {
+      delete next.ports;
+    }
+    return next;
+  });
+  return { ...doc, tiles };
+}
+
+function addPort(doc: EditorDoc, harborId: string, seaId: string): EditorDoc {
+  const harbor = doc.tiles.find((t) => t.id === harborId);
+  const target = doc.tiles.find((t) => t.id === seaId);
+  if (!harbor?.features.harbor || target?.kind !== "sea" || harbor.ports?.includes(seaId)) {
+    return doc;
+  }
+  const tiles = doc.tiles.map((t) =>
+    t.id === harborId ? { ...t, ports: [...(t.ports ?? []), seaId] } : t
+  );
+  return { ...doc, tiles };
+}
+
+function removePort(doc: EditorDoc, harborId: string, seaId: string): EditorDoc {
+  const tiles = doc.tiles.map((t) => {
+    if (t.id !== harborId || !t.ports) {
+      return t;
+    }
+    const ports = t.ports.filter((p) => p !== seaId);
+    const next: HexTileSource = { ...t };
+    if (ports.length > 0) {
+      next.ports = ports;
+    } else {
+      delete next.ports;
+    }
+    return next;
+  });
+  return { ...doc, tiles };
+}
+
+function setDeployment(doc: EditorDoc, tileId: string, units: StartingUnits | null): EditorDoc {
+  const startingDeployment = { ...doc.startingDeployment };
+  const normalized = units
+    ? {
+        seat: units.seat,
+        ...(units.troop && units.troop > 0 ? { troop: units.troop } : {}),
+        ...(units.ship && units.ship > 0 ? { ship: units.ship } : {})
+      }
+    : null;
+  if (!normalized || (normalized.troop === undefined && normalized.ship === undefined)) {
+    delete startingDeployment[tileId];
+  } else {
+    startingDeployment[tileId] = normalized;
+  }
+  return { ...doc, startingDeployment };
+}
+
 function unmergeTile(doc: EditorDoc, tileId: string): EditorDoc {
   const tile = doc.tiles.find((t) => t.id === tileId);
   if (!tile || tile.hexes.length < 2) {
@@ -275,6 +368,15 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       if (action.tileId === null) {
         return { ...state, selection: [], portArming: false };
       }
+      if (state.portArming && state.selection[0]) {
+        const target = state.doc.tiles.find((t) => t.id === action.tileId);
+        if (target?.kind === "sea") {
+          return withDoc(state, addPort(state.doc, state.selection[0], action.tileId), {
+            portArming: false
+          });
+        }
+        return { ...state, portArming: false };
+      }
       const selection = action.additive
         ? state.selection.includes(action.tileId)
           ? state.selection.filter((id) => id !== action.tileId)
@@ -311,8 +413,23 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     }
     case "unmergeTile":
       return withDoc(state, unmergeTile(state.doc, action.tileId));
+    case "armPort":
+      return { ...state, portArming: action.arming };
+    case "removePort":
+      return withDoc(state, removePort(state.doc, action.harborId, action.seaId));
+    case "setFeature":
+      return withDoc(state, setFeature(state.doc, action.tileId, action.patch));
+    case "setDeployment":
+      return withDoc(state, setDeployment(state.doc, action.tileId, action.units));
+    case "toggleBonusSlot": {
+      const bonusSlots = state.doc.bonusSlots.includes(action.tileId)
+        ? state.doc.bonusSlots.filter((id) => id !== action.tileId)
+        : [...state.doc.bonusSlots, action.tileId];
+      return withDoc(state, { ...state.doc, bonusSlots });
+    }
+    case "setName":
+      return withDoc(state, { ...state.doc, name: action.name });
     default:
-      // Remaining actions land in Task 9.
       return state;
   }
 }
