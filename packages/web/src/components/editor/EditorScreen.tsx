@@ -123,6 +123,9 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
   }
 
   async function handleSaveAsCopy() {
+    if (saving) {
+      return;
+    }
     const previousId = state.doc.id;
     const copy = { ...state.doc, id: null, name: `${state.doc.name.trim()} (copy)` };
     setConflict(false);
@@ -225,7 +228,7 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
       {conflict ? (
         <div className="editor-banner" role="alertdialog" aria-label="Map in use">
           <span>This map is used by existing games and can’t be changed.</span>
-          <button type="button" onClick={() => void handleSaveAsCopy()}>
+          <button type="button" disabled={saving} onClick={() => void handleSaveAsCopy()}>
             Save as copy
           </button>
           <button type="button" onClick={() => setConflict(false)}>
