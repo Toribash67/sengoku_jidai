@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { HexMapSource } from "@sengoku-jidai/engine/client";
 import { compileHexMap } from "@sengoku-jidai/engine/client";
 import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
-import { apiErrorMessage, fetchMap } from "../../client/api.js";
+import { ApiError, apiErrorMessage, fetchMap } from "../../client/api.js";
 import { docFromSource, docToSource, emptyDoc } from "../../editor/doc.js";
 import { clearDraft, loadDraft, saveDraft, type SavedDraft } from "../../editor/draft.js";
 import { editorReducer, initialEditorState } from "../../editor/reducer.js";
@@ -22,6 +22,7 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
+  const [conflict, setConflict] = useState(false);
   const draftTimer = useRef<number | null>(null);
 
   // Load the map (or offer a draft for /maps/new).
@@ -111,6 +112,35 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
         window.history.replaceState(null, "", editorUrl(detail.id));
       }
     } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 409) {
+        setConflict(true);
+      } else {
+        setSaveError(apiErrorMessage(caught));
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveAsCopy() {
+    const previousId = state.doc.id;
+    const copy = { ...state.doc, id: null, name: `${state.doc.name.trim()} (copy)` };
+    setConflict(false);
+    setSaving(true);
+    setSaveError(null);
+    setSavedId(null);
+    setPendingDraft(null);
+    try {
+      const detail = await persistDoc(copy);
+      clearDraft(previousId);
+      setSavedId(detail.id);
+      dispatch({
+        type: "loadDoc",
+        doc: docFromSource(detail.source as HexMapSource, { asCopy: false })
+      });
+      // replaceState, not navigateTo — see handleSave.
+      window.history.replaceState(null, "", editorUrl(detail.id));
+    } catch (caught) {
       setSaveError(apiErrorMessage(caught));
     } finally {
       setSaving(false);
@@ -189,6 +219,17 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
             }}
           >
             Discard draft
+          </button>
+        </div>
+      ) : null}
+      {conflict ? (
+        <div className="editor-banner" role="alertdialog" aria-label="Map in use">
+          <span>This map is used by existing games and can’t be changed.</span>
+          <button type="button" onClick={() => void handleSaveAsCopy()}>
+            Save as copy
+          </button>
+          <button type="button" onClick={() => setConflict(false)}>
+            Keep editing
           </button>
         </div>
       ) : null}
