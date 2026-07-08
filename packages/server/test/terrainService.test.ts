@@ -50,11 +50,26 @@ describe("TerrainService", () => {
     expect(store.webp(mapId)?.subarray(8, 12).toString("ascii")).toBe("WEBP");
   });
 
-  it("generate() records failure when the source is unknown", async () => {
+  it("generate() records nothing for an unknown map", async () => {
     const { library, store } = setup();
     const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
     await service.generate("does-not-exist");
     expect(store.status("does-not-exist")).toBe("none"); // no maps row ⇒ never marked
+  });
+
+  it("generate() rerolls the fal seed on each run", async () => {
+    const { library, store, mapId } = setup();
+    const seeds: unknown[] = [];
+    const deps = fakeDeps();
+    deps.fal.subscribe = vi.fn(async (_model: string, opts: { input: Record<string, unknown> }) => {
+      seeds.push(opts.input.seed);
+      return { data: { images: [{ url: "https://fal/r.png" }] } };
+    });
+    const service = new TerrainService({ library, store, falKey: "k", deps });
+    await service.generate(mapId);
+    await service.generate(mapId);
+    expect(seeds).toHaveLength(2);
+    expect(seeds[0]).not.toBe(seeds[1]);
   });
 
   it("generate() records failure when the edit model errors", async () => {

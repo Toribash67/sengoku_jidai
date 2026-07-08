@@ -3,6 +3,7 @@ import { compileHexMap } from "@sengoku-jidai/engine";
 import type { HexMapSource } from "@sengoku-jidai/engine";
 import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
 import {
+  createFalClient,
   generateTerrainWebp,
   loadMapProfile,
   type EditDeps,
@@ -55,9 +56,8 @@ export class TerrainService {
     if (this.deps) {
       return this.deps;
     }
-    const { fal } = await import("@fal-ai/client");
-    fal.config({ credentials: this.falKey });
-    return { fal: fal as unknown as EditDeps["fal"], fetch: globalThis.fetch };
+    const fal = createFalClient(this.falKey!);
+    return { fal, fetch: globalThis.fetch };
   }
 
   async generate(mapId: string): Promise<void> {
@@ -66,8 +66,8 @@ export class TerrainService {
       return; // routes reject these before calling; guard anyway, record nothing
     }
     this.inflight.add(mapId);
-    this.store.markPending(mapId);
     try {
+      this.store.markPending(mapId);
       const source = detail.source as HexMapSource;
       const compiled = compileHexMap(source);
       const svgMarkup = assembleBoardSvg(buildScene(compiled));
