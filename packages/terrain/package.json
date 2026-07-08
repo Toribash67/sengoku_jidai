@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "gen:map": "tsx src/mapPipelineCli.ts",
     "gen:map-control": "tsx src/mapControlCli.ts",

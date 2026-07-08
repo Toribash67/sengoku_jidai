@@ -112,18 +112,27 @@ importers:
 
   packages/server:
     dependencies:
+      "@fal-ai/client":
+        specifier: ^1.10.1
+        version: 1.10.1
       "@fastify/cors":
         specifier: ^10.0.2
         version: 10.1.0
       "@fastify/static":
         specifier: ^8.0.3
         version: 8.3.0
+      "@sengoku-jidai/board-render":
+        specifier: workspace:*
+        version: link:../board-render
       "@sengoku-jidai/engine":
         specifier: workspace:*
         version: link:../engine
       "@sengoku-jidai/shared":
         specifier: workspace:*
         version: link:../shared
+      "@sengoku-jidai/terrain":
+        specifier: workspace:*
+        version: link:../terrain
       better-sqlite3:
         specifier: ^12.10.0
         version: 12.10.0
