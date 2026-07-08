@@ -43,6 +43,7 @@ export function prepBoardSvgMarkup(args: {
   svg.setAttribute("preserveAspectRatio", "none");
 
   const bg = doc.createElementNS(SVG_NS, "rect");
+  bg.setAttribute("id", "__prep-bg");
   bg.setAttribute("x", String(vb[0]));
   bg.setAttribute("y", String(vb[1]));
   bg.setAttribute("width", String(vb[2]));
@@ -64,7 +65,7 @@ export function prepBoardSvgMarkup(args: {
     throw new Error("base render: #tile-land/#tile-sea must share a parent");
   }
   for (const child of Array.from(tileGroupParent.children)) {
-    if (child.id !== "tile-land" && child.id !== "tile-sea") {
+    if (child.id !== "tile-land" && child.id !== "tile-sea" && child.id !== "__prep-bg") {
       child.setAttribute("style", `${child.getAttribute("style") ?? ""};display:none`);
     }
   }

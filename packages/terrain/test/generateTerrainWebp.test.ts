@@ -1,8 +1,10 @@
 import { compileHexMap } from "@sengoku-jidai/engine";
 import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
+import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 import type { EditDeps } from "../src/editPass.js";
 import { generateTerrainWebp } from "../src/mapPipeline.js";
+import { renderLandMask } from "../src/masks.js";
 import type { MapProfile } from "../src/mapProfile.js";
 
 // Real source → real (svgMarkup, map) pair that correspond (same tile ids).
@@ -73,5 +75,29 @@ describe("generateTerrainWebp", () => {
     // Uploaded exactly two images (control + style) and called the model once.
     expect(deps.fal.storage.upload).toHaveBeenCalledTimes(2);
     expect(deps.fal.subscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a land-dominant, non-inverted mask from the procedural board SVG", async () => {
+    const compiled = compileHexMap(SOURCE as never);
+    const svgMarkup = assembleBoardSvg(buildScene(compiled));
+
+    const landMask = await renderLandMask({
+      svgMarkup,
+      map: compiled.definition,
+      width: 64,
+      height: 64,
+      organicSigma: 0
+    });
+
+    const mask = await sharp(landMask).greyscale().raw().toBuffer();
+    let white = 0;
+    let black = 0;
+    for (const v of mask) {
+      if (v > 200) white += 1;
+      else if (v < 50) black += 1;
+    }
+    expect(white + black).toBe(mask.length); // strictly binary
+    expect(white / mask.length).toBeGreaterThan(0.4); // land + background dominate
+    expect(black).toBeGreaterThan(0); // sea tile still present
   });
 });
