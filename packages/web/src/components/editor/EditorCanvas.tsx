@@ -35,7 +35,7 @@ export function EditorCanvas({ state, dispatch }: EditorCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [view, setView] = useState(INITIAL_VIEW);
   const gestureRef = useRef<Gesture | null>(null);
-  const { doc, tool, selection } = state;
+  const { doc, tool, selection, multiSelect } = state;
   const selected = new Set(selection);
 
   function toBoardPoint(client: { clientX: number; clientY: number }): Pixel {
@@ -106,7 +106,11 @@ export function EditorCanvas({ state, dispatch }: EditorCanvasProps) {
     }
     const hex = pixelToAxial(toBoardPoint(event), doc.layout);
     const tile = tileAt(doc, hex);
-    dispatch({ type: "selectTile", tileId: tile?.id ?? null, additive: event.shiftKey });
+    dispatch({
+      type: "selectTile",
+      tileId: tile?.id ?? null,
+      additive: event.shiftKey || multiSelect
+    });
   }
 
   // Native non-passive wheel listener: React's synthetic onWheel can't preventDefault.
