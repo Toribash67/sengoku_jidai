@@ -11,6 +11,8 @@ export interface EditorState {
   selection: string[];
   /** True while "Add port" waits for a sea-tile click (applies to selection[0]). */
   portArming: boolean;
+  /** Sticky multi-select mode: taps add/remove tiles like shift-click (Select tool only). */
+  multiSelect: boolean;
   past: EditorDoc[];
   future: EditorDoc[];
 }
@@ -31,6 +33,7 @@ export type EditorAction =
   | { type: "unmergeTile"; tileId: string }
   | { type: "setFeature"; tileId: string; patch: FeaturePatch }
   | { type: "armPort"; arming: boolean }
+  | { type: "setMultiSelect"; enabled: boolean }
   | { type: "removePort"; harborId: string; seaId: string }
   | { type: "setDeployment"; tileId: string; units: StartingUnits | null }
   | { type: "toggleBonusSlot"; tileId: string }
@@ -42,7 +45,15 @@ export type EditorAction =
 const HISTORY_LIMIT = 100;
 
 export function initialEditorState(doc: EditorDoc): EditorState {
-  return { doc, tool: "land", selection: [], portArming: false, past: [], future: [] };
+  return {
+    doc,
+    tool: "land",
+    selection: [],
+    portArming: false,
+    multiSelect: false,
+    past: [],
+    future: []
+  };
 }
 
 export function tileAt(doc: EditorDoc, hex: Axial): HexTileSource | undefined {
@@ -415,6 +426,8 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return withDoc(state, unmergeTile(state.doc, action.tileId));
     case "armPort":
       return { ...state, portArming: action.arming };
+    case "setMultiSelect":
+      return { ...state, multiSelect: action.enabled };
     case "removePort":
       return withDoc(state, removePort(state.doc, action.harborId, action.seaId));
     case "setFeature":
