@@ -1,5 +1,5 @@
-import type { Dispatch } from "react";
-import type { SeatId } from "@sengoku-jidai/engine/client";
+import { useEffect, useState, type Dispatch, type ReactNode } from "react";
+import type { HexTileSource, SeatId } from "@sengoku-jidai/engine/client";
 import { riversRuleset } from "@sengoku-jidai/engine/client";
 import { canMergeSelection, type EditorAction, type EditorState } from "../../editor/reducer.js";
 
@@ -12,53 +12,112 @@ export function InspectorPanel({
 }) {
   const { doc, selection } = state;
   const primary = doc.tiles.find((t) => t.id === selection[0]);
+  // On phones the panel is a bottom sheet, collapsed by default; selecting opens it.
+  // On desktop the toggle and the collapsed state are inert (CSS ignores them).
+  const [collapsed, setCollapsed] = useState(true);
+  const selectionKey = selection.join(",");
+  useEffect(() => {
+    if (selectionKey !== "") {
+      setCollapsed(false);
+    }
+  }, [selectionKey]);
 
-  if (selection.length > 1) {
-    return (
-      <aside className="editor-inspector">
-        <h2>{selection.length} tiles selected</h2>
+  const title =
+    selection.length > 1
+      ? `${selection.length} tiles selected`
+      : primary
+        ? `${primary.kind === "land" ? "Land tile" : "Sea tile"} · ${primary.hexes.length} ${
+            primary.hexes.length === 1 ? "hex" : "hexes"
+          }`
+        : `Map · ${doc.tiles.length} ${doc.tiles.length === 1 ? "tile" : "tiles"}`;
+
+  return (
+    <aside className={`editor-inspector${collapsed ? " is-collapsed" : ""}`}>
+      <div className="inspector-header" onClick={() => setCollapsed((c) => !c)}>
+        <h2>{title}</h2>
         <button
           type="button"
-          className="primary-action"
-          disabled={!canMergeSelection(doc, selection)}
-          onClick={() => dispatch({ type: "mergeSelection" })}
+          className="inspector-toggle"
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "Expand inspector" : "Collapse inspector"}
+          onClick={(event) => {
+            event.stopPropagation();
+            setCollapsed((c) => !c);
+          }}
         >
-          Merge tiles
+          {collapsed ? "▲" : "▼"}
         </button>
-        <p className="muted">Merging requires the same kind and touching edges.</p>
-      </aside>
-    );
-  }
+      </div>
+      <div className="inspector-body">
+        {selection.length > 1 ? (
+          <MultiBody state={state} dispatch={dispatch} />
+        ) : primary ? (
+          <TileBody primary={primary} state={state} dispatch={dispatch} />
+        ) : (
+          <SummaryBody state={state} />
+        )}
+      </div>
+    </aside>
+  );
+}
 
-  if (!primary) {
-    const hqSeats = doc.tiles.filter((t) => t.features.hq).map((t) => t.features.hq);
-    return (
-      <aside className="editor-inspector">
-        <h2>Map</h2>
-        <ul className="editor-tally">
-          <li>{doc.tiles.length} tiles</li>
-          <li>Red HQ: {hqSeats.includes("red") ? "placed" : "missing"}</li>
-          <li>Black HQ: {hqSeats.includes("black") ? "placed" : "missing"}</li>
-          <li>
-            Bonus slots: {doc.bonusSlots.length} of {riversRuleset.bonusSet.length}
-          </li>
-        </ul>
-        <p className="muted">Click a tile to edit it; shift-click to select several.</p>
-      </aside>
-    );
-  }
+function MultiBody({
+  state,
+  dispatch
+}: {
+  state: EditorState;
+  dispatch: Dispatch<EditorAction>;
+}): ReactNode {
+  const { doc, selection } = state;
+  return (
+    <>
+      <button
+        type="button"
+        className="primary-action"
+        disabled={!canMergeSelection(doc, selection)}
+        onClick={() => dispatch({ type: "mergeSelection" })}
+      >
+        Merge tiles
+      </button>
+      <p className="muted">Merging requires the same kind and touching edges.</p>
+    </>
+  );
+}
 
+function SummaryBody({ state }: { state: EditorState }): ReactNode {
+  const { doc } = state;
+  const hqSeats = doc.tiles.filter((t) => t.features.hq).map((t) => t.features.hq);
+  return (
+    <>
+      <ul className="editor-tally">
+        <li>{doc.tiles.length} tiles</li>
+        <li>Red HQ: {hqSeats.includes("red") ? "placed" : "missing"}</li>
+        <li>Black HQ: {hqSeats.includes("black") ? "placed" : "missing"}</li>
+        <li>
+          Bonus slots: {doc.bonusSlots.length} of {riversRuleset.bonusSet.length}
+        </li>
+      </ul>
+      <p className="muted">Tap a tile to edit it; use Multi to select several.</p>
+    </>
+  );
+}
+
+function TileBody({
+  primary,
+  state,
+  dispatch
+}: {
+  primary: HexTileSource;
+  state: EditorState;
+  dispatch: Dispatch<EditorAction>;
+}): ReactNode {
+  const { doc } = state;
   const tileId = primary.id;
   const deployment = doc.startingDeployment[tileId];
   const isLand = primary.kind === "land";
 
   return (
-    <aside className="editor-inspector">
-      <h2>
-        {isLand ? "Land tile" : "Sea tile"} · {primary.hexes.length}{" "}
-        {primary.hexes.length === 1 ? "hex" : "hexes"}
-      </h2>
-
+    <>
       {isLand ? (
         <>
           <label className="field">
@@ -230,6 +289,6 @@ export function InspectorPanel({
           Unmerge tile
         </button>
       ) : null}
-    </aside>
+    </>
   );
 }

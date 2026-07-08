@@ -1004,8 +1004,10 @@ button:disabled {
 }
 .editor-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: end;
   gap: 12px;
+  row-gap: 8px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--hairline);
 }
@@ -1185,6 +1187,26 @@ button:disabled {
   flex-direction: column;
   gap: 10px;
 }
+.inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.inspector-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.inspector-toggle {
+  display: none;
+}
+.inspector-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+}
 .editor-tally {
   list-style: none;
   padding: 0;
@@ -1202,4 +1224,43 @@ button:disabled {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+@media (max-width: 900px) {
+  .editor-name {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .editor-status {
+    margin-left: 0;
+  }
+  .editor-header button {
+    min-height: 44px;
+  }
+
+  .editor-body {
+    position: relative;
+  }
+  .editor-inspector {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-height: 50%;
+    border-left: 0;
+    border-top: 1px solid var(--hairline);
+    background: var(--washi-raised);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.12);
+    z-index: 5;
+  }
+  .editor-inspector.is-collapsed .inspector-body {
+    display: none;
+  }
+  .inspector-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
