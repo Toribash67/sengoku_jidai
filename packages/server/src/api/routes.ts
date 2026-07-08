@@ -11,6 +11,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { bearerToken, hashToken } from "../sessions/tokens.js";
 import type { GameRepository, SessionRecord } from "../persistence/repository.js";
 import type { MapLibrary, MapLibraryError } from "../maps/library.js";
+import type { TerrainStore } from "../maps/terrainStore.js";
+import type { TerrainService } from "../maps/terrainService.js";
 
 const MAP_ERROR_STATUS: Record<MapLibraryError["code"], number> = {
   invalidMap: 400,
@@ -22,7 +24,9 @@ const MAP_ERROR_STATUS: Record<MapLibraryError["code"], number> = {
 export function registerApiRoutes(
   app: FastifyInstance,
   repository: GameRepository,
-  mapLibrary: MapLibrary
+  mapLibrary: MapLibrary,
+  terrainStore: TerrainStore,
+  terrainService: TerrainService
 ): void {
   app.get("/healthz", async () => ({ ok: true }));
 
@@ -33,7 +37,7 @@ export function registerApiRoutes(
     if (!params.success) {
       return sendError(reply, 400, "invalidRequest", "Map id is invalid.");
     }
-    const map = mapLibrary.get(params.data.mapId);
+    const map = mapLibrary.get(params.data.mapId, (id) => terrainStore.status(id));
     if (!map) {
       return sendError(reply, 404, "mapNotFound", "Map was not found.");
     }
@@ -93,6 +97,46 @@ export function registerApiRoutes(
       );
     }
     return reply.status(204).send();
+  });
+
+  app.post("/api/maps/:mapId/terrain", async (request, reply) => {
+    const params = mapParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Map id is invalid.");
+    }
+    if (!terrainService.available()) {
+      return sendError(reply, 503, "terrainUnavailable", "Terrain generation is not configured.");
+    }
+    const detail = mapLibrary.get(params.data.mapId);
+    if (!detail) {
+      return sendError(reply, 404, "mapNotFound", "Map was not found.");
+    }
+    if (detail.builtin) {
+      return sendError(reply, 403, "builtinMap", "Built-in maps already have terrain.");
+    }
+    if (terrainService.isGenerating(params.data.mapId)) {
+      return sendError(reply, 409, "terrainInProgress", "Terrain is already generating.");
+    }
+    // Fire-and-forget: generation runs in-process and records its own result.
+    void terrainService.generate(params.data.mapId);
+    return reply.status(202).send({ status: "pending" });
+  });
+
+  app.get("/api/maps/:mapId/terrain.webp", async (request, reply) => {
+    const params = mapParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Map id is invalid.");
+    }
+    const webp = terrainStore.webp(params.data.mapId);
+    if (!webp) {
+      return sendError(reply, 404, "terrainNotFound", "No terrain for this map.");
+    }
+    const updatedAt = terrainStore.updatedAt(params.data.mapId) ?? "";
+    return reply
+      .header("Content-Type", "image/webp")
+      .header("Cache-Control", "public, max-age=60")
+      .header("ETag", `"${params.data.mapId}-${updatedAt}"`)
+      .send(webp);
   });
 
   app.post("/api/games", async (request, reply) => {
