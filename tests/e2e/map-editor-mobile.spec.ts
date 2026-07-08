@@ -57,6 +57,9 @@ test("author, merge, pan/zoom, and save a map by touch", async ({ page }) => {
   await page.locator('.editor-grid [data-axial="1,0"]').tap();
   await page.locator('.editor-grid [data-axial="2,0"]').tap();
 
+  // Multi-select is gated to the Select tool: disabled while a paint tool is active.
+  await expect(page.getByRole("button", { name: "Multi-select" })).toBeDisabled();
+
   // Multi-select t1+t2 with the Multi toggle (no shift-click) and merge them.
   await page.getByRole("button", { name: "Select tool" }).tap();
   await page.getByRole("button", { name: "Multi-select" }).tap();
