@@ -96,4 +96,48 @@ describe("terrain API", () => {
     const res = await app.inject({ method: "GET", url: `/api/maps/${id}/terrain.webp` });
     expect(res.statusCode).toBe(404);
   });
+
+  it("409 when generation is already in progress", async () => {
+    let resolveGeneration: (value: any) => void;
+    const generationDeferred = new Promise((resolve) => {
+      resolveGeneration = resolve;
+    });
+
+    const customDeps: EditDeps = {
+      fal: {
+        storage: { upload: vi.fn(async () => "https://fal/u") },
+        subscribe: vi.fn(async () => generationDeferred)
+      },
+      fetch: vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        arrayBuffer: async () => {
+          const png = Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+            "base64"
+          );
+          return png.buffer.slice(png.byteOffset, png.byteOffset + png.length);
+        }
+      }))
+    };
+
+    const { app } = buildTestApp({ deps: customDeps });
+    const id = await createMap(app);
+
+    // Fire the first POST - it returns 202 but generation is now in-flight
+    const firstRes = await app.inject({ method: "POST", url: `/api/maps/${id}/terrain` });
+    expect(firstRes.statusCode).toBe(202);
+
+    // Generation is blocked on the deferred promise, so mapId is still in inflight
+    // Fire the second POST - should get 409
+    const secondRes = await app.inject({ method: "POST", url: `/api/maps/${id}/terrain` });
+    expect(secondRes.statusCode).toBe(409);
+    expect(secondRes.json().error.code).toBe("terrainInProgress");
+
+    // Release the deferred promise to clean up and avoid hanging
+    resolveGeneration!({ data: { images: [{ url: "https://fal/r.png" }] } });
+
+    // Give the background generation task time to complete and clean up
+    await new Promise((r) => setImmediate(r));
+  });
 });
