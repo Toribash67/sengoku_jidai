@@ -57,6 +57,8 @@ export interface PresenceState {
   connected: boolean;
 }
 
+export type TerrainStatus = "none" | "pending" | "ready" | "failed";
+
 export interface MapSummary {
   id: string;
   name: string;
