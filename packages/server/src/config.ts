@@ -8,7 +8,8 @@ const configSchema = z
     webOrigin: z.string().url(),
     sqlitePath: z.string().min(1),
     sessionSecret: z.string().min(12),
-    logLevel: z.string().min(1)
+    logLevel: z.string().min(1),
+    falKey: z.string().optional()
   })
   .superRefine((config, ctx) => {
     if (config.nodeEnv === "production" && /change-me/i.test(config.sessionSecret)) {
@@ -34,6 +35,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     webOrigin: env.WEB_ORIGIN ?? "http://localhost:18081",
     sqlitePath: env.SQLITE_PATH ?? ".data/sengoku.sqlite",
     sessionSecret: env.SESSION_SECRET ?? "development-only-change-me",
-    logLevel: env.LOG_LEVEL ?? "info"
+    logLevel: env.LOG_LEVEL ?? "info",
+    falKey: env.FAL_KEY
   });
 }

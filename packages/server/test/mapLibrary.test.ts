@@ -65,6 +65,21 @@ describe("MapLibrary create/get/list", () => {
     expect(library.has("nope")).toBe(false);
   });
 
+  it("get() reports terrain status from the provided resolver", () => {
+    const db = openDatabase(":memory:");
+    runMigrations(db);
+    const library = new MapLibrary(db);
+    const created = library.create(structuredClone(FIXTURE_HEX_MAP));
+    if (!created.ok) throw new Error("create failed");
+    const id = created.value.id;
+    // default: none
+    expect(library.get(id)?.terrain).toBe("none");
+    // with a resolver
+    expect(library.get(id, () => "ready")?.terrain).toBe("ready");
+    // built-in always none
+    expect(library.get("rivers", () => "ready")?.terrain).toBe("none");
+  });
+
   it("rejects a structurally invalid map (disconnected tile) with the engine's message", () => {
     const library = makeLibrary();
     const bad = fixtureSource();
