@@ -14,10 +14,7 @@ import {
   tileCentroid
 } from "../../editor/geometry.js";
 import { tileAt, type EditorAction, type EditorState } from "../../editor/reducer.js";
-
-const INITIAL_VIEW = { x: -900, y: -700, width: 2600, height: 2000 };
-const MIN_VIEW_WIDTH = 500;
-const MAX_VIEW_WIDTH = 14000;
+import { INITIAL_VIEW, toBoard, zoomView, type ViewportPoint } from "../../editor/viewport.js";
 
 interface Gesture {
   mode: "paint" | "pan";
@@ -41,16 +38,13 @@ export function EditorCanvas({ state, dispatch }: EditorCanvasProps) {
   const { doc, tool, selection } = state;
   const selected = new Set(selection);
 
-  function toBoard(client: { clientX: number; clientY: number }): Pixel {
+  function toBoardPoint(client: { clientX: number; clientY: number }): Pixel {
     const rect = svgRef.current!.getBoundingClientRect();
-    return {
-      x: view.x + ((client.clientX - rect.left) / rect.width) * view.width,
-      y: view.y + ((client.clientY - rect.top) / rect.height) * view.height
-    };
+    return toBoard(view, rect, { x: client.clientX - rect.left, y: client.clientY - rect.top });
   }
 
   function paintAt(client: { clientX: number; clientY: number }): void {
-    const hex = pixelToAxial(toBoard(client), doc.layout);
+    const hex = pixelToAxial(toBoardPoint(client), doc.layout);
     const key = axialKey(hex);
     if (gestureRef.current?.lastAxial === key) {
       return;
@@ -110,7 +104,7 @@ export function EditorCanvas({ state, dispatch }: EditorCanvasProps) {
     if (!gesture || gesture.mode !== "pan" || gesture.moved || tool !== "select") {
       return;
     }
-    const hex = pixelToAxial(toBoard(event), doc.layout);
+    const hex = pixelToAxial(toBoardPoint(event), doc.layout);
     const tile = tileAt(doc, hex);
     dispatch({ type: "selectTile", tileId: tile?.id ?? null, additive: event.shiftKey });
   }
@@ -123,20 +117,9 @@ export function EditorCanvas({ state, dispatch }: EditorCanvasProps) {
     }
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
-      setView((v) => {
-        const factor = Math.exp(event.deltaY * 0.001);
-        const width = Math.min(Math.max(v.width * factor, MIN_VIEW_WIDTH), MAX_VIEW_WIDTH);
-        const scale = width / v.width;
-        const rect = svg.getBoundingClientRect();
-        const px = v.x + ((event.clientX - rect.left) / rect.width) * v.width;
-        const py = v.y + ((event.clientY - rect.top) / rect.height) * v.height;
-        return {
-          x: px - (px - v.x) * scale,
-          y: py - (py - v.y) * scale,
-          width,
-          height: v.height * scale
-        };
-      });
+      const rect = svg.getBoundingClientRect();
+      const focus: ViewportPoint = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      setView((v) => zoomView(v, rect, Math.exp(event.deltaY * 0.001), focus));
     };
     svg.addEventListener("wheel", handleWheel, { passive: false });
     return () => svg.removeEventListener("wheel", handleWheel);
