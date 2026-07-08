@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import type { MapDefinition } from "@sengoku-jidai/engine";
 import { getMap } from "@sengoku-jidai/engine";
 import { renderControl } from "./composite.js";
 import { editMapPass, type EditDeps } from "./editPass.js";
@@ -11,28 +12,19 @@ import type { MapProfile } from "./mapProfile.js";
 import { toWebp } from "./postprocess.js";
 
 /**
- * Run the map-background pipeline. Structure comes from the vector board SVG: a domain-warped
- * land mask is rendered as a flat green/blue control, then a multi-image edit model redraws
- * that control's land/sea layout in the style of a reference image — one cohesive antique map
- * with a natural drawn coastline. The output keeps the board's proportions so it aligns with
- * the UI. Every intermediate is written next to the final webp for inspection.
+ * Filesystem-free pipeline core. Structure comes from `svgMarkup` (any board SVG with
+ * `.tile` paths + a viewBox); a domain-warped land mask becomes a flat control, which a
+ * multi-image edit model redraws in the style reference's hand-drawn look. Returns the
+ * final webp bytes. The only file it reads is the packaged style reference.
  */
-export async function runMapPipeline(
+export async function generateTerrainWebp(
   deps: EditDeps,
-  args: { mapId: string; profile: MapProfile; outDir: string }
-): Promise<{ outDir: string; webpPath: string }> {
-  const { mapId, profile, outDir } = args;
+  args: { svgMarkup: string; map: MapDefinition; profile: MapProfile }
+): Promise<Buffer> {
+  const { svgMarkup, map, profile } = args;
   const { base } = profile;
-
-  const map = getMap(mapId); // throws on unknown map id
-  const svgMarkup = readFileSync(mapSvgPath(mapId), "utf8");
-
-  // Keep the profile's target width; derive the height from the board viewBox so the
-  // background lines up with the UI and the tiles are never distorted.
   const width = base.outputSize.width;
   const height = outputHeightForViewBox(svgMarkup, width);
-
-  mkdirSync(outDir, { recursive: true });
 
   const landMask = await renderLandMask({
     svgMarkup,
@@ -42,8 +34,6 @@ export async function runMapPipeline(
     organicSigma: base.organicSigma,
     coastWarp: base.coastWarp
   });
-  writeFileSync(join(outDir, "landMask.png"), landMask);
-
   const control = await renderControl({
     landMask,
     landColor: base.landColor,
@@ -51,17 +41,12 @@ export async function runMapPipeline(
     width,
     height
   });
-  writeFileSync(join(outDir, "control.png"), control);
-
-  // Conform the style reference to the board aspect (cover-crop) so the edit model emits the
-  // control's proportions, not the style image's — keeps land/sea aligned with the tiles.
   const styleImage = await sharp(
     readFileSync(fileURLToPath(new URL(`../${profile.edit.styleRef}`, import.meta.url)))
   )
     .resize(width, height, { fit: "cover" })
     .jpeg()
     .toBuffer();
-
   const edited = await editMapPass(deps, {
     controlImage: control,
     styleImage,
@@ -70,12 +55,24 @@ export async function runMapPipeline(
     resolution: profile.edit.resolution,
     seed: profile.edit.seed
   });
-  writeFileSync(join(outDir, "edited.png"), edited);
+  return toWebp(edited, { width, height, quality: profile.webpQuality });
+}
 
-  const webp = await toWebp(edited, { width, height, quality: profile.webpQuality });
+/**
+ * Dev CLI path: resolve a committed board SVG + registered map by id, run the core, and
+ * write every intermediate next to the final webp for inspection.
+ */
+export async function runMapPipeline(
+  deps: EditDeps,
+  args: { mapId: string; profile: MapProfile; outDir: string }
+): Promise<{ outDir: string; webpPath: string }> {
+  const { mapId, profile, outDir } = args;
+  const map = getMap(mapId); // throws on unknown map id
+  const svgMarkup = readFileSync(mapSvgPath(mapId), "utf8");
+  mkdirSync(outDir, { recursive: true });
+  const webp = await generateTerrainWebp(deps, { svgMarkup, map, profile });
   const webpPath = join(outDir, "background.webp");
   writeFileSync(webpPath, webp);
-
   return { outDir, webpPath };
 }
 

@@ -50,11 +50,20 @@ export function prepBoardSvgMarkup(args: {
   bg.setAttribute("fill", backgroundColor);
   svg.insertBefore(bg, svg.firstChild);
 
-  const g1 = doc.getElementById("g1");
-  if (!g1) {
-    throw new Error("base render: SVG has no #g1 group");
+  // Hide every non-tile layer so only land/sea shapes rasterize. `#tile-land`/`#tile-sea` sit at
+  // different nesting depths depending on the SVG source — nested inside a legacy `#g1` wrapper
+  // for the hand-authored board.svg, direct `<svg>` children for board-render's procedurally
+  // assembled output — so locate their shared parent rather than assuming either shape.
+  const tileLand = doc.getElementById("tile-land");
+  const tileSea = doc.getElementById("tile-sea");
+  if (!tileLand || !tileSea) {
+    throw new Error("base render: SVG has no #tile-land/#tile-sea group");
   }
-  for (const child of Array.from(g1.children)) {
+  const tileGroupParent = tileLand.parentElement;
+  if (!tileGroupParent || tileSea.parentElement !== tileGroupParent) {
+    throw new Error("base render: #tile-land/#tile-sea must share a parent");
+  }
+  for (const child of Array.from(tileGroupParent.children)) {
     if (child.id !== "tile-land" && child.id !== "tile-sea") {
       child.setAttribute("style", `${child.getAttribute("style") ?? ""};display:none`);
     }
