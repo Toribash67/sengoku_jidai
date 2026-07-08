@@ -8,6 +8,7 @@ import { clearDraft, loadDraft, saveDraft, type SavedDraft } from "../../editor/
 import { editorReducer, initialEditorState } from "../../editor/reducer.js";
 import { persistDoc } from "../../editor/save.js";
 import { validationMessage } from "../../editor/validation.js";
+import { INITIAL_VIEW, ZOOM_STEP, zoomViewCentered } from "../../editor/viewport.js";
 import { createUrl, editorUrl, mapsUrl, navigateTo } from "../../state/route.js";
 import { EditorCanvas } from "./EditorCanvas.js";
 import { EditorToolbar } from "./EditorToolbar.js";
@@ -23,6 +24,7 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
   const [savedId, setSavedId] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [conflict, setConflict] = useState(false);
+  const [view, setView] = useState(INITIAL_VIEW);
   const draftTimer = useRef<number | null>(null);
 
   // Load the map (or offer a draft for /maps/new).
@@ -251,7 +253,6 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
       ) : null}
 
       <div className="editor-body">
-        <EditorToolbar state={state} dispatch={dispatch} />
         {previewResult ? (
           previewResult.svg ? (
             <div
@@ -262,10 +263,16 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
             <p className="error-text editor-preview">Preview unavailable: {previewResult.error}</p>
           )
         ) : (
-          <EditorCanvas state={state} dispatch={dispatch} />
+          <EditorCanvas state={state} dispatch={dispatch} view={view} onViewChange={setView} />
         )}
         <InspectorPanel state={state} dispatch={dispatch} />
       </div>
+      <EditorToolbar
+        state={state}
+        dispatch={dispatch}
+        onZoomIn={() => setView((v) => zoomViewCentered(v, 1 / ZOOM_STEP))}
+        onZoomOut={() => setView((v) => zoomViewCentered(v, ZOOM_STEP))}
+      />
     </main>
   );
 }

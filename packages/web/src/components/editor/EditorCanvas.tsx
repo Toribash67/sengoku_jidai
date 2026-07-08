@@ -1,9 +1,9 @@
 import {
   useEffect,
   useRef,
-  useState,
   type Dispatch,
-  type PointerEvent as ReactPointerEvent
+  type PointerEvent as ReactPointerEvent,
+  type SetStateAction
 } from "react";
 import type { HexTileSource, Pixel } from "@sengoku-jidai/engine/client";
 import { axialKey, axialToPixel, pixelToAxial } from "@sengoku-jidai/engine/client";
@@ -14,7 +14,7 @@ import {
   tileCentroid
 } from "../../editor/geometry.js";
 import { tileAt, type EditorAction, type EditorState } from "../../editor/reducer.js";
-import { INITIAL_VIEW, toBoard, zoomView, type ViewportPoint } from "../../editor/viewport.js";
+import { toBoard, zoomView, type ViewportPoint, type ViewRect } from "../../editor/viewport.js";
 
 interface Gesture {
   mode: "paint" | "pan";
@@ -29,11 +29,12 @@ interface Gesture {
 interface EditorCanvasProps {
   state: EditorState;
   dispatch: Dispatch<EditorAction>;
+  view: ViewRect;
+  onViewChange: Dispatch<SetStateAction<ViewRect>>;
 }
 
-export function EditorCanvas({ state, dispatch }: EditorCanvasProps) {
+export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [view, setView] = useState(INITIAL_VIEW);
   const gestureRef = useRef<Gesture | null>(null);
   const { doc, tool, selection, multiSelect } = state;
   const selected = new Set(selection);
@@ -95,7 +96,7 @@ export function EditorCanvas({ state, dispatch }: EditorCanvasProps) {
     const rect = svgRef.current!.getBoundingClientRect();
     const dx = ((event.clientX - gesture.startClientX) / rect.width) * view.width;
     const dy = ((event.clientY - gesture.startClientY) / rect.height) * view.height;
-    setView((v) => ({ ...v, x: gesture.viewX - dx, y: gesture.viewY - dy }));
+    onViewChange((v) => ({ ...v, x: gesture.viewX - dx, y: gesture.viewY - dy }));
   }
 
   function handlePointerUp(event: ReactPointerEvent<SVGSVGElement>) {
@@ -123,11 +124,11 @@ export function EditorCanvas({ state, dispatch }: EditorCanvasProps) {
       event.preventDefault();
       const rect = svg.getBoundingClientRect();
       const focus: ViewportPoint = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-      setView((v) => zoomView(v, rect, Math.exp(event.deltaY * 0.001), focus));
+      onViewChange((v) => zoomView(v, rect, Math.exp(event.deltaY * 0.001), focus));
     };
     svg.addEventListener("wheel", handleWheel, { passive: false });
     return () => svg.removeEventListener("wheel", handleWheel);
-  }, []);
+  }, [onViewChange]);
 
   const gridCells = axialsInRect(view, doc.layout);
   const boundaries = tileBoundarySegments(doc.tiles, doc.layout);

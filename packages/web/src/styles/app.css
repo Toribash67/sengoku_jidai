@@ -1000,6 +1000,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
 }
 .editor-header {
   display: flex;
@@ -1061,15 +1062,59 @@ button:disabled {
   flex: 1;
   min-height: 0;
 }
-.editor-toolbar {
+.editor-dock {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--hairline);
+  background: var(--washi-raised);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.12);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.dock-group {
+  display: flex;
+  gap: 6px;
+}
+.dock-group + .dock-group {
+  border-left: 1px solid var(--hairline);
+  padding-left: 14px;
+}
+.dock-button {
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px;
-  border-right: 1px solid var(--hairline);
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 8px;
 }
-.editor-toolbar .is-active {
+.dock-button .dock-glyph {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+.dock-glyph.is-land {
+  color: #dcc98f;
+}
+.dock-glyph.is-sea {
+  color: #9fc3d8;
+}
+.dock-button.is-active {
   outline: 2px solid #4a6fa5;
+}
+.dock-label {
+  font-size: 0.7rem;
+}
+@media (max-width: 900px) {
+  .dock-label {
+    display: none;
+  }
+  .editor-dock {
+    gap: 8px;
+    justify-content: space-between;
+  }
 }
 .editor-canvas {
   flex: 1;
