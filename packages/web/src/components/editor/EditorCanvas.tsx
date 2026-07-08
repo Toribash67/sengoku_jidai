@@ -14,10 +14,16 @@ import {
   tileCentroid
 } from "../../editor/geometry.js";
 import { tileAt, type EditorAction, type EditorState } from "../../editor/reducer.js";
-import { toBoard, zoomView, type ViewportPoint, type ViewRect } from "../../editor/viewport.js";
+import {
+  pinchView,
+  toBoard,
+  zoomView,
+  type ViewportPoint,
+  type ViewRect
+} from "../../editor/viewport.js";
 
 interface Gesture {
-  mode: "paint" | "pan";
+  mode: "paint" | "pan" | "pinch";
   startClientX: number;
   startClientY: number;
   viewX: number;
@@ -36,8 +42,14 @@ interface EditorCanvasProps {
 export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const gestureRef = useRef<Gesture | null>(null);
+  const pointersRef = useRef(new Map<number, ViewportPoint>());
   const { doc, tool, selection, multiSelect } = state;
   const selected = new Set(selection);
+
+  function relativePoint(event: ReactPointerEvent<SVGSVGElement>): ViewportPoint {
+    const rect = svgRef.current!.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  }
 
   function toBoardPoint(client: { clientX: number; clientY: number }): Pixel {
     const rect = svgRef.current!.getBoundingClientRect();
@@ -61,7 +73,31 @@ export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanv
   }
 
   function handlePointerDown(event: ReactPointerEvent<SVGSVGElement>) {
-    event.currentTarget.setPointerCapture(event.pointerId);
+    // Synthetic pointer events (dispatched by tests) have no active pointer to capture.
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* ignore */
+    }
+    const pointers = pointersRef.current;
+    if (pointers.size >= 2) {
+      return; // ignore fingers beyond the second
+    }
+    pointers.set(event.pointerId, relativePoint(event));
+    if (pointers.size === 2) {
+      // A second finger always means pan/pinch, abandoning any paint stroke
+      // (already-painted hexes stay; undo covers mistakes).
+      gestureRef.current = {
+        mode: "pinch",
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        viewX: view.x,
+        viewY: view.y,
+        moved: true,
+        lastAxial: null
+      };
+      return;
+    }
     const gesture: Gesture = {
       mode: tool !== "select" && event.button === 0 ? "paint" : "pan",
       startClientX: event.clientX,
@@ -79,9 +115,21 @@ export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanv
 
   function handlePointerMove(event: ReactPointerEvent<SVGSVGElement>) {
     const gesture = gestureRef.current;
-    if (!gesture) {
+    const pointers = pointersRef.current;
+    if (!gesture || !pointers.has(event.pointerId)) {
       return;
     }
+    if (gesture.mode === "pinch") {
+      if (pointers.size === 2) {
+        const rect = svgRef.current!.getBoundingClientRect();
+        const prev = [...pointers.values()] as [ViewportPoint, ViewportPoint];
+        pointers.set(event.pointerId, relativePoint(event));
+        const curr = [...pointers.values()] as [ViewportPoint, ViewportPoint];
+        onViewChange((v) => pinchView(v, rect, prev, curr));
+      }
+      return;
+    }
+    pointers.set(event.pointerId, relativePoint(event));
     if (
       Math.abs(event.clientX - gesture.startClientX) +
         Math.abs(event.clientY - gesture.startClientY) >
@@ -100,7 +148,16 @@ export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanv
   }
 
   function handlePointerUp(event: ReactPointerEvent<SVGSVGElement>) {
+    const pointers = pointersRef.current;
+    pointers.delete(event.pointerId);
     const gesture = gestureRef.current;
+    if (gesture?.mode === "pinch") {
+      // Stay inert (no painting) with one finger left; the gesture ends when all lift.
+      if (pointers.size === 0) {
+        gestureRef.current = null;
+      }
+      return;
+    }
     gestureRef.current = null;
     if (!gesture || gesture.mode !== "pan" || gesture.moved || tool !== "select") {
       return;
@@ -143,6 +200,7 @@ export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanv
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
     >
       <g className="editor-grid">
         {gridCells.map((hex) => (
