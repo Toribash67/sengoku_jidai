@@ -36,7 +36,7 @@ import {
   stagedCountsFor
 } from "./components/board/composer.js";
 import { MapBoard } from "./components/board/MapBoard.js";
-import { terrainImage } from "./components/board/terrainImages.js";
+import { useTerrainUrl } from "./components/board/useTerrainUrl.js";
 import { ensureMapLoaded } from "./client/maps.js";
 import type { GameSeatInfo, SeatToken } from "@sengoku-jidai/shared";
 import {
@@ -77,6 +77,7 @@ interface LoadedGame {
 
 export function App() {
   const [game, setGame] = useState<LoadedGame | null>(null);
+  const terrainUrl = useTerrainUrl(game?.view.mapId ?? "");
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [composer, setComposer] = useState<ComposerState | null>(null);
   // The source the stepper adjusts (the last-clicked glowing tile during a move).
@@ -825,7 +826,7 @@ export function App() {
             stagedCounts={stagedCounts}
             activeSourceId={mapActiveSourceId}
             pendingAttack={pendingAttack}
-            terrainUrl={terrainImage(game.view.mapId)}
+            terrainUrl={terrainUrl}
           />
 
           {pendingCombat ? (
