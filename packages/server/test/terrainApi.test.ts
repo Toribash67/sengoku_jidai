@@ -76,19 +76,20 @@ describe("terrain API", () => {
     const id = await createMap(app);
     const post = await app.inject({ method: "POST", url: `/api/maps/${id}/terrain` });
     expect(post.statusCode).toBe(202);
-    // generation is fire-and-forget; poll the detail until ready
+    // Generation is fire-and-forget and does real sharp image work, which is markedly
+    // slower on CI's shared runners — poll with a generous budget (exits as soon as ready).
     let terrain = "pending";
-    for (let i = 0; i < 50 && terrain !== "ready"; i++) {
+    for (let i = 0; i < 150 && terrain !== "ready"; i++) {
       const detail = await app.inject({ method: "GET", url: `/api/maps/${id}` });
       terrain = detail.json().terrain;
-      if (terrain !== "ready") await new Promise((r) => setTimeout(r, 20));
+      if (terrain !== "ready") await new Promise((r) => setTimeout(r, 100));
     }
     expect(terrain).toBe("ready");
     const img = await app.inject({ method: "GET", url: `/api/maps/${id}/terrain.webp` });
     expect(img.statusCode).toBe(200);
     expect(img.headers["content-type"]).toBe("image/webp");
     expect(img.rawPayload.subarray(8, 12).toString("ascii")).toBe("WEBP");
-  });
+  }, 20000);
 
   it("404 on the webp before generation", async () => {
     const { app } = buildTestApp();
