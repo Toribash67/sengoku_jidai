@@ -1,9 +1,14 @@
 # @sengoku-jidai/terrain
 
-A **dev-only** offline pipeline that generates antique-style terrain background images for
-the game board. It runs outside the app and CI: the generated image is committed as a static
-asset, so the running app never calls an image API. Until an asset is committed, the board
-renders with flat tile fills.
+Generates antique-style terrain background images for the game board. Two ways in:
+
+- **Offline CLI** (this README) — for built-in maps like Rivers: run the pipeline outside the
+  app, commit the resulting image as a static asset. No image API at runtime for these.
+- **At runtime** — for custom (user-authored) maps, the server calls `generateTerrainWebp`
+  from this package on demand (author-triggered, gated behind `FAL_KEY`) and stores the result.
+  See the SP6 terrain design/spec.
+
+Until a map has terrain (committed asset or generated), the board renders with flat tile fills.
 
 ## How it works
 

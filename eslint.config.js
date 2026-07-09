@@ -80,7 +80,7 @@ export default tseslint.config(
   boundary("packages/terrain/src", [
     {
       group: ["@sengoku-jidai/*", "!@sengoku-jidai/engine"],
-      message: "terrain is a dev-only pipeline that may only depend on the engine."
+      message: "terrain's source may only depend on the engine (no other app/render packages)."
     }
   ]),
   boundary("packages/server/src", [
