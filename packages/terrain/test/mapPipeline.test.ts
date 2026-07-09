@@ -8,7 +8,7 @@ import { runMapPipeline } from "../src/mapPipeline.js";
 import { fileURLToPath } from "node:url";
 
 describe("runMapPipeline", () => {
-  it("renders via the edit model (control + style ref), writing the control, edit + webp", async () => {
+  it("renders via the edit model (control + style ref), writing background.webp", async () => {
     const profile = loadMapProfile(fileURLToPath(new URL("../profiles/map.json", import.meta.url)));
     // Shrink for a fast test; the height (36) is derived from the rivers board viewBox.
     profile.base.outputSize = { width: 32 };
@@ -41,9 +41,8 @@ describe("runMapPipeline", () => {
     const [model, opts] = subscribe.mock.calls[0]!;
     expect(model).toBe("fal-ai/nano-banana-pro/edit");
     expect((opts.input as { image_urls: string[] }).image_urls).toHaveLength(2);
-    for (const f of ["landMask.png", "control.png", "edited.png", "background.webp"]) {
-      expect(existsSync(join(outDir, f))).toBe(true);
-    }
+    // The core no longer returns intermediates, so the dev CLI only writes the final webp.
+    expect(existsSync(join(outDir, "background.webp"))).toBe(true);
     expect(res.webpPath).toBe(join(outDir, "background.webp"));
     const meta = await sharp(readFileSync(res.webpPath)).metadata();
     expect(meta.width).toBe(32);

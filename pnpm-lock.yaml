@@ -118,12 +118,18 @@ importers:
       "@fastify/static":
         specifier: ^8.0.3
         version: 8.3.0
+      "@sengoku-jidai/board-render":
+        specifier: workspace:*
+        version: link:../board-render
       "@sengoku-jidai/engine":
         specifier: workspace:*
         version: link:../engine
       "@sengoku-jidai/shared":
         specifier: workspace:*
         version: link:../shared
+      "@sengoku-jidai/terrain":
+        specifier: workspace:*
+        version: link:../terrain
       better-sqlite3:
         specifier: ^12.10.0
         version: 12.10.0
@@ -181,6 +187,9 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
+      "@sengoku-jidai/board-render":
+        specifier: workspace:*
+        version: link:../board-render
       "@types/jsdom":
         specifier: ^21.1.7
         version: 21.1.7

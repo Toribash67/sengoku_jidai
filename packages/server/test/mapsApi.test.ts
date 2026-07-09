@@ -5,6 +5,8 @@ import { registerApiRoutes } from "../src/api/routes.js";
 import { buildApp } from "../src/app.js";
 import type { ServerConfig } from "../src/config.js";
 import { MapLibrary } from "../src/maps/library.js";
+import { TerrainStore } from "../src/maps/terrainStore.js";
+import { TerrainService } from "../src/maps/terrainService.js";
 import { openDatabase, runMigrations } from "../src/persistence/database.js";
 import { GameRepository } from "../src/persistence/repository.js";
 
@@ -162,7 +164,10 @@ describe("games on custom maps", () => {
     const db = openDatabase(":memory:");
     runMigrations(db);
     const app = fastify({ logger: { level: "silent" } });
-    registerApiRoutes(app, new GameRepository(db), new MapLibrary(db));
+    const library = new MapLibrary(db);
+    const terrainStore = new TerrainStore(db);
+    const terrainService = new TerrainService({ library, store: terrainStore, falKey: undefined });
+    registerApiRoutes(app, new GameRepository(db), library, terrainStore, terrainService);
 
     const created = await app.inject({
       method: "POST",

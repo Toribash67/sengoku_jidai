@@ -57,6 +57,8 @@ export interface PresenceState {
   connected: boolean;
 }
 
+export type TerrainStatus = "none" | "pending" | "ready" | "failed";
+
 export interface MapSummary {
   id: string;
   name: string;
@@ -75,5 +77,7 @@ export interface MapDetail {
   name: string;
   builtin: boolean;
   updatedAt: string | null;
+  /** Server-side terrain generation state; "none" for built-ins and un-generated maps. */
+  terrain: TerrainStatus;
   source: z.infer<typeof hexMapSourceSchema>;
 }

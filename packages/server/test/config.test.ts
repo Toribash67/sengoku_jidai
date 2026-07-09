@@ -27,4 +27,14 @@ describe("loadConfig", () => {
     });
     expect(config.sessionSecret).toBe("f3b1c9d4e8a2476aa1905b3c7d2e6f10");
   });
+
+  it("leaves falKey undefined when FAL_KEY is absent", () => {
+    const config = loadConfig({ NODE_ENV: "development" });
+    expect(config.falKey).toBeUndefined();
+  });
+
+  it("sets falKey to the provided value", () => {
+    const config = loadConfig({ NODE_ENV: "development", FAL_KEY: "test-key-123" });
+    expect(config.falKey).toBe("test-key-123");
+  });
 });

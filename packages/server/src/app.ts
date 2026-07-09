@@ -6,6 +6,8 @@ import { resolve } from "node:path";
 import { registerApiRoutes } from "./api/routes.js";
 import type { ServerConfig } from "./config.js";
 import { MapLibrary } from "./maps/library.js";
+import { TerrainStore } from "./maps/terrainStore.js";
+import { TerrainService } from "./maps/terrainService.js";
 import { openDatabase, runMigrations } from "./persistence/database.js";
 import { GameRepository } from "./persistence/repository.js";
 
@@ -20,12 +22,19 @@ export function buildApp(config: ServerConfig) {
   const repository = new GameRepository(db);
   const mapLibrary = new MapLibrary(db);
   mapLibrary.loadAll(app.log);
+  const terrainStore = new TerrainStore(db);
+  terrainStore.resetInterrupted();
+  const terrainService = new TerrainService({
+    library: mapLibrary,
+    store: terrainStore,
+    falKey: config.falKey
+  });
 
   app.register(cors, {
     origin: config.nodeEnv === "production" ? false : config.webOrigin
   });
 
-  registerApiRoutes(app, repository, mapLibrary);
+  registerApiRoutes(app, repository, mapLibrary, terrainStore, terrainService);
 
   if (config.nodeEnv === "production") {
     const webDistPath = resolve(process.cwd(), "packages/web/dist");

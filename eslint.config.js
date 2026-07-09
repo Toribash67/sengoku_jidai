@@ -80,20 +80,13 @@ export default tseslint.config(
   boundary("packages/terrain/src", [
     {
       group: ["@sengoku-jidai/*", "!@sengoku-jidai/engine"],
-      message: "terrain is a dev-only pipeline that may only depend on the engine."
+      message: "terrain's source may only depend on the engine (no other app/render packages)."
     }
   ]),
   boundary("packages/server/src", [
     {
-      group: [
-        "@sengoku-jidai/web",
-        "@sengoku-jidai/web/*",
-        "@sengoku-jidai/board-render",
-        "@sengoku-jidai/board-render/*",
-        "@sengoku-jidai/terrain",
-        "@sengoku-jidai/terrain/*"
-      ],
-      message: "The server may import only the engine and shared."
+      group: ["@sengoku-jidai/web", "@sengoku-jidai/web/*"],
+      message: "The server must not import the web app."
     },
     {
       group: ["react", "react-dom", "react-dom/*"],
