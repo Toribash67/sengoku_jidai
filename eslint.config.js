@@ -85,15 +85,8 @@ export default tseslint.config(
   ]),
   boundary("packages/server/src", [
     {
-      group: [
-        "@sengoku-jidai/web",
-        "@sengoku-jidai/web/*",
-        "@sengoku-jidai/board-render",
-        "@sengoku-jidai/board-render/*",
-        "@sengoku-jidai/terrain",
-        "@sengoku-jidai/terrain/*"
-      ],
-      message: "The server may import only the engine and shared."
+      group: ["@sengoku-jidai/web", "@sengoku-jidai/web/*"],
+      message: "The server must not import the web app."
     },
     {
       group: ["react", "react-dom", "react-dom/*"],

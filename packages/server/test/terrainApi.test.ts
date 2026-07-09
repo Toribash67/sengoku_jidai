@@ -98,8 +98,8 @@ describe("terrain API", () => {
   });
 
   it("409 when generation is already in progress", async () => {
-    let resolveGeneration: (value: any) => void;
-    const generationDeferred = new Promise((resolve) => {
+    let resolveGeneration: (value: { data: { images: { url: string }[] } }) => void;
+    const generationDeferred = new Promise<{ data: { images: { url: string }[] } }>((resolve) => {
       resolveGeneration = resolve;
     });
 

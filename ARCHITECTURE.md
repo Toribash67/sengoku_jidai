@@ -36,7 +36,7 @@ packages/
   board-render/          # pure SVG board scene builder (map data -> SVG strings)
     src/
     scripts/             # dev-only preview tooling
-  terrain/               # dev-only AI terrain-image pipeline; never shipped in the app
+  terrain/               # AI terrain-image pipeline; built to dist and run by the server
     src/
     profiles/
   server/
@@ -87,7 +87,7 @@ playwright.config.ts
 
 `packages/shared` is part of the MVP. It owns API schemas, HTTP payload types, WebSocket message types, and other client/server contract definitions. The engine owns game-domain types and rules; shared should not become a second rules package.
 
-`packages/board-render` builds the board SVG scene from engine map data; it depends only on the engine and produces plain strings (no DOM, no React), so both the web client and dev tooling can use it. `packages/terrain` is a development-only pipeline that generates the antique-style terrain background images; it depends only on the engine and is excluded from the shipped app.
+`packages/board-render` builds the board SVG scene from engine map data; it depends only on the engine and produces plain strings (no DOM, no React), so both the web client and dev tooling can use it. `packages/terrain` generates the antique-style terrain background images; it depends only on the engine. Both packages build to `dist` (like `engine` and `shared`) and are consumed by the server at runtime, which invokes `terrain` on demand to generate terrain for custom maps (gated behind `FAL_KEY` and an explicit author trigger).
 
 ## Technology Stack
 
@@ -176,7 +176,7 @@ In development, `API_PORT` and `WEB_PORT` are separate because Vite serves the w
 
 The server validates configuration at startup (Zod, `server/src/config.ts`) and fails fast with a clear error if required values are missing or malformed. In production it additionally refuses placeholder session secrets (any value containing `change-me`), so a stack deployed with the example value fails at boot instead of running with a known secret.
 
-Two additional variables serve only the dev-only terrain pipeline and are never read at app runtime: `FAL_KEY` and `TERRAIN_OUT_DIR`.
+`FAL_KEY` is read at app runtime by the server (`server/src/config.ts`): it gates on-demand custom-map terrain generation, which is unavailable (503) when unset. `TERRAIN_OUT_DIR` remains dev-only, used only by the `terrain` package's CLI tooling.
 
 **Soon**
 
@@ -192,8 +192,8 @@ Allowed imports:
 engine       -> no app packages
 shared       -> no app packages
 board-render -> engine
-terrain      -> engine (dev-only; never shipped)
-server       -> engine, shared
+terrain      -> engine
+server       -> engine, shared, terrain, board-render
 web          -> shared, board-render, @sengoku-jidai/engine/client
 tests/e2e    -> public app/API only
 ```

@@ -4,9 +4,13 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "gen:map": "tsx src/mapPipelineCli.ts",
     "gen:map-control": "tsx src/mapControlCli.ts",
     "test": "vitest run --passWithNoTests",
