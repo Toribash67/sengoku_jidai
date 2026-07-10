@@ -10,6 +10,7 @@ describe("loadMapProfile", () => {
     expect(p.edit.styleRef.length).toBeGreaterThan(0);
     expect(p.base.outputSize.width).toBeGreaterThan(0);
     expect(p.base.organicSigma).toBeGreaterThanOrEqual(0);
+    expect(p.base.background).toBe("sea"); // custom maps default to islands-in-an-ocean
   });
 
   it("throws a clear error on an invalid profile", () => {

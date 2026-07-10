@@ -8,12 +8,14 @@ import { mapSvgPath } from "../src/mapSources.js";
 describe("renderLandMask", () => {
   it("produces a strictly binary land mask (white land, black sea) from the board SVG", async () => {
     const svgMarkup = readFileSync(mapSvgPath("rivers"), "utf8");
+    // background:"land" = the continent look (outside the tiles reads as land).
     const landMask = await renderLandMask({
       svgMarkup,
       map: riversMap,
       width: 256,
       height: 290,
-      organicSigma: 0
+      organicSigma: 0,
+      background: "land"
     });
 
     const mask = await sharp(landMask).greyscale().raw().toBuffer();
@@ -26,6 +28,24 @@ describe("renderLandMask", () => {
     expect(white + black).toBe(mask.length); // no greys → binary
     expect(white / mask.length).toBeGreaterThan(0.4); // land + background dominate
     expect(black / mask.length).toBeGreaterThan(0.1); // sea is a real minority
+  });
+
+  it("makes the outside-tiles area sea by default, land when asked", async () => {
+    const svgMarkup = readFileSync(mapSvgPath("rivers"), "utf8");
+    const base = { svgMarkup, map: riversMap, width: 256, height: 290, organicSigma: 0 } as const;
+    const whiteFrac = async (mask: Buffer) => {
+      const raw = await sharp(mask).greyscale().raw().toBuffer();
+      let white = 0;
+      for (const v of raw) if (v > 200) white += 1;
+      return white / raw.length;
+    };
+    const seaBg = await whiteFrac(await renderLandMask({ ...base, background: "sea" }));
+    const landBg = await whiteFrac(await renderLandMask({ ...base, background: "land" }));
+    const dflt = await whiteFrac(await renderLandMask(base));
+    // Only the outside differs: painting it land is strictly whiter than painting it sea…
+    expect(landBg).toBeGreaterThan(seaBg);
+    // …and the default (no background arg) is sea.
+    expect(dflt).toBe(seaBg);
   });
 
   it("keeps the mask binary and connected after the domain warp", async () => {

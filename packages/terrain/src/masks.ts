@@ -27,12 +27,14 @@ async function displacementField(
 }
 
 /**
- * Render the binary land mask for a map from its board SVG. Land + the area outside the tiles
- * read as land (white), sea tiles read as sea (black). `organicSigma` softens the hex facets;
- * when `coastWarp` is given the boundary is domain-warped through a smooth noise vector field
- * so the coastline becomes naturally irregular (a real-looking shore, deliberately no longer
- * pixel-perfect to the hex tiles) while staying connected. This mask is the placement control
- * fed (with a style reference) to the edit model.
+ * Render the binary land mask for a map from its board SVG. Land tiles read as land (white),
+ * sea tiles as sea (black); the area outside the tiles follows `background` — "sea" (default)
+ * so a map's tiles become islands in an ocean, or "land" for a full-continent board where only
+ * explicit sea tiles are water. `organicSigma` softens the hex facets; when `coastWarp` is
+ * given the boundary is domain-warped through a smooth noise vector field so the coastline
+ * becomes naturally irregular (a real-looking shore, deliberately no longer pixel-perfect to
+ * the hex tiles) while staying connected. This mask is the placement control fed (with a style
+ * reference) to the edit model.
  */
 export async function renderLandMask(args: {
   svgMarkup: string;
@@ -40,14 +42,15 @@ export async function renderLandMask(args: {
   width: number;
   height: number;
   organicSigma: number;
+  background?: "land" | "sea";
   coastWarp?: { amplitude: number; scale: number; seed: number };
 }): Promise<Buffer> {
-  const { svgMarkup, map, width, height, organicSigma, coastWarp } = args;
+  const { svgMarkup, map, width, height, organicSigma, background = "sea", coastWarp } = args;
 
   const markup = prepBoardSvgMarkup({
     svgMarkup,
     colors: tileColorMap(map, "#ffffff", "#000000"),
-    backgroundColor: "#ffffff",
+    backgroundColor: background === "sea" ? "#000000" : "#ffffff",
     width,
     height
   });

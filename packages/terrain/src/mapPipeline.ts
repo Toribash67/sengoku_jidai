@@ -32,6 +32,7 @@ export async function generateTerrainWebp(
     width,
     height,
     organicSigma: base.organicSigma,
+    background: base.background,
     coastWarp: base.coastWarp
   });
   const control = await renderControl({
