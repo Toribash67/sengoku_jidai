@@ -1,28 +1,28 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TerrainStatus } from "@sengoku-jidai/shared";
 import { ApiError, fetchMap, generateTerrain } from "../../client/api.js";
 
 export type TerrainUi = "idle" | "pending" | "ready" | "failed" | "unavailable";
 
-type TerrainEvent =
-  | { kind: "start" }
-  | { kind: "poll"; terrain: TerrainStatus }
-  | { kind: "error"; unavailable: boolean };
-
-/** Pure: next UI state for a generation outcome. */
-export function nextTerrainUiState(event: TerrainEvent): TerrainUi {
-  switch (event.kind) {
-    case "start":
+/** Pure: UI state reflecting a known terrain status — used to seed the button on load and
+ *  after each poll. "none" (nothing generated yet) maps to the idle "Generate terrain" state. */
+export function uiFromStatus(terrain: TerrainStatus): TerrainUi {
+  switch (terrain) {
+    case "ready":
+      return "ready";
+    case "pending":
       return "pending";
-    case "poll":
-      return event.terrain === "ready"
-        ? "ready"
-        : event.terrain === "failed"
-          ? "failed"
-          : "pending";
-    case "error":
-      return event.unavailable ? "unavailable" : "failed";
+    case "failed":
+      return "failed";
+    case "none":
+      return "idle";
   }
+}
+
+/** Pure: UI state for a failed generate POST, by HTTP status — 503 unavailable (no FAL_KEY),
+ *  409 a generation is already running (resume polling), anything else a generic failure. */
+export function uiFromError(status: number | null): TerrainUi {
+  return status === 503 ? "unavailable" : status === 409 ? "pending" : "failed";
 }
 
 const LABEL: Record<TerrainUi, string> = {
@@ -35,24 +35,74 @@ const LABEL: Record<TerrainUi, string> = {
 
 export function TerrainButton({ mapId }: { mapId: string }) {
   const [state, setState] = useState<TerrainUi>("idle");
+  // Token for the current lifecycle (one per mount, replaced on each mapId change). Every async
+  // continuation — the seed fetch and the poll chain — captures the token it started under and
+  // bails once it is cancelled, so nothing calls setState after unmount or a map change.
+  const runRef = useRef<{ cancelled: boolean }>({ cancelled: false });
 
-  async function poll(): Promise<void> {
-    const detail = await fetchMap(mapId);
-    const next = nextTerrainUiState({ kind: "poll", terrain: detail.terrain });
+  async function poll(run: { cancelled: boolean }): Promise<void> {
+    if (run.cancelled) {
+      return;
+    }
+    let terrain: TerrainStatus;
+    try {
+      terrain = (await fetchMap(mapId)).terrain;
+    } catch {
+      return; // transient fetch error: stop polling; leave the button in its current state
+    }
+    if (run.cancelled) {
+      return;
+    }
+    const next = uiFromStatus(terrain);
     setState(next);
     if (next === "pending") {
-      window.setTimeout(() => void poll(), 1500);
+      window.setTimeout(() => void poll(run), 1500);
     }
   }
 
+  // Seed the button from the map's persisted terrain status on mount / map change, and resume
+  // polling if a generation is already in flight (e.g. started in a prior session).
+  useEffect(() => {
+    const run = { cancelled: false };
+    runRef.current = run;
+    void (async () => {
+      let terrain: TerrainStatus;
+      try {
+        terrain = (await fetchMap(mapId)).terrain;
+      } catch {
+        return; // leave the button idle if the status can't be read
+      }
+      if (run.cancelled) {
+        return;
+      }
+      const seeded = uiFromStatus(terrain);
+      setState(seeded);
+      if (seeded === "pending") {
+        window.setTimeout(() => void poll(run), 1500);
+      }
+    })();
+    return () => {
+      run.cancelled = true; // invalidate this lifecycle's in-flight continuations
+    };
+    // poll closes over mapId and is recreated each render; the effect only needs to re-run on mapId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapId]);
+
   async function handleClick(): Promise<void> {
-    setState(nextTerrainUiState({ kind: "start" }));
+    setState("pending");
+    const run = runRef.current;
     try {
       await generateTerrain(mapId);
-      void poll();
+      void poll(run);
     } catch (err) {
-      const unavailable = err instanceof ApiError && err.status === 503;
-      setState(nextTerrainUiState({ kind: "error", unavailable }));
+      if (run.cancelled) {
+        return; // the map changed / unmounted while the POST was in flight
+      }
+      const next = uiFromError(err instanceof ApiError ? err.status : null);
+      setState(next);
+      if (next === "pending") {
+        void poll(run); // 409: a generation is already running — track it to completion
+      }
     }
   }
 
