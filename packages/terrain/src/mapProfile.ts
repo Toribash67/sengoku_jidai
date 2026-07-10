@@ -12,6 +12,10 @@ const MapProfileSchema = z.object({
     outputSize: z.object({ width: z.number().int() }),
     /** Blur-then-threshold sigma that softens the hex facets of the land mask. */
     organicSigma: z.number().min(0).default(6),
+    /** What the area outside the tiles reads as. Custom maps default to "sea" so the tiled
+     *  region becomes land/islands in an ocean; "land" suits a full-continent board (e.g. the
+     *  hand-authored Rivers look), where only explicit sea tiles are water. */
+    background: z.enum(["land", "sea"]).default("sea"),
     /** Domain-warps the land/sea boundary through a smooth noise vector field so hex edges
      *  bend into natural, connected coastlines. `amplitude` is the max displacement in pixels
      *  (kept low so the background hugs the tile layout — the override flag on gen:map-control

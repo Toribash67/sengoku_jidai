@@ -4,14 +4,15 @@
     "seaColor": "#1565c0",
     "outputSize": { "width": 1024 },
     "organicSigma": 6,
+    "background": "sea",
     "coastWarp": { "amplitude": 30, "scale": 0.003, "seed": 7 }
   },
   "edit": {
     "model": "fal-ai/nano-banana-pro/edit",
-    "styleRef": "assets/style-ref.jpeg",
+    "styleRef": "assets/texture-ref.jpeg",
     "resolution": "2K",
     "seed": 1568,
-    "prompt": "You are given two images. The FIRST image is a control map showing where land and water go: solid GREEN regions are LAND, solid BLUE regions are SEA water. The SECOND image is a style reference: an antique hand-drawn Japanese map with sepia ink cross-hatched landmasses and scalloped wave patterns on aged parchment. Redraw the control map in the EXACT style, linework, textures and palette of the style reference. This is a flat overhead map that fills the ENTIRE frame edge to edge — there is no horizon, no sky, no perspective, no empty margin. Fill EVERY GREEN region completely with dense, dark sepia-ink antique terrain — mountains, forests, hills and cross-hatching — drawn all the way to its coastline and to the image edges; a green region must NEVER be left blank, pale, or empty parchment, no matter how large. GREEN regions fully enclosed by BLUE are ISLANDS and must also be drawn as dense terrain. Draw EVERY BLUE region as the light scalloped antique wave pattern of open water. Keep strong contrast: land is dark, densely-inked terrain; water is light scalloped waves; blank parchment always reads as water, so land must always be visibly drawn. CRITICAL MAPPING: green control region becomes LAND, blue control region becomes SEA. Do not swap them and do not turn land into water. Keep the exact same overall land and sea shapes as the control map. Flat top-down 2D map, no labels, no text, no border."
+    "prompt": "You are given two images. The FIRST image is a control map: solid GREEN regions are LAND, solid BLUE regions are SEA water. The SECOND image is a TEXTURE LEGEND, not a map — its TOP HALF shows the LAND drawing style (dense dark sepia-ink antique terrain: mountains, forests, hills, cross-hatching) and its BOTTOM HALF shows the SEA drawing style (light scalloped antique wave lines on aged parchment). Redraw the FIRST image as one antique hand-drawn Japanese map: fill every GREEN region with the LAND texture and every BLUE region with the SEA texture, keeping the control's EXACT land and sea shapes and coastlines. This is a flat overhead map that fills the ENTIRE frame edge to edge — no horizon, no sky, no perspective, no empty margin. Every GREEN region, including small islands fully enclosed by BLUE, must be densely inked land drawn all the way to its coastline; never leave a green region blank, pale, or empty parchment. Every BLUE region is the light scalloped antique wave pattern of open water. Keep strong contrast: land is dark densely-inked terrain, water is light scalloped waves. IMPORTANT: do NOT copy any shapes, islands, coastlines, or composition from the texture legend — the legend supplies ONLY the two drawing styles; ALL land and sea placement comes from the control map. CRITICAL MAPPING: green control region becomes LAND, blue control region becomes SEA. Do not swap them. Flat top-down 2D map, no labels, no text, no border."
   },
   "webpQuality": 82
 }

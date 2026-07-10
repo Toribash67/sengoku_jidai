@@ -35,6 +35,7 @@ async function main(): Promise<void> {
     width,
     height,
     organicSigma: base.organicSigma,
+    background: base.background,
     coastWarp
   });
   const control = await renderControl({

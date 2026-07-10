@@ -27,6 +27,7 @@ const PROFILE: MapProfile = {
     seaColor: "#1565c0",
     outputSize: { width: 64 },
     organicSigma: 2,
+    background: "sea",
     coastWarp: { amplitude: 0, scale: 0.003, seed: 7 }
   },
   edit: {
@@ -77,27 +78,39 @@ describe("generateTerrainWebp", () => {
     expect(deps.fal.subscribe).toHaveBeenCalledTimes(1);
   });
 
-  it("renders a land-dominant, non-inverted mask from the procedural board SVG", async () => {
+  it("background sets the outside-tiles region; the land tile is never inverted to sea", async () => {
     const compiled = compileHexMap(SOURCE as never);
     const svgMarkup = assembleBoardSvg(buildScene(compiled));
 
-    const landMask = await renderLandMask({
-      svgMarkup,
-      map: compiled.definition,
-      width: 64,
-      height: 64,
-      organicSigma: 0
-    });
-
-    const mask = await sharp(landMask).greyscale().raw().toBuffer();
-    let white = 0;
-    let black = 0;
-    for (const v of mask) {
-      if (v > 200) white += 1;
-      else if (v < 50) black += 1;
+    async function ratios(background: "land" | "sea") {
+      const landMask = await renderLandMask({
+        svgMarkup,
+        map: compiled.definition,
+        width: 64,
+        height: 64,
+        organicSigma: 0,
+        background
+      });
+      const mask = await sharp(landMask).greyscale().raw().toBuffer();
+      let white = 0;
+      let black = 0;
+      for (const v of mask) {
+        if (v > 200) white += 1;
+        else if (v < 50) black += 1;
+      }
+      expect(white + black).toBe(mask.length); // strictly binary
+      return { white: white / mask.length, black: black / mask.length };
     }
-    expect(white + black).toBe(mask.length); // strictly binary
-    expect(white / mask.length).toBeGreaterThan(0.4); // land + background dominate
-    expect(black).toBeGreaterThan(0); // sea tile still present
+
+    // Continent look: outside reads as land → land-dominant, sea tile still present (not inverted).
+    const land = await ratios("land");
+    expect(land.white).toBeGreaterThan(0.4);
+    expect(land.black).toBeGreaterThan(0);
+
+    // Islands look (the custom-map default): outside reads as sea → sea-dominant, and the land
+    // tile survives as a white island rather than being swallowed (guards land→sea inversion).
+    const sea = await ratios("sea");
+    expect(sea.black).toBeGreaterThan(0.4);
+    expect(sea.white).toBeGreaterThan(0);
   });
 });
