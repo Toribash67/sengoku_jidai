@@ -75,6 +75,10 @@ export async function deleteMap(mapId: string): Promise<void> {
   return request(`/api/maps/${encodeURIComponent(mapId)}`, { method: "DELETE" });
 }
 
+export async function generateTerrain(mapId: string): Promise<void> {
+  await request(`/api/maps/${encodeURIComponent(mapId)}/terrain`, { method: "POST" });
+}
+
 export async function fetchGameView(
   gameId: string,
   token: string

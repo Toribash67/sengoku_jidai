@@ -13,6 +13,7 @@ import { createUrl, editorUrl, mapsUrl, navigateTo } from "../../state/route.js"
 import { EditorCanvas } from "./EditorCanvas.js";
 import { EditorToolbar } from "./EditorToolbar.js";
 import { InspectorPanel } from "./InspectorPanel.js";
+import { TerrainButton } from "./TerrainButton.js";
 
 export function EditorScreen({ mapId }: { mapId: string | null }) {
   const [state, dispatch] = useReducer(editorReducer, emptyDoc(), initialEditorState);
@@ -251,6 +252,7 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
           </button>
         </div>
       ) : null}
+      {state.doc.id && state.doc.id !== "rivers" ? <TerrainButton mapId={state.doc.id} /> : null}
 
       <div className="editor-body">
         {previewResult ? (
