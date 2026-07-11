@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { terrainImageAttrs } from "../../src/components/board/MapBoard.js";
+import { terrainImageAttrs } from "../../src/components/board/terrainImages.js";
 
 describe("terrainImageAttrs", () => {
   it("covers the full viewBox with no aspect distortion-compensation", () => {

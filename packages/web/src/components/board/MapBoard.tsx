@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { boardSvgFor } from "../../client/maps.js";
 import { SEAT_SOLID, TILE_LAND_FILL, TILE_SEA_FILL, tileFill } from "./tileFill.js";
 import { slotIdForSpace } from "./slotMapping.js";
+import { terrainImageAttrs } from "./terrainImages.js";
 
 export interface MapBoardProps {
   /** The game's map id (`view.mapId`); the SVG comes from the map loader cache,
@@ -34,23 +35,6 @@ const OVERLAY_ID = "map-overlay";
 
 const TERRAIN_LAYER_ID = "map-terrain";
 
-/** `<image>` attributes that stretch the terrain across the full viewBox. The terrain webp is
- *  rendered at the viewBox aspect, so `preserveAspectRatio="none"` aligns it 1:1 with the tiles
- *  (no cropping of coastal edges). */
-export function terrainImageAttrs(viewBox: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}) {
-  return {
-    x: viewBox.x,
-    y: viewBox.y,
-    width: viewBox.width,
-    height: viewBox.height,
-    preserveAspectRatio: "none" as const
-  };
-}
 /** Supply/control tints live in a group appended to each tile group (the map splits tiles
  *  into #tile-sea and #tile-land), so they paint just above their own tiles but below the
  *  map's feature art (HQ/harbour/star/bonus icons) and units. */

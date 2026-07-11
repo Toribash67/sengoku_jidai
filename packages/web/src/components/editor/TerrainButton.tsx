@@ -33,7 +33,13 @@ const LABEL: Record<TerrainUi, string> = {
   unavailable: "Generate terrain"
 };
 
-export function TerrainButton({ mapId }: { mapId: string }) {
+export function TerrainButton({
+  mapId,
+  onStatusChange
+}: {
+  mapId: string;
+  onStatusChange?: (terrain: TerrainStatus) => void;
+}) {
   const [state, setState] = useState<TerrainUi>("idle");
   // Token for the current lifecycle (one per mount, replaced on each mapId change). Every async
   // continuation — the seed fetch and the poll chain — captures the token it started under and
@@ -55,6 +61,7 @@ export function TerrainButton({ mapId }: { mapId: string }) {
     }
     const next = uiFromStatus(terrain);
     setState(next);
+    onStatusChange?.(terrain);
     if (next === "pending") {
       window.setTimeout(() => void poll(run), 1500);
     }
@@ -77,6 +84,7 @@ export function TerrainButton({ mapId }: { mapId: string }) {
       }
       const seeded = uiFromStatus(terrain);
       setState(seeded);
+      onStatusChange?.(terrain);
       if (seeded === "pending") {
         window.setTimeout(() => void poll(run), 1500);
       }
@@ -90,6 +98,7 @@ export function TerrainButton({ mapId }: { mapId: string }) {
 
   async function handleClick(): Promise<void> {
     setState("pending");
+    onStatusChange?.("pending");
     const run = runRef.current;
     try {
       await generateTerrain(mapId);
