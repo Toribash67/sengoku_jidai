@@ -10,9 +10,8 @@ describe("createTerrain", () => {
     await expect(createTerrain("m1", "ink")).resolves.toEqual({ id: "t1" });
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/maps/m1/terrains",
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ styleId: "ink" }) })
     );
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ styleId: "ink" });
   });
 
   it("throws ApiError with the status on 503", async () => {
@@ -36,9 +35,8 @@ describe("renameTerrain", () => {
     await expect(renameTerrain("m1", "t1", "Coast")).resolves.toBeUndefined();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/maps/m1/terrains/t1",
-      expect.objectContaining({ method: "PATCH" })
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ name: "Coast" }) })
     );
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ name: "Coast" });
   });
 });
 
