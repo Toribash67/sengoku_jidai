@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DEFAULT_TERRAIN_STYLE,
   MAX_TERRAINS_PER_MAP,
@@ -162,17 +162,27 @@ export function TerrainsPanel({
     }
   }
 
+  const renameHandledRef = useRef(false);
+
   function startRename(terrain: TerrainInfo): void {
+    renameHandledRef.current = false;
     setEditingId(terrain.id);
     setEditName(terrain.name);
   }
 
-  async function commitRename(): Promise<void> {
-    const id = editingId;
-    if (id === null) {
+  // Commit (Enter/blur) or cancel (Escape) the in-progress rename. Both paths funnel through here;
+  // renameHandledRef ensures only the first wins, so the browser's blur-on-unmount (fired when the
+  // input is replaced by the button) cannot re-commit after Enter or override an Escape.
+  async function finishRename(commit: boolean): Promise<void> {
+    if (renameHandledRef.current) {
       return;
     }
+    renameHandledRef.current = true;
+    const id = editingId;
     setEditingId(null);
+    if (!commit || id === null) {
+      return;
+    }
     const name = editName.trim();
     const current = terrains.find((terrain) => terrain.id === id);
     if (name.length === 0 || !current || name === current.name) {
@@ -260,12 +270,12 @@ export function TerrainsPanel({
                   maxLength={40}
                   autoFocus
                   onChange={(event) => setEditName(event.target.value)}
-                  onBlur={() => void commitRename()}
+                  onBlur={() => void finishRename(true)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
-                      void commitRename();
+                      void finishRename(true);
                     } else if (event.key === "Escape") {
-                      setEditingId(null);
+                      void finishRename(false);
                     }
                   }}
                 />
