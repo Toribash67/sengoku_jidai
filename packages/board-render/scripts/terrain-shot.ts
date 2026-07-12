@@ -10,7 +10,9 @@ interface Args {
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { base: "http://localhost:18081" };
+  // 127.0.0.1, not localhost: Node's fetch resolves localhost to IPv6 ::1, but the local
+  // server binds IPv4 only, so a localhost default fails on the box this tool runs on.
+  const args: Args = { base: "http://127.0.0.1:18081" };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     if (flag === "--map") args.map = argv[++i];

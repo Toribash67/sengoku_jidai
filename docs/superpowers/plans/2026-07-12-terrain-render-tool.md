@@ -325,7 +325,7 @@ With its current terrain:
 ```bash
 corepack pnpm --filter @sengoku-jidai/board-render exec tsx scripts/terrain-shot.ts \
   --map fc5161b0-f889-41e6-ab32-9106276c86c7 \
-  --terrain-url http://localhost:18081/api/maps/fc5161b0-f889-41e6-ab32-9106276c86c7/terrain.webp \
+  --terrain-url http://127.0.0.1:18081/api/maps/fc5161b0-f889-41e6-ab32-9106276c86c7/terrain.webp \
   --out /tmp/shot-terrain.html
 ```
 Then render each to PNG (printed command) and confirm: flat = clean tile fills; terrain = islands showing through with tile outlines + solid feature glyphs. Record both commands + outcome in the report.
