@@ -1,4 +1,4 @@
-import type { TerrainStatus } from "@sengoku-jidai/shared";
+import type { TerrainInfo, TerrainStatus } from "@sengoku-jidai/shared";
 
 /**
  * Committed terrain background assets, keyed by map id. Each map's background lives at
@@ -42,4 +42,32 @@ export function resolveTerrainUrl(args: {
     return args.committed;
   }
   return args.terrain === "ready" ? terrainApiUrl(args.mapId) : null;
+}
+
+/** Per-terrain background webp URL (many-terrains API). */
+export function terrainByIdApiUrl(mapId: string, terrainId: string): string {
+  return `/api/maps/${encodeURIComponent(mapId)}/terrains/${encodeURIComponent(terrainId)}.webp`;
+}
+
+/** The id the editor preview selects on load: the first ready terrain, else null (Flat). */
+export function defaultSelection(terrains: TerrainInfo[]): string | null {
+  return terrains.find((terrain) => terrain.status === "ready")?.id ?? null;
+}
+
+/** The terrain background URL for the editor preview given the current selection: null for the
+ *  Flat selection or a non-ready/absent terrain; otherwise the per-terrain webp cache-busted with
+ *  the terrain's updatedAt (which also keys the server ETag). */
+export function previewTerrainUrl(args: {
+  terrains: TerrainInfo[];
+  selectedTerrainId: string | null;
+  mapId: string;
+}): string | null {
+  if (args.selectedTerrainId === null) {
+    return null;
+  }
+  const selected = args.terrains.find((terrain) => terrain.id === args.selectedTerrainId);
+  if (!selected || selected.status !== "ready") {
+    return null;
+  }
+  return `${terrainByIdApiUrl(args.mapId, selected.id)}?v=${encodeURIComponent(selected.updatedAt)}`;
 }
