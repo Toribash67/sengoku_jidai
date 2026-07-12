@@ -2,6 +2,7 @@ import { compileHexMap } from "@sengoku-jidai/engine";
 import type { HexMapSource } from "@sengoku-jidai/engine";
 import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
 import { DEFAULT_TERRAIN_STYLE } from "@sengoku-jidai/shared";
+import type { TerrainInfo } from "@sengoku-jidai/shared";
 import {
   createFalClient,
   generateTerrainWebp,
@@ -11,6 +12,16 @@ import {
 } from "@sengoku-jidai/terrain";
 import type { MapLibrary } from "./library.js";
 import type { TerrainStore } from "./terrainStore.js";
+
+/** Next auto name: "Terrain N" where N is one past the highest existing "Terrain <n>" (names are
+ *  renameable and not unique, so we key off the number, not the count). */
+export function autoName(existing: Pick<TerrainInfo, "name">[]): string {
+  const max = existing.reduce((m, t) => {
+    const match = /^Terrain (\d+)$/.exec(t.name);
+    return match ? Math.max(m, Number(match[1])) : m;
+  }, 0);
+  return `Terrain ${max + 1}`;
+}
 
 /** The default terrain profile: the shared default style, resolved by the terrain package
  *  (works from source and the built image without a hand-built relative path). */
