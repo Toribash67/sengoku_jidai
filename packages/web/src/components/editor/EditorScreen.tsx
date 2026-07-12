@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { HexMapSource } from "@sengoku-jidai/engine/client";
 import { compileHexMap } from "@sengoku-jidai/engine/client";
-import type { TerrainStatus } from "@sengoku-jidai/shared";
+import type { TerrainInfo } from "@sengoku-jidai/shared";
 import { assembleBoardSvg, buildScene, injectTerrainBackground } from "@sengoku-jidai/board-render";
 import { ApiError, apiErrorMessage, fetchMap } from "../../client/api.js";
 import { docFromSource, docToSource, emptyDoc } from "../../editor/doc.js";
@@ -11,11 +11,11 @@ import { persistDoc } from "../../editor/save.js";
 import { validationMessage } from "../../editor/validation.js";
 import { INITIAL_VIEW, ZOOM_STEP, zoomViewCentered } from "../../editor/viewport.js";
 import { createUrl, editorUrl, mapsUrl, navigateTo } from "../../state/route.js";
-import { resolveTerrainUrl, terrainImage } from "../board/terrainImages.js";
+import { defaultSelection, previewTerrainUrl } from "../board/terrainImages.js";
 import { EditorCanvas } from "./EditorCanvas.js";
 import { EditorToolbar } from "./EditorToolbar.js";
 import { InspectorPanel } from "./InspectorPanel.js";
-import { TerrainButton } from "./TerrainButton.js";
+import { TerrainsPanel } from "./TerrainsPanel.js";
 
 export function EditorScreen({ mapId }: { mapId: string | null }) {
   const [state, dispatch] = useReducer(editorReducer, emptyDoc(), initialEditorState);
@@ -28,17 +28,15 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
   const [preview, setPreview] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [view, setView] = useState(INITIAL_VIEW);
-  const [terrainStatus, setTerrainStatus] = useState<TerrainStatus>("none");
-  // Bumped whenever generation transitions to "ready" so a regenerated webp (same URL) is
-  // re-fetched instead of served stale from cache.
-  const [terrainVersion, setTerrainVersion] = useState(0);
+  const [terrains, setTerrains] = useState<TerrainInfo[]>([]);
+  const [selectedTerrainId, setSelectedTerrainId] = useState<string | null>(null);
   const draftTimer = useRef<number | null>(null);
 
   // Load the map (or offer a draft for /maps/new).
   useEffect(() => {
     let cancelled = false;
-    setTerrainStatus("none");
-    setTerrainVersion(0);
+    setTerrains([]);
+    setSelectedTerrainId(null);
     setSavedId(null);
     setSaveError(null);
     if (mapId === null) {
@@ -58,6 +56,8 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
           type: "loadDoc",
           doc: docFromSource(detail.source as HexMapSource, { asCopy: detail.builtin })
         });
+        setTerrains(detail.terrains);
+        setSelectedTerrainId(defaultSelection(detail.terrains));
         const draft = loadDraft(detail.builtin ? null : mapId);
         if (draft && (!detail.updatedAt || draft.savedAt > detail.updatedAt)) {
           setPendingDraft(draft);
@@ -102,20 +102,13 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
       return { error: caught instanceof Error ? caught.message : String(caught) };
     }
   }, [preview, state.doc]);
-  const terrainPreviewUrl = useMemo(() => {
-    const id = state.doc.id ?? "";
-    const committed = terrainImage(id);
-    const base = resolveTerrainUrl({ committed, terrain: terrainStatus, mapId: id });
-    // Cache-bust only the server-generated URL (committed built-in assets are immutable).
-    return base && !committed ? `${base}?v=${terrainVersion}` : base;
-  }, [state.doc.id, terrainStatus, terrainVersion]);
+  const terrainPreviewUrl = useMemo(
+    () => previewTerrainUrl({ terrains, selectedTerrainId, mapId: state.doc.id ?? "" }),
+    [terrains, selectedTerrainId, state.doc.id]
+  );
 
-  function handleTerrainStatus(terrain: TerrainStatus) {
-    setTerrainStatus(terrain);
-    if (terrain === "ready") {
-      setTerrainVersion((v) => v + 1);
-    }
-  }
+  const handleSelect = useCallback((id: string | null) => setSelectedTerrainId(id), []);
+  const handleTerrainsChange = useCallback((next: TerrainInfo[]) => setTerrains(next), []);
 
   async function handleSave() {
     setSaving(true);
@@ -275,7 +268,13 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
         </div>
       ) : null}
       {state.doc.id && state.doc.id !== "rivers" ? (
-        <TerrainButton mapId={state.doc.id} onStatusChange={handleTerrainStatus} />
+        <TerrainsPanel
+          mapId={state.doc.id}
+          terrains={terrains}
+          selectedTerrainId={selectedTerrainId}
+          onSelect={handleSelect}
+          onTerrainsChange={handleTerrainsChange}
+        />
       ) : null}
 
       <div className="editor-body">
