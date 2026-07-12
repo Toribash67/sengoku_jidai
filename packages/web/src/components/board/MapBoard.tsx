@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { boardSvgFor } from "../../client/maps.js";
 import { SEAT_SOLID, TILE_LAND_FILL, TILE_SEA_FILL, tileFill } from "./tileFill.js";
 import { slotIdForSpace } from "./slotMapping.js";
-import { terrainImageAttrs } from "./terrainImages.js";
+import { terrainImageAttrs } from "@sengoku-jidai/board-render";
 
 export interface MapBoardProps {
   /** The game's map id (`view.mapId`); the SVG comes from the map loader cache,

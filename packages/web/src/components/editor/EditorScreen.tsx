@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { HexMapSource } from "@sengoku-jidai/engine/client";
 import { compileHexMap } from "@sengoku-jidai/engine/client";
 import type { TerrainStatus } from "@sengoku-jidai/shared";
-import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
+import { assembleBoardSvg, buildScene, injectTerrainBackground } from "@sengoku-jidai/board-render";
 import { ApiError, apiErrorMessage, fetchMap } from "../../client/api.js";
 import { docFromSource, docToSource, emptyDoc } from "../../editor/doc.js";
 import { clearDraft, loadDraft, saveDraft, type SavedDraft } from "../../editor/draft.js";
@@ -16,7 +16,6 @@ import { EditorCanvas } from "./EditorCanvas.js";
 import { EditorToolbar } from "./EditorToolbar.js";
 import { InspectorPanel } from "./InspectorPanel.js";
 import { TerrainButton } from "./TerrainButton.js";
-import { injectTerrainBackground } from "./terrainPreview.js";
 
 export function EditorScreen({ mapId }: { mapId: string | null }) {
   const [state, dispatch] = useReducer(editorReducer, emptyDoc(), initialEditorState);

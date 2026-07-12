@@ -1,4 +1,19 @@
-import { terrainImageAttrs } from "../board/terrainImages.js";
+/** SVG `<image>` geometry for a terrain background: fill the whole viewBox and stretch to it
+ *  (`preserveAspectRatio="none"`) so terrain aligns with the board regardless of aspect. */
+export function terrainImageAttrs(viewBox: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) {
+  return {
+    x: viewBox.x,
+    y: viewBox.y,
+    width: viewBox.width,
+    height: viewBox.height,
+    preserveAspectRatio: "none" as const
+  };
+}
 
 /** Id of the injected background image — matches the play view's terrain layer id. */
 const PREVIEW_TERRAIN_ID = "map-terrain";

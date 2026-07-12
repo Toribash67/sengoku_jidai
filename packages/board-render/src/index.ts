@@ -3,3 +3,4 @@ export * from "./outline.js";
 export * from "./scene.js";
 export * from "./assets.js";
 export * from "./assemble.js";
+export * from "./terrainComposite.js";

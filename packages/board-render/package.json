@@ -13,7 +13,8 @@
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "preview": "tsx scripts/preview.ts"
+    "preview": "tsx scripts/preview.ts",
+    "terrain-shot": "tsx scripts/terrain-shot.ts"
   },
   "dependencies": {
     "@sengoku-jidai/engine": "workspace:*"
