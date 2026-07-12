@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   injectTerrainBackground,
   parseViewBox
-} from "../../src/components/editor/terrainPreview.js";
+} from "../src/terrainComposite.js";
 
 const SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10.00 -20.00 1133.86 1288.16"><defs></defs><g id="tile-sea"></g></svg>';
