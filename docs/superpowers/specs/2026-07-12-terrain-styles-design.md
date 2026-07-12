@@ -1,47 +1,79 @@
-# Terrain styles — selectable generation style
+# Terrain generation on gpt-image-1.5 + selectable styles
 
 **Date:** 2026-07-12
-**Status:** Draft (Martin AFK on the scope question; proceeding with the selectable-style model
-implied by his "optional style when generating" wording — flagged). Relates to
-[multiple-terrains](2026-07-12-multiple-terrains-design.md).
+**Status:** Draft (revised after Martin chose to switch the generation model). Relates to
+[multiple-terrains](2026-07-12-multiple-terrains-design.md) and [[terrain-generation-quality]].
 
-Add a second terrain **style** — a black-and-white pen-and-ink fantasy-cartography look (from
-Martin's `Alternate_terrain.png`) — alongside the current colored antique look, and let the author
-choose the style when generating a terrain.
+Two changes, together: **switch the terrain edit model** from Google's
+`fal-ai/nano-banana-pro/edit` to OpenAI's **`fal-ai/gpt-image-1.5/edit`** (Martin prefers its
+results), and **add a second selectable style** — a black-and-white pen-and-ink look from
+`Alternate_terrain.png` — alongside the current colored antique look.
 
-## What a "style" is
+## Why
 
-Terrain generation is driven by a `MapProfile` (`packages/terrain/profiles/map.json`) bundling:
-control colors (`landColor`/`seaColor` — the green/blue region markers in the rasterized control),
-a `styleRef` texture-legend image, a `prompt`, and coast params (`coastWarp`/`organicSigma`). A
-**style** is one such bundle. Today there is one implicit style; this feature turns it into a small
-named catalog.
+Martin tested OpenAI's image model (the one behind ChatGPT) and was much happier with the output
+than nano-banana. gpt-image is strong at instruction-following, which should also help it *follow
+the land/sea control* faithfully — the weakness that caused the earlier "model ignores the control"
+bug. Both styles benefit from the better model.
+
+## Model switch: what changes in the pipeline
+
+`editMapPass` (`packages/terrain/src/editPass.ts`) currently sends the nano-banana schema:
+`{ prompt, image_urls:[control,style], num_images, resolution:"2K", output_format:"png", seed }`.
+
+gpt-image-1.5 edit (`fal-ai/gpt-image-1.5/edit`) uses a different input schema. New request:
+
+```
+{
+  prompt,
+  image_urls: [controlUrl, styleUrl],   // same two-image approach; prompt names each by role
+  num_images: 1,
+  image_size: "auto",                    // auto | 1024x1024 | 1536x1024 | 1024x1536
+  quality: "high",                       // low | medium | high  (cost driver)
+  input_fidelity: "high",                // preserve the control's structure
+  output_format: "png"
+  // NO seed, NO resolution
+}
+```
+
+- **Profile schema (`MapProfile.edit`)** changes: drop `resolution` (a nano-banana "2K"/"4K"
+  enum) and `seed`; add `imageSize` (enum above, default `"auto"`), `quality` (enum, default
+  `"high"`), `inputFidelity` (enum, default `"high"`). `model` becomes `"fal-ai/gpt-image-1.5/edit"`.
+- **Seed reroll** (`TerrainService`) becomes a no-op — gpt-image has no seed and varies naturally
+  between runs, so "regenerate for a different look" still works. Remove the seed override.
+- **Downstream** (mask/control build, sharp→webp, output-height-from-viewBox) is unchanged.
+
+### Aspect-ratio wrinkle (validate)
+
+Our board viewBox aspect is variable; the terrain is stretched onto it with
+`preserveAspectRatio="none"` (both play + preview). nano-banana matched the control's aspect;
+gpt-image only offers `auto` + three fixed sizes. Plan: send `image_size: "auto"` (which should
+track the control image's aspect) and keep the existing stretch. **Validation must confirm** the
+land/sea still lands in the right places on the board; fallback is to pick the nearest of the three
+fixed sizes and accept mild stretch (terrain is a background — the pipeline already stretches).
 
 ## The two styles
 
-- **`antique`** — "Antique (colour)". The current look: green→dense sepia-ink land, blue→scalloped
-  waves on parchment, soft beach/shallows. Unchanged (this is the existing `map.json`).
-- **`ink`** — "Ink (greyscale)". New: white paper LAND with delicate black line-art (tiny-tree
+- **`antique`** — the current colored look, re-validated on gpt-image (its prompt may need light
+  tuning for the new model). Keeps `profiles/map.json`.
+- **`ink`** — new B&W pen-and-ink: white paper LAND with delicate black line-art (tiny-tree
   forests, hatched mountain ridges, grass tufts), every coast a crisp black line echoed by 3–5
-  concentric hand-drawn depth-contour rings, on a flat light-grey mottled-parchment SEA.
+  concentric hand-drawn bathymetric contour rings, on a flat light-grey mottled-parchment SEA. New
+  `profiles/ink.json`.
 
-## Ink style — assets & parameters
+### Ink assets & parameters
 
 - **Texture swatch** `packages/terrain/assets/ink-texture-ref.png`: a two-band legend cropped from
-  `Alternate_terrain.png` — TOP = a patch of pure inked land (tree stipples + hill/hatch lines on
-  white), BOTTOM = a patch of pure grey mottled sea. **Not** the whole map: feeding a full-map
-  reference makes nano-banana plagiarize its composition (the exact bug fixed in
-  [[terrain-generation-quality]]). The coastline contour rings are a *coast treatment* → they live
-  in the prompt, not the swatch (which shows only pure land and pure sea).
-- **Control colors: keep green/blue** (`landColor #2e7d32`, `seaColor #1565c0`). These are internal
-  region markers, never shown; the prompt maps green→land, blue→sea. High-contrast hues give the
-  model reliable region discrimination. The white/grey *output* palette comes from the swatch +
-  prompt, not the control. (This answers Martin's "match white/grey?" — no; matching would lower
-  control contrast for no gain.)
-- **Coast params:** reuse the antique island geometry — `coastWarp {amplitude:45, scale:0.006,
-  seed:7}`, `organicSigma:20`, `background:"sea"` — so islands are organic and match the map. The
-  ring/line look comes from the prompt, not the mask.
-- **Prompt (draft, to be tuned during validation):**
+  `Alternate_terrain.png` (TOP = inked land patch, BOTTOM = grey sea patch). Not the whole map
+  (full-map ref → composition plagiarism; see [[terrain-generation-quality]]). gpt-image's stronger
+  prompt-adherence *may* let us drop the swatch and go prompt-only later — validation will tell; we
+  start with the two-image approach for parity.
+- **Control colors: keep green/blue** (`landColor #2e7d32`, `seaColor #1565c0`) — internal region
+  markers, never shown; the white/grey look comes from the swatch + prompt. (Answers Martin's
+  "match white/grey?" — no.)
+- **Coast params:** reuse `coastWarp {amplitude:45, scale:0.006, seed:7}`, `organicSigma:20`,
+  `background:"sea"` for organic islands; the ring/line look comes from the prompt.
+- **Prompt (draft, tuned during validation):**
   > You are given two images. The FIRST image is a control map: solid GREEN regions are LAND, solid
   > BLUE regions are SEA water. The SECOND image is a TEXTURE LEGEND, not a map — its TOP HALF shows
   > the LAND drawing style (hand-drawn black pen-and-ink fantasy cartography on white paper: fine
@@ -62,57 +94,42 @@ named catalog.
   > inked LAND, blue control region becomes grey SEA. Do not swap them. Flat top-down 2D map, no
   > labels, no text, no border.
 
-## Style catalog (terrain package)
+## Style catalog
 
-- The style id/label list is the single source of truth in **shared** so the web picker and the
-  server validation agree without an endpoint:
-  `packages/shared/src/api.ts` → `export const TERRAIN_STYLES = [{ id: "antique", label: "Antique
-  (colour)" }, { id: "ink", label: "Ink (greyscale)" }] as const;` and
-  `export type TerrainStyleId = (typeof TERRAIN_STYLES)[number]["id"];` (default `"antique"`).
-- The terrain package resolves a style id → profile file. To avoid churn, **keep**
-  `profiles/map.json` as the `antique` profile (existing CLI/tests still reference it) and **add**
-  `profiles/ink.json`. Export `loadStyleProfile(styleId): MapProfile` mapping `antique`→`map.json`,
-  `ink`→`ink.json` (validates the id, reuses `loadMapProfile` internally). The server's
-  `defaultProfile()` becomes `loadStyleProfile("antique")`; `TerrainService` picks the profile by
-  the requested style id.
+- Single source of truth in **shared**: `packages/shared/src/api.ts` →
+  `export const TERRAIN_STYLES = [{ id: "antique", label: "Antique (colour)" }, { id: "ink", label:
+  "Ink (greyscale)" }] as const;` + `export type TerrainStyleId = ...` (default `"antique"`).
+- Terrain package: keep `profiles/map.json` as `antique`, add `profiles/ink.json`; export
+  `loadStyleProfile(styleId): MapProfile` (antique→map.json, ink→ink.json; validates id). Server
+  `defaultProfile()` → `loadStyleProfile("antique")`; `TerrainService` picks by requested style id.
 
-## Integration with the multi-terrain work
+## Integration with the multi-terrain work (PR-A/PR-B)
 
-Threaded through the generation flow being built in PR-A/PR-B:
-- **PR-A (backend):** `map_terrains` gains a `style_id TEXT NOT NULL DEFAULT 'antique'` column; the
-  migrated legacy row is `antique`. `POST /api/maps/:id/terrains` accepts `{ styleId }` (validated
-  against `TERRAIN_STYLES`, default `antique`); the terrain row records it and `TerrainService`
-  loads that style's profile. `TerrainInfo` gains `styleId` (so the UI can label a terrain's style).
-- **PR-B (editor):** the "Generate new terrain" control gets a style dropdown (from
-  `TERRAIN_STYLES`).
-- **PR-C (play):** unaffected — the picker just displays whichever terrain is chosen, regardless of
-  its style.
+- **PR-A:** `map_terrains` gains `style_id TEXT NOT NULL DEFAULT 'antique'`; `POST …/terrains`
+  accepts `{ styleId }` (validated against `TERRAIN_STYLES`); `TerrainInfo` gains `styleId`.
+- **PR-B:** style dropdown on the generate control.
+- **PR-C:** unaffected.
 
-## Sequencing
+## Sequencing (this feature, as its own PR)
 
-1. **This PR (terrain-styles foundation):** style catalog refactor + `ink` assets/prompt/profile +
-   `TERRAIN_STYLES` in shared + `loadStyleProfile`. Self-contained: no server/web behavior change
-   (generation still defaults to `antique`). **Validate the ink look with ONE real fal generation**
-   (Small Testmap) — holds for Martin's OK to spend ~1 credit; tune the prompt/swatch if it drifts.
-2. PR-A/PR-B pick up `styleId` per the section above when they are built.
+1. **Model switch:** adapt `editPass` + `MapProfile` schema + `map.json` (antique) to
+   gpt-image-1.5; drop seed reroll. **Validate the antique look with one real gpt-image gen**
+   (confirms the pipeline + aspect handling on the new model).
+2. **Ink style:** crop `ink-texture-ref.png`, add `ink.json` + `TERRAIN_STYLES` + `loadStyleProfile`.
+   **Validate the ink look with one real gen.**
+3. styleId threading rides PR-A/PR-B.
 
-## Non-goals
+Cost: gpt-image edit ≈ $0.04 (medium) / $0.17 (high) per 1024² image + input tokens. Validation
+uses `quality:"high"` (2 gens ≈ ≤$0.5); routine generation can drop to `medium`. Martin approved
+the validation spend.
 
-- No new fal model or pipeline change (same `nano-banana-pro/edit`, same control/mask code).
-- No more than two styles for now.
+## Non-goals / testing / constraints
 
-## Testing
-
-- Pure/unit: `loadStyleProfile` returns the right profile per id and rejects unknown ids;
-  `TERRAIN_STYLES` shape; the `ink` profile parses against `MapProfileSchema`.
-- The committed `ink-texture-ref.png` swatch exists and the `ink` profile points at it.
-- Offline mask check unaffected (control colors unchanged). Visual validation = the 1 fal gen +
-  the `terrain-shot` tool (PR-D) to eyeball on the board.
-
-## Constraints
-
-Limited fal credits — validate with ≤1 generation; build/verify offline first. No new third-party
-deps. `TerrainStyleId`/`TERRAIN_STYLES` defined once in shared. The `ink-texture-ref.png` asset
-must ship in the terrain package's committed assets (already copied into the Docker image with the
-other terrain assets). `corepack pnpm`; rebuild libs before filtered tests; prettier-check changed
-paths.
+- No pipeline/model change beyond the edit call; mask/control code unchanged.
+- Unit: `MapProfile` parses both profiles under the new schema; `loadStyleProfile` maps ids +
+  rejects unknown; `editPass` builds the gpt-image input shape (no seed/resolution; has
+  image_size/quality/input_fidelity); fake-fal service tests updated for the new input.
+- Visual: the 1–2 fal gens + the `terrain-shot` tool (PR-D) to eyeball on the board.
+- Limited fal credits — build/verify offline first, ≤2 validation gens. No new third-party deps
+  (still `@fal-ai/client`, just a different model id). `corepack pnpm`; rebuild libs before
+  filtered tests; prettier-check changed paths.
