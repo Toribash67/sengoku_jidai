@@ -1,22 +1,21 @@
-import { fileURLToPath } from "node:url";
 import { compileHexMap } from "@sengoku-jidai/engine";
 import type { HexMapSource } from "@sengoku-jidai/engine";
 import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
+import { DEFAULT_TERRAIN_STYLE } from "@sengoku-jidai/shared";
 import {
   createFalClient,
   generateTerrainWebp,
-  loadMapProfile,
+  loadStyleProfile,
   type EditDeps,
   type MapProfile
 } from "@sengoku-jidai/terrain";
 import type { MapLibrary } from "./library.js";
 import type { TerrainStore } from "./terrainStore.js";
 
-/** Locate the terrain package's shipped profile via its package entry, so this resolves the
- *  same file whether running from source (tests) or the built server. */
+/** The default terrain profile: the shared default style, resolved by the terrain package
+ *  (works from source and the built image without a hand-built relative path). */
 function defaultProfile(): MapProfile {
-  const profilePath = fileURLToPath(new URL("../../../terrain/profiles/map.json", import.meta.url));
-  return loadMapProfile(profilePath);
+  return loadStyleProfile(DEFAULT_TERRAIN_STYLE);
 }
 
 interface TerrainServiceArgs {

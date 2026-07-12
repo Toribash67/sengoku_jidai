@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 const MapProfileSchema = z.object({
@@ -62,4 +63,23 @@ export function loadMapProfile(path: string): MapProfile {
     throw new Error(`Invalid map profile at ${path}: ${parsed.error.message}`);
   }
   return parsed.data;
+}
+
+/** Committed profile file per style id. Ids mirror `TERRAIN_STYLES` in @sengoku-jidai/shared;
+ *  the terrain package owns which JSON each id loads. */
+const STYLE_PROFILE_FILES: Record<string, string> = {
+  antique: "map.json",
+  ink: "ink.json"
+};
+
+/** Resolve a terrain style id to its committed, validated profile. Paths resolve via
+ *  `import.meta.url` so this works from source (tests) and from the built server's dist. */
+export function loadStyleProfile(styleId: string): MapProfile {
+  const file = STYLE_PROFILE_FILES[styleId];
+  if (!file) {
+    throw new Error(
+      `unknown terrain style "${styleId}" (known: ${Object.keys(STYLE_PROFILE_FILES).join(", ")})`
+    );
+  }
+  return loadMapProfile(fileURLToPath(new URL(`../profiles/${file}`, import.meta.url)));
 }
