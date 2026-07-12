@@ -43,14 +43,27 @@ gpt-image-1.5 edit (`fal-ai/gpt-image-1.5/edit`) uses a different input schema. 
   between runs, so "regenerate for a different look" still works. Remove the seed override.
 - **Downstream** (mask/control build, sharp→webp, output-height-from-viewBox) is unchanged.
 
-### Aspect-ratio wrinkle (validate)
+### Aspect-ratio handling: pad-then-crop (Martin's approach)
 
-Our board viewBox aspect is variable; the terrain is stretched onto it with
-`preserveAspectRatio="none"` (both play + preview). nano-banana matched the control's aspect;
-gpt-image only offers `auto` + three fixed sizes. Plan: send `image_size: "auto"` (which should
-track the control image's aspect) and keep the existing stretch. **Validation must confirm** the
-land/sea still lands in the right places on the board; fallback is to pick the nearest of the three
-fixed sizes and accept mild stretch (terrain is a background — the pipeline already stretches).
+Our board viewBox aspect is variable; gpt-image only outputs `auto` + three fixed sizes
+(1024², 1536×1024, 1024×1536). Rather than stretch/distort, **letterbox the control to a fixed
+aspect, generate, then crop the padding back off** — distortion-free and deterministic:
+
+1. From the board aspect `r = width/height`, pick the fixed `image_size` that contains it with the
+   **least padding** (min added area), and compute symmetric margins to pad the control to exactly
+   that aspect.
+2. Pad the control image with the **sea control colour** (blue) so the model renders continuous
+   ocean in the margin (custom maps already read empty space as sea) — it will be discarded.
+3. Send the padded control (+ style swatch) with that `image_size` and `input_fidelity:"high"`
+   (the model preserves the control's spatial layout — the same faithfulness the whole pipeline
+   relies on).
+4. Crop the returned image back to the un-padded board rectangle (same proportional margins) →
+   terrain at the exact board aspect, then the existing downstream sizing/webp applies.
+
+This lives in the terrain package's control/edit path (padding on the way in, cropping on the way
+out; both via `sharp`). **Validation confirms** land/sea still aligns after the round-trip. Fallback
+if a model reframes despite `input_fidelity:"high"`: `image_size:"auto"` + the existing
+`preserveAspectRatio="none"` stretch (terrain is a background, so mild stretch is tolerable).
 
 ## The two styles
 
