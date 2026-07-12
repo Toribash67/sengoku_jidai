@@ -57,19 +57,22 @@ describe("TerrainService", () => {
     expect(store.status("does-not-exist")).toBe("none"); // no maps row ⇒ never marked
   });
 
-  it("generate() rerolls the fal seed on each run", async () => {
+  it("generate() sends no seed/resolution — gpt-image has none and varies naturally", async () => {
     const { library, store, mapId } = setup();
-    const seeds: unknown[] = [];
+    const inputs: Record<string, unknown>[] = [];
     const deps = fakeDeps();
     deps.fal.subscribe = vi.fn(async (_model: string, opts: { input: Record<string, unknown> }) => {
-      seeds.push(opts.input.seed);
+      inputs.push(opts.input);
       return { data: { images: [{ url: "https://fal/r.png" }] } };
     });
     const service = new TerrainService({ library, store, falKey: "k", deps });
     await service.generate(mapId);
     await service.generate(mapId);
-    expect(seeds).toHaveLength(2);
-    expect(seeds[0]).not.toBe(seeds[1]);
+    expect(inputs).toHaveLength(2);
+    for (const input of inputs) {
+      expect(input).not.toHaveProperty("seed");
+      expect(input).not.toHaveProperty("resolution");
+    }
   });
 
   it("generate() records failure when the edit model errors", async () => {

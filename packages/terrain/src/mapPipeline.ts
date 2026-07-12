@@ -10,6 +10,7 @@ import { mapSvgPath } from "./mapSources.js";
 import { renderLandMask } from "./masks.js";
 import type { MapProfile } from "./mapProfile.js";
 import { toWebp } from "./postprocess.js";
+import { planGptImageAspect } from "./gptImageAspect.js";
 
 /**
  * Filesystem-free pipeline core. Structure comes from `svgMarkup` (any board SVG with
@@ -42,23 +43,47 @@ export async function generateTerrainWebp(
     width,
     height
   });
-  const styleImage = await sharp(
-    readFileSync(fileURLToPath(new URL(`../${profile.edit.styleRef}`, import.meta.url)))
-  )
-    .resize(width, height, { fit: "cover" })
-    .jpeg()
+  const plan = planGptImageAspect(width, height);
+  // Letterbox the control into the fixed gpt-image size; margins are sea (discarded after crop).
+  const paddedControl = await sharp(control)
+    .resize(plan.contentW, plan.contentH, { fit: "fill" })
+    .extend({
+      top: plan.padTop,
+      bottom: plan.padBottom,
+      left: plan.padLeft,
+      right: plan.padRight,
+      background: base.seaColor
+    })
+    .png()
     .toBuffer();
+
+  let styleImage: Buffer | null = null;
+  if (profile.edit.styleRef) {
+    styleImage = await sharp(
+      readFileSync(fileURLToPath(new URL(`../${profile.edit.styleRef}`, import.meta.url)))
+    )
+      .resize(plan.contentW, plan.contentH, { fit: "cover" })
+      .jpeg()
+      .toBuffer();
+  }
+
   const edited = await editMapPass(deps, {
-    controlImage: control,
+    controlImage: paddedControl,
     styleImage,
     model: profile.edit.model,
     prompt: profile.edit.prompt,
-    // TODO(Task 3): derive from planGptImageAspect + pad/crop instead of a fixed square.
-    imageSize: "1024x1024",
+    imageSize: plan.imageSize,
     quality: profile.edit.quality,
     inputFidelity: profile.edit.inputFidelity
   });
-  return toWebp(edited, { width, height, quality: profile.webpQuality });
+
+  // Crop the padding back off (model returns targetW×targetH), then size to the board.
+  const cropped = await sharp(edited)
+    .resize(plan.targetW, plan.targetH, { fit: "fill" })
+    .extract({ left: plan.padLeft, top: plan.padTop, width: plan.contentW, height: plan.contentH })
+    .png()
+    .toBuffer();
+  return toWebp(cropped, { width, height, quality: profile.webpQuality });
 }
 
 /**
