@@ -88,9 +88,13 @@ export function buildTerrainOptions(args: {
   return options;
 }
 
-/** The option a persisted key selects, or the Flat option (always options[0]) if absent/stale. */
+/** The option a persisted key selects, or the Flat option (always options[0]) if absent/stale.
+ *  Falls back to a literal Flat option should an empty list ever be passed. */
 export function resolveTerrainOption(options: TerrainOption[], key: string | null): TerrainOption {
-  return options.find((option) => option.key === key) ?? options[0];
+  return (
+    options.find((option) => option.key === key) ??
+    options[0] ?? { key: FLAT_TERRAIN_KEY, label: "Flat", url: null }
+  );
 }
 
 /** The id the editor preview selects on load: the first ready terrain, else null (Flat). */
