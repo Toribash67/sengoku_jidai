@@ -42,22 +42,44 @@ describe("TerrainService", () => {
     expect(new TerrainService({ library, store, falKey: "k" }).available()).toBe(true);
   });
 
-  it("generate() stores a ready webp for a valid map", async () => {
+  it("generate() creates a ready terrain and returns its id", async () => {
     const { library, store, mapId } = setup();
     const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
-    await service.generate(mapId);
-    expect(store.status(mapId)).toBe("ready");
-    expect(store.webp(mapId)?.subarray(8, 12).toString("ascii")).toBe("WEBP");
+    const id = service.generate(mapId, "antique");
+    await vi.waitFor(() => expect(store.get(id)?.status).toBe("ready"));
+    expect(store.webpById(id)?.subarray(8, 12).toString("ascii")).toBe("WEBP");
+    expect(store.list(mapId).map((t) => t.name)).toEqual(["Terrain 1"]);
   });
 
-  it("generate() records nothing for an unknown map", async () => {
-    const { library, store } = setup();
+  it("generate() uses the requested style profile", async () => {
+    const { library, store, mapId } = setup();
     const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
-    await service.generate("does-not-exist");
-    expect(store.status("does-not-exist")).toBe("none"); // no maps row ⇒ never marked
+    const id = service.generate(mapId, "ink");
+    await vi.waitFor(() => expect(store.get(id)?.status).toBe("ready"));
+    expect(store.styleIdOf(id)).toBe("ink");
   });
 
-  it("generate() sends no seed/resolution — gpt-image has none and varies naturally", async () => {
+  it("is one-at-a-time per map (guard)", async () => {
+    const { library, store, mapId } = setup();
+    const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
+    service.generate(mapId, "antique");
+    expect(service.isGenerating(mapId)).toBe(true);
+    await vi.waitFor(() => expect(service.isGenerating(mapId)).toBe(false));
+  });
+
+  it("regeneratePrimary() creates Terrain 1 when none, then regenerates it in place", async () => {
+    const { library, store, mapId } = setup();
+    const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
+    service.regeneratePrimary(mapId);
+    await vi.waitFor(() => expect(store.status(mapId)).toBe("ready"));
+    const firstId = store.primaryId(mapId);
+    service.regeneratePrimary(mapId);
+    await vi.waitFor(() => expect(store.status(mapId)).toBe("ready"));
+    expect(store.primaryId(mapId)).toBe(firstId); // same row, regenerated
+    expect(store.list(mapId)).toHaveLength(1);
+  });
+
+  it("sends no seed/resolution — gpt-image has none and varies naturally", async () => {
     const { library, store, mapId } = setup();
     const inputs: Record<string, unknown>[] = [];
     const deps = fakeDeps();
@@ -66,23 +88,21 @@ describe("TerrainService", () => {
       return { data: { images: [{ url: "https://fal/r.png" }] } };
     });
     const service = new TerrainService({ library, store, falKey: "k", deps });
-    await service.generate(mapId);
-    await service.generate(mapId);
-    expect(inputs).toHaveLength(2);
-    for (const input of inputs) {
-      expect(input).not.toHaveProperty("seed");
-      expect(input).not.toHaveProperty("resolution");
-    }
+    const id = service.generate(mapId, "antique");
+    await vi.waitFor(() => expect(store.get(id)?.status).toBe("ready"));
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0]).not.toHaveProperty("seed");
+    expect(inputs[0]).not.toHaveProperty("resolution");
   });
 
-  it("generate() records failure when the edit model errors", async () => {
+  it("records failure on the right terrain when the model errors", async () => {
     const { library, store, mapId } = setup();
     const deps = fakeDeps();
     deps.fal.subscribe = vi.fn(async () => {
       throw new Error("fal down");
     });
     const service = new TerrainService({ library, store, falKey: "k", deps });
-    await service.generate(mapId);
-    expect(store.status(mapId)).toBe("failed");
+    const id = service.generate(mapId, "antique");
+    await vi.waitFor(() => expect(store.get(id)?.status).toBe("failed"));
   });
 });
