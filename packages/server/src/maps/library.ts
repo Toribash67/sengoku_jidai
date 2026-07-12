@@ -7,7 +7,13 @@ import {
   validateHexMap
 } from "@sengoku-jidai/engine";
 import type { HexMapSource } from "@sengoku-jidai/engine";
-import type { HexMapSourceDto, MapDetail, MapSummary, TerrainStatus } from "@sengoku-jidai/shared";
+import type {
+  HexMapSourceDto,
+  MapDetail,
+  MapSummary,
+  TerrainInfo,
+  TerrainStatus
+} from "@sengoku-jidai/shared";
 import type { SqliteDatabase } from "../persistence/database.js";
 
 /** Compile-time drift guard: the shared wire schema must produce the engine's
@@ -69,7 +75,11 @@ export class MapLibrary {
     return [...builtins, ...stored];
   }
 
-  get(id: string, terrainStatus?: (id: string) => TerrainStatus): MapDetail | null {
+  get(
+    id: string,
+    terrainStatus?: (id: string) => TerrainStatus,
+    terrainsFn?: (id: string) => TerrainInfo[]
+  ): MapDetail | null {
     const builtin = BUILTIN_SOURCES.find((source) => source.id === id);
     if (builtin) {
       // `HexMapSource` (engine) and the wire DTO are structurally identical — see the
@@ -80,6 +90,7 @@ export class MapLibrary {
         builtin: true,
         updatedAt: null,
         terrain: "none",
+        terrains: [],
         source: builtin
       };
     }
@@ -95,6 +106,7 @@ export class MapLibrary {
       builtin: false,
       updatedAt: row.updated_at,
       terrain: terrainStatus ? terrainStatus(row.id) : "none",
+      terrains: terrainsFn ? terrainsFn(row.id) : [],
       source: JSON.parse(row.source_json) as HexMapSourceDto
     };
   }
@@ -128,6 +140,7 @@ export class MapLibrary {
         builtin: false,
         updatedAt: now,
         terrain: "none",
+        terrains: [],
         source: candidate
       }
     };
@@ -174,6 +187,7 @@ export class MapLibrary {
         builtin: false,
         updatedAt: now,
         terrain: "none",
+        terrains: [],
         source: candidate
       }
     };

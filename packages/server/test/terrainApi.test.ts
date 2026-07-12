@@ -39,7 +39,7 @@ function buildTestApp(opts: { falKey?: string; deps?: EditDeps } = {}) {
   const service = new TerrainService({ library, store, falKey, deps: opts.deps ?? fakeDeps() });
   const app = fastify({ logger: false });
   registerApiRoutes(app, new GameRepository(db), library, store, service);
-  return { app, library };
+  return { app, library, store };
 }
 
 async function createMap(app: ReturnType<typeof fastify>) {
@@ -140,5 +140,94 @@ describe("terrain API", () => {
 
     // Give the background generation task time to complete and clean up
     await new Promise((r) => setImmediate(r));
+  });
+
+  it("POST /terrains creates a terrain and returns its id", async () => {
+    const { app } = buildTestApp();
+    const id = await createMap(app);
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/maps/${id}/terrains`,
+      payload: { styleId: "ink" }
+    });
+    expect(res.statusCode).toBe(202);
+    expect(res.json().id).toEqual(expect.any(String));
+  });
+
+  it("POST /terrains rejects an invalid style with 400", async () => {
+    const { app } = buildTestApp();
+    const id = await createMap(app);
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/maps/${id}/terrains`,
+      payload: { styleId: "watercolour" }
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("POST /terrains 422s at the cap", async () => {
+    const { app, store } = buildTestApp();
+    const id = await createMap(app);
+    for (let i = 0; i < 6; i++) store.create(id, `Terrain ${i + 1}`, "antique");
+    const res = await app.inject({ method: "POST", url: `/api/maps/${id}/terrains`, payload: {} });
+    expect(res.statusCode).toBe(422);
+  });
+
+  it("PATCH renames and DELETE removes a terrain", async () => {
+    const { app, store } = buildTestApp();
+    const mapId = await createMap(app);
+    const tid = store.create(mapId, "Terrain 1", "antique");
+    const patch = await app.inject({
+      method: "PATCH",
+      url: `/api/maps/${mapId}/terrains/${tid}`,
+      payload: { name: "Coast" }
+    });
+    expect(patch.statusCode).toBe(200);
+    expect(store.get(tid)?.name).toBe("Coast");
+    const del = await app.inject({ method: "DELETE", url: `/api/maps/${mapId}/terrains/${tid}` });
+    expect(del.statusCode).toBe(204);
+    expect(store.get(tid)).toBeNull();
+  });
+
+  it("PATCH/DELETE 404 for an unknown terrain id", async () => {
+    const { app } = buildTestApp();
+    const mapId = await createMap(app);
+    const patch = await app.inject({
+      method: "PATCH",
+      url: `/api/maps/${mapId}/terrains/nope`,
+      payload: { name: "X" }
+    });
+    expect(patch.statusCode).toBe(404);
+    const del = await app.inject({ method: "DELETE", url: `/api/maps/${mapId}/terrains/nope` });
+    expect(del.statusCode).toBe(404);
+  });
+
+  it("GET /terrains/:tid.webp serves a ready terrain and 404s otherwise", async () => {
+    const { app, store } = buildTestApp();
+    const mapId = await createMap(app);
+    const tid = store.create(mapId, "Terrain 1", "antique");
+    const before = await app.inject({ method: "GET", url: `/api/maps/${mapId}/terrains/${tid}.webp` });
+    expect(before.statusCode).toBe(404);
+    store.markReadyById(tid, Buffer.from([1, 2, 3]));
+    const ok = await app.inject({ method: "GET", url: `/api/maps/${mapId}/terrains/${tid}.webp` });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.headers["content-type"]).toBe("image/webp");
+  });
+
+  it("MapDetail exposes terrains[] and the legacy terrain field", async () => {
+    const { app, store } = buildTestApp();
+    const mapId = await createMap(app);
+    const tid = store.create(mapId, "Terrain 1", "antique");
+    store.markReadyById(tid, Buffer.from([1]));
+    const res = await app.inject({ method: "GET", url: `/api/maps/${mapId}` });
+    const body = res.json();
+    expect(body.terrain).toBe("ready"); // legacy primary status
+    expect(body.terrains).toHaveLength(1);
+    expect(body.terrains[0]).toMatchObject({
+      id: tid,
+      name: "Terrain 1",
+      styleId: "antique",
+      status: "ready"
+    });
   });
 });

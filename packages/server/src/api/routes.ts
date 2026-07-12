@@ -4,9 +4,12 @@ import {
   eventQuerySchema,
   gameParamsSchema,
   hexMapSourceSchema,
+  isTerrainStyleId,
   mapParamsSchema,
+  MAX_TERRAINS_PER_MAP,
   submitCommandRequestSchema
 } from "@sengoku-jidai/shared";
+import { z } from "zod";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { bearerToken, hashToken } from "../sessions/tokens.js";
 import type { GameRepository, SessionRecord } from "../persistence/repository.js";
@@ -37,7 +40,11 @@ export function registerApiRoutes(
     if (!params.success) {
       return sendError(reply, 400, "invalidRequest", "Map id is invalid.");
     }
-    const map = mapLibrary.get(params.data.mapId, (id) => terrainStore.status(id));
+    const map = mapLibrary.get(
+      params.data.mapId,
+      (id) => terrainStore.status(id),
+      (id) => terrainStore.list(id)
+    );
     if (!map) {
       return sendError(reply, 404, "mapNotFound", "Map was not found.");
     }
@@ -117,8 +124,9 @@ export function registerApiRoutes(
     if (terrainService.isGenerating(params.data.mapId)) {
       return sendError(reply, 409, "terrainInProgress", "Terrain is already generating.");
     }
-    // Fire-and-forget: generation runs in-process and records its own result.
-    void terrainService.generate(params.data.mapId);
+    // Fire-and-forget: generation runs in-process and records its own result. Legacy adapter —
+    // regenerates the map's primary terrain in place (or creates "Terrain 1" if none).
+    terrainService.regeneratePrimary(params.data.mapId);
     return reply.status(202).send({ status: "pending" });
   });
 
@@ -136,6 +144,94 @@ export function registerApiRoutes(
       .header("Content-Type", "image/webp")
       .header("Cache-Control", "public, max-age=60")
       .header("ETag", `"${params.data.mapId}-${updatedAt}"`)
+      .send(webp);
+  });
+
+  // --- Many-terrains endpoints (PR-A). The legacy /terrain routes above stay until PR-B/PR-C. ---
+
+  const terrainParamsSchema = z.object({
+    mapId: z.string().min(1),
+    terrainId: z.string().min(1)
+  });
+
+  app.post("/api/maps/:mapId/terrains", async (request, reply) => {
+    const params = mapParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Map id is invalid.");
+    }
+    const body = z.object({ styleId: z.string().optional() }).safeParse(request.body ?? {});
+    if (!body.success) {
+      return sendError(reply, 400, "invalidRequest", "Request body is invalid.");
+    }
+    const styleId = body.data.styleId ?? "antique";
+    if (!isTerrainStyleId(styleId)) {
+      return sendError(reply, 400, "invalidStyle", "Unknown terrain style.");
+    }
+    if (!terrainService.available()) {
+      return sendError(reply, 503, "terrainUnavailable", "Terrain generation is not configured.");
+    }
+    const detail = mapLibrary.get(params.data.mapId);
+    if (!detail) {
+      return sendError(reply, 404, "mapNotFound", "Map was not found.");
+    }
+    if (detail.builtin) {
+      return sendError(reply, 403, "builtinMap", "Built-in maps cannot generate terrain.");
+    }
+    if (terrainService.isGenerating(params.data.mapId)) {
+      return sendError(reply, 409, "terrainInProgress", "Terrain is already generating.");
+    }
+    if (terrainStore.countForMap(params.data.mapId) >= MAX_TERRAINS_PER_MAP) {
+      return sendError(
+        reply,
+        422,
+        "terrainCap",
+        `A map may have at most ${MAX_TERRAINS_PER_MAP} terrains.`
+      );
+    }
+    const id = terrainService.generate(params.data.mapId, styleId);
+    return reply.status(202).send({ id });
+  });
+
+  app.patch("/api/maps/:mapId/terrains/:terrainId", async (request, reply) => {
+    const params = terrainParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Invalid ids.");
+    }
+    const body = z.object({ name: z.string().trim().min(1).max(40) }).safeParse(request.body ?? {});
+    if (!body.success) {
+      return sendError(reply, 400, "invalidRequest", "Name must be 1–40 characters.");
+    }
+    if (!terrainStore.rename(params.data.terrainId, body.data.name)) {
+      return sendError(reply, 404, "terrainNotFound", "Terrain was not found.");
+    }
+    return reply.status(200).send({ ok: true });
+  });
+
+  app.delete("/api/maps/:mapId/terrains/:terrainId", async (request, reply) => {
+    const params = terrainParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Invalid ids.");
+    }
+    if (!terrainStore.remove(params.data.terrainId)) {
+      return sendError(reply, 404, "terrainNotFound", "Terrain was not found.");
+    }
+    return reply.status(204).send();
+  });
+
+  app.get("/api/maps/:mapId/terrains/:terrainId.webp", async (request, reply) => {
+    const params = terrainParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Invalid ids.");
+    }
+    const webp = terrainStore.webpById(params.data.terrainId);
+    if (!webp) {
+      return sendError(reply, 404, "terrainNotFound", "No terrain for this id.");
+    }
+    const updatedAt = terrainStore.updatedAtById(params.data.terrainId) ?? "";
+    return reply
+      .header("Content-Type", "image/webp")
+      .header("Cache-Control", "public, max-age=60")
+      .header("ETag", `"${params.data.terrainId}-${updatedAt}"`)
       .send(webp);
   });
 
