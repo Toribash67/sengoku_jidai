@@ -81,3 +81,19 @@ export interface MapDetail {
   terrain: TerrainStatus;
   source: z.infer<typeof hexMapSourceSchema>;
 }
+
+/** Selectable terrain generation styles (id + UI label). Single source of truth for the
+ *  editor style dropdown (PR-B) and the generate API (PR-A). `antique` is the default. The
+ *  terrain package maps each id to a committed profile JSON via `loadStyleProfile`. */
+export const TERRAIN_STYLES = [
+  { id: "antique", label: "Antique (colour)" },
+  { id: "ink", label: "Ink (greyscale)" }
+] as const;
+
+export type TerrainStyleId = (typeof TERRAIN_STYLES)[number]["id"];
+
+export const DEFAULT_TERRAIN_STYLE: TerrainStyleId = "antique";
+
+export function isTerrainStyleId(value: string): value is TerrainStyleId {
+  return TERRAIN_STYLES.some((s) => s.id === value);
+}
