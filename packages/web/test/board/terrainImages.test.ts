@@ -40,7 +40,11 @@ describe("resolveTerrainUrl", () => {
   });
 });
 
-const t = (id: string, status: TerrainInfo["status"], updatedAt = "2026-07-12T00:00:00Z"): TerrainInfo => ({
+const t = (
+  id: string,
+  status: TerrainInfo["status"],
+  updatedAt = "2026-07-12T00:00:00Z"
+): TerrainInfo => ({
   id,
   name: id,
   styleId: "antique",

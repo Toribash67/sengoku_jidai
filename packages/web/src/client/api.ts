@@ -86,11 +86,7 @@ export async function createTerrain(
   });
 }
 
-export async function renameTerrain(
-  mapId: string,
-  terrainId: string,
-  name: string
-): Promise<void> {
+export async function renameTerrain(mapId: string, terrainId: string, name: string): Promise<void> {
   await request(
     `/api/maps/${encodeURIComponent(mapId)}/terrains/${encodeURIComponent(terrainId)}`,
     { method: "PATCH", body: JSON.stringify({ name }) }

@@ -5,7 +5,11 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("createTerrain", () => {
   it("POSTs the styleId and returns the new id on 202", async () => {
-    const fetchMock = vi.fn(async () => ({ ok: true, status: 202, json: async () => ({ id: "t1" }) }));
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 202,
+      json: async () => ({ id: "t1" })
+    }));
     vi.stubGlobal("fetch", fetchMock);
     await expect(createTerrain("m1", "ink")).resolves.toEqual({ id: "t1" });
     expect(fetchMock).toHaveBeenCalledWith(
@@ -30,7 +34,11 @@ describe("createTerrain", () => {
 
 describe("renameTerrain", () => {
   it("PATCHes the name and resolves on 200", async () => {
-    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ ok: true }) }));
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true })
+    }));
     vi.stubGlobal("fetch", fetchMock);
     await expect(renameTerrain("m1", "t1", "Coast")).resolves.toBeUndefined();
     expect(fetchMock).toHaveBeenCalledWith(

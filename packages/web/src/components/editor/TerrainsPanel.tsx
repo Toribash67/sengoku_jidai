@@ -22,10 +22,10 @@ export function isGenerating(terrains: TerrainInfo[]): boolean {
 
 /** Pure: whether "Generate" is enabled, and the disabled reason to show. Precedence:
  *  unavailable > generating > cap. */
-export function canGenerate(args: {
-  terrains: TerrainInfo[];
-  unavailable: boolean;
-}): { enabled: boolean; reason: string | null } {
+export function canGenerate(args: { terrains: TerrainInfo[]; unavailable: boolean }): {
+  enabled: boolean;
+  reason: string | null;
+} {
   if (args.unavailable) {
     return { enabled: false, reason: "Terrain generation isn’t configured on the server." };
   }
@@ -195,7 +195,9 @@ export function TerrainsPanel({
     if (name.length === 0 || !current || name === current.name) {
       return; // empty or unchanged: no-op
     }
-    onTerrainsChange(terrains.map((terrain) => (terrain.id === id ? { ...terrain, name } : terrain)));
+    onTerrainsChange(
+      terrains.map((terrain) => (terrain.id === id ? { ...terrain, name } : terrain))
+    );
     try {
       await renameTerrain(mapId, id, name);
     } catch {
@@ -301,7 +303,11 @@ export function TerrainsPanel({
               {confirmingDeleteId === terrain.id ? (
                 <span className="terrain-confirm">
                   <span>Delete this terrain?</span>
-                  <button type="button" onClick={() => void confirmDelete(terrain.id)} disabled={busy}>
+                  <button
+                    type="button"
+                    onClick={() => void confirmDelete(terrain.id)}
+                    disabled={busy}
+                  >
                     Delete
                   </button>
                   <button type="button" onClick={() => setConfirmingDeleteId(null)}>
