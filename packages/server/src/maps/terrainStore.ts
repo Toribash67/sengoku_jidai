@@ -1,66 +1,158 @@
-import type { TerrainStatus } from "@sengoku-jidai/shared";
+import { randomUUID } from "node:crypto";
+import type { TerrainInfo, TerrainStatus } from "@sengoku-jidai/shared";
 import type { SqliteDatabase } from "../persistence/database.js";
 
-interface TerrainRow {
+interface Row {
+  id: string;
+  map_id: string;
+  name: string;
+  style_id: string;
   status: Exclude<TerrainStatus, "none">;
   webp: Buffer | null;
   updated_at: string;
 }
 
-/** Owns the `map_terrain` table: per-map generation status + the webp blob. A map with no
- *  row reports status "none". */
+/** Owns `map_terrains`: many named, styled terrains per map. Terrains are addressed by a
+ *  surrogate id; the legacy per-map adapters (status/webp/updatedAt/primaryId) resolve the
+ *  map's "primary" terrain — the oldest row — for the retained single-terrain routes/field. */
 export class TerrainStore {
   constructor(private readonly db: SqliteDatabase) {}
 
-  private row(mapId: string): TerrainRow | undefined {
-    return this.db
-      .prepare("SELECT status, webp, updated_at FROM map_terrain WHERE map_id = ?")
-      .get(mapId) as TerrainRow | undefined;
+  private toInfo(r: Row): TerrainInfo {
+    return {
+      id: r.id,
+      name: r.name,
+      styleId: r.style_id as TerrainInfo["styleId"],
+      status: r.status,
+      updatedAt: r.updated_at
+    };
   }
 
-  status(mapId: string): TerrainStatus {
-    return this.row(mapId)?.status ?? "none";
-  }
-
-  updatedAt(mapId: string): string | null {
-    return this.row(mapId)?.updated_at ?? null;
-  }
-
-  webp(mapId: string): Buffer | null {
-    const row = this.row(mapId);
-    return row?.status === "ready" && row.webp ? row.webp : null;
-  }
-
-  private upsert(mapId: string, status: string, webp: Buffer | null, error: string | null): void {
+  create(mapId: string, name: string, styleId: string): string {
+    const id = randomUUID();
+    const now = new Date().toISOString();
     this.db
       .prepare(
-        `INSERT INTO map_terrain (map_id, status, webp, error, updated_at)
-         VALUES (@id, @status, @webp, @error, @now)
-         ON CONFLICT(map_id) DO UPDATE SET
-           status = @status, webp = @webp, error = @error, updated_at = @now`
+        `INSERT INTO map_terrains (id, map_id, name, style_id, status, webp, error, created_at, updated_at)
+         VALUES (@id, @mapId, @name, @styleId, 'pending', NULL, NULL, @now, @now)`
       )
-      .run({ id: mapId, status, webp, error, now: new Date().toISOString() });
+      .run({ id, mapId, name, styleId, now });
+    return id;
   }
 
-  markPending(mapId: string): void {
-    this.upsert(mapId, "pending", null, null);
+  list(mapId: string): TerrainInfo[] {
+    return (
+      this.db
+        .prepare("SELECT * FROM map_terrains WHERE map_id = ? ORDER BY created_at ASC, rowid ASC")
+        .all(mapId) as Row[]
+    ).map((r) => this.toInfo(r));
   }
 
-  saveReady(mapId: string, webp: Buffer): void {
-    this.upsert(mapId, "ready", webp, null);
+  get(terrainId: string): TerrainInfo | null {
+    const r = this.db.prepare("SELECT * FROM map_terrains WHERE id = ?").get(terrainId) as
+      | Row
+      | undefined;
+    return r ? this.toInfo(r) : null;
   }
 
-  markFailed(mapId: string, error: string): void {
-    this.upsert(mapId, "failed", null, error);
+  countForMap(mapId: string): number {
+    return (
+      this.db.prepare("SELECT COUNT(*) AS n FROM map_terrains WHERE map_id = ?").get(mapId) as {
+        n: number;
+      }
+    ).n;
   }
 
-  /** Boot recovery: in-process generation cannot survive a restart, so any row still
-   *  "pending" has no worker behind it — flip it to failed so the author can retry. */
+  styleIdOf(terrainId: string): string | null {
+    const r = this.db.prepare("SELECT style_id FROM map_terrains WHERE id = ?").get(terrainId) as
+      | { style_id: string }
+      | undefined;
+    return r?.style_id ?? null;
+  }
+
+  rename(terrainId: string, name: string): boolean {
+    return (
+      this.db
+        .prepare("UPDATE map_terrains SET name = ?, updated_at = ? WHERE id = ?")
+        .run(name, new Date().toISOString(), terrainId).changes > 0
+    );
+  }
+
+  remove(terrainId: string): boolean {
+    return this.db.prepare("DELETE FROM map_terrains WHERE id = ?").run(terrainId).changes > 0;
+  }
+
+  markPendingById(terrainId: string): void {
+    this.db
+      .prepare(
+        "UPDATE map_terrains SET status = 'pending', webp = NULL, error = NULL, updated_at = ? WHERE id = ?"
+      )
+      .run(new Date().toISOString(), terrainId);
+  }
+
+  markReadyById(terrainId: string, webp: Buffer): void {
+    this.db
+      .prepare(
+        "UPDATE map_terrains SET status = 'ready', webp = ?, error = NULL, updated_at = ? WHERE id = ?"
+      )
+      .run(webp, new Date().toISOString(), terrainId);
+  }
+
+  markFailedById(terrainId: string, error: string): void {
+    this.db
+      .prepare(
+        "UPDATE map_terrains SET status = 'failed', webp = NULL, error = ?, updated_at = ? WHERE id = ?"
+      )
+      .run(error, new Date().toISOString(), terrainId);
+  }
+
+  webpById(terrainId: string): Buffer | null {
+    const r = this.db.prepare("SELECT status, webp FROM map_terrains WHERE id = ?").get(terrainId) as
+      | Pick<Row, "status" | "webp">
+      | undefined;
+    return r?.status === "ready" && r.webp ? r.webp : null;
+  }
+
+  updatedAtById(terrainId: string): string | null {
+    const r = this.db.prepare("SELECT updated_at FROM map_terrains WHERE id = ?").get(terrainId) as
+      | { updated_at: string }
+      | undefined;
+    return r?.updated_at ?? null;
+  }
+
+  /** Boot recovery: an in-process generation cannot survive a restart, so any "pending" row is
+   *  orphaned — flip it to failed so the author can retry. */
   resetInterrupted(): void {
     this.db
       .prepare(
-        "UPDATE map_terrain SET status = 'failed', error = 'interrupted', updated_at = ? WHERE status = 'pending'"
+        "UPDATE map_terrains SET status = 'failed', error = 'interrupted', updated_at = ? WHERE status = 'pending'"
       )
       .run(new Date().toISOString());
+  }
+
+  // --- Legacy per-map adapters (primary = oldest row) ---
+
+  primaryId(mapId: string): string | null {
+    const r = this.db
+      .prepare(
+        "SELECT id FROM map_terrains WHERE map_id = ? ORDER BY created_at ASC, rowid ASC LIMIT 1"
+      )
+      .get(mapId) as { id: string } | undefined;
+    return r?.id ?? null;
+  }
+
+  status(mapId: string): TerrainStatus {
+    const id = this.primaryId(mapId);
+    return id ? (this.get(id)!.status as TerrainStatus) : "none";
+  }
+
+  updatedAt(mapId: string): string | null {
+    const id = this.primaryId(mapId);
+    return id ? this.updatedAtById(id) : null;
+  }
+
+  webp(mapId: string): Buffer | null {
+    const id = this.primaryId(mapId);
+    return id ? this.webpById(id) : null;
   }
 }

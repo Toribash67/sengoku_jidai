@@ -23,7 +23,12 @@ export function runMigrations(db: SqliteDatabase): void {
     );
   `);
 
-  const migrations = ["001_initial.sql", "002_maps.sql", "003_map_terrain.sql"];
+  const migrations = [
+    "001_initial.sql",
+    "002_maps.sql",
+    "003_map_terrain.sql",
+    "004_map_terrains.sql"
+  ];
   const migrationDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../migrations");
 
   for (const migration of migrations) {
