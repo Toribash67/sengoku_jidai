@@ -67,3 +67,33 @@ export function loadPanelWidth(): number | null {
 export function savePanelWidth(width: number): void {
   localStorage.setItem(panelWidthKey, String(Math.round(width)));
 }
+
+// --- Per-map terrain choice (the play-view picker's per-viewer preference) ---
+const terrainChoiceKey = "sengoku-jidai.terrainChoice";
+
+type TerrainChoiceStore = Record<string, string>;
+
+function readTerrainChoices(): TerrainChoiceStore {
+  const raw = localStorage.getItem(terrainChoiceKey);
+  if (!raw) {
+    return {};
+  }
+  try {
+    return JSON.parse(raw) as TerrainChoiceStore;
+  } catch {
+    localStorage.removeItem(terrainChoiceKey);
+    return {};
+  }
+}
+
+/** The persisted terrain option key for a map, or null if unset. */
+export function loadTerrainChoice(mapId: string): string | null {
+  return readTerrainChoices()[mapId] ?? null;
+}
+
+/** Persist the chosen terrain option key for a map. */
+export function saveTerrainChoice(mapId: string, key: string): void {
+  const store = readTerrainChoices();
+  store[mapId] = key;
+  localStorage.setItem(terrainChoiceKey, JSON.stringify(store));
+}
