@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { TERRAIN_STYLES, DEFAULT_TERRAIN_STYLE, isTerrainStyleId } from "../src/api.js";
+import {
+  TERRAIN_STYLES,
+  DEFAULT_TERRAIN_STYLE,
+  isTerrainStyleId,
+  MAX_TERRAINS_PER_MAP
+} from "../src/api.js";
 
 describe("terrain style catalog", () => {
   it("lists antique (default, first) and ink with labels", () => {
@@ -18,5 +23,11 @@ describe("terrain style catalog", () => {
     expect(isTerrainStyleId("antique")).toBe(true);
     expect(isTerrainStyleId("ink")).toBe(true);
     expect(isTerrainStyleId("watercolour")).toBe(false);
+  });
+});
+
+describe("terrain limits", () => {
+  it("caps terrains per map at a positive number", () => {
+    expect(MAX_TERRAINS_PER_MAP).toBe(6);
   });
 });

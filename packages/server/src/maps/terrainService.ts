@@ -2,20 +2,24 @@ import { compileHexMap } from "@sengoku-jidai/engine";
 import type { HexMapSource } from "@sengoku-jidai/engine";
 import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
 import { DEFAULT_TERRAIN_STYLE } from "@sengoku-jidai/shared";
+import type { TerrainInfo } from "@sengoku-jidai/shared";
 import {
   createFalClient,
   generateTerrainWebp,
   loadStyleProfile,
-  type EditDeps,
-  type MapProfile
+  type EditDeps
 } from "@sengoku-jidai/terrain";
 import type { MapLibrary } from "./library.js";
 import type { TerrainStore } from "./terrainStore.js";
 
-/** The default terrain profile: the shared default style, resolved by the terrain package
- *  (works from source and the built image without a hand-built relative path). */
-function defaultProfile(): MapProfile {
-  return loadStyleProfile(DEFAULT_TERRAIN_STYLE);
+/** Next auto name: "Terrain N" where N is one past the highest existing "Terrain <n>" (names are
+ *  renameable and not unique, so we key off the number, not the count). */
+export function autoName(existing: Pick<TerrainInfo, "name">[]): string {
+  const max = existing.reduce((m, t) => {
+    const match = /^Terrain (\d+)$/.exec(t.name);
+    return match ? Math.max(m, Number(match[1])) : m;
+  }, 0);
+  return `Terrain ${max + 1}`;
 }
 
 interface TerrainServiceArgs {
@@ -23,7 +27,6 @@ interface TerrainServiceArgs {
   store: TerrainStore;
   falKey: string | undefined;
   deps?: EditDeps;
-  profile?: MapProfile;
 }
 
 export class TerrainService {
@@ -31,7 +34,6 @@ export class TerrainService {
   private readonly store: TerrainStore;
   private readonly falKey: string | undefined;
   private readonly deps: EditDeps | undefined;
-  private readonly profile: MapProfile;
   private readonly inflight = new Set<string>();
 
   constructor(args: TerrainServiceArgs) {
@@ -39,7 +41,6 @@ export class TerrainService {
     this.store = args.store;
     this.falKey = args.falKey;
     this.deps = args.deps;
-    this.profile = args.profile ?? defaultProfile();
   }
 
   available(): boolean {
@@ -59,16 +60,39 @@ export class TerrainService {
     return { fal, fetch: globalThis.fetch };
   }
 
-  async generate(mapId: string): Promise<void> {
+  /** Create a new terrain for the map and generate it. Returns the new terrain id. The route
+   *  enforces availability, existence, built-in, in-flight, and cap guards first. */
+  generate(mapId: string, styleId: string): string {
+    const id = this.store.create(mapId, autoName(this.store.list(mapId)), styleId);
+    void this.run(mapId, id, styleId);
+    return id;
+  }
+
+  /** Legacy adapter for POST /terrain: regenerate the map's primary terrain in place, or create
+   *  "Terrain 1" (antique) if the map has none. Preserves the current single-terrain UX. */
+  regeneratePrimary(mapId: string): void {
+    const primary = this.store.primaryId(mapId);
+    if (primary) {
+      const styleId = this.store.styleIdOf(primary) ?? DEFAULT_TERRAIN_STYLE;
+      void this.run(mapId, primary, styleId);
+      return;
+    }
+    const id = this.store.create(mapId, "Terrain 1", DEFAULT_TERRAIN_STYLE);
+    void this.run(mapId, id, DEFAULT_TERRAIN_STYLE);
+  }
+
+  /** Shared worker: compile → board SVG → terrain webp (style profile) → store by id. In-flight
+   *  guard is keyed by map id so a map generates one terrain at a time. Re-flags the row pending
+   *  first so a regenerated primary shows progress (a fresh row is already pending — harmless). */
+  private async run(mapId: string, terrainId: string, styleId: string): Promise<void> {
     const detail = this.library.get(mapId);
     if (!detail || detail.builtin) {
-      return; // routes reject these before calling; guard anyway, record nothing
+      return;
     }
     this.inflight.add(mapId);
+    this.store.markPendingById(terrainId);
     try {
-      this.store.markPending(mapId);
-      const source = detail.source as HexMapSource;
-      const compiled = compileHexMap(source);
+      const compiled = compileHexMap(detail.source as HexMapSource);
       const svgMarkup = assembleBoardSvg(buildScene(compiled));
       const deps = await this.resolveDeps();
       // gpt-image has no seed and varies naturally between runs, so regenerate-for-variety
@@ -76,11 +100,11 @@ export class TerrainService {
       const webp = await generateTerrainWebp(deps, {
         svgMarkup,
         map: compiled.definition,
-        profile: this.profile
+        profile: loadStyleProfile(styleId)
       });
-      this.store.saveReady(mapId, webp);
+      this.store.markReadyById(terrainId, webp);
     } catch (err) {
-      this.store.markFailed(mapId, err instanceof Error ? err.message : String(err));
+      this.store.markFailedById(terrainId, err instanceof Error ? err.message : String(err));
     } finally {
       this.inflight.delete(mapId);
     }

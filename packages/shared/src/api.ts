@@ -72,13 +72,29 @@ export interface ListMapsResponse {
   maps: MapSummary[];
 }
 
+/** Max terrains a single map may hold (bounds fal cost + DB blob storage). Shared so the editor
+ *  can disable "generate" at the cap using the same number the server enforces. */
+export const MAX_TERRAINS_PER_MAP = 6;
+
+/** One generated terrain belonging to a map. */
+export interface TerrainInfo {
+  id: string;
+  name: string;
+  styleId: TerrainStyleId;
+  status: Exclude<TerrainStatus, "none">; // a stored terrain is always pending | ready | failed
+  updatedAt: string;
+}
+
 export interface MapDetail {
   id: string;
   name: string;
   builtin: boolean;
   updatedAt: string | null;
-  /** Server-side terrain generation state; "none" for built-ins and un-generated maps. */
+  /** LEGACY: the primary (oldest) terrain's status, "none" if the map has no terrains. Kept for
+   *  the current web app; removed in PR-C once the play view uses `terrains`. */
   terrain: TerrainStatus;
+  /** All terrains for this map, oldest first. Empty for built-ins. */
+  terrains: TerrainInfo[];
   source: z.infer<typeof hexMapSourceSchema>;
 }
 
