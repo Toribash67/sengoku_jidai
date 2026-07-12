@@ -7,7 +7,7 @@ describe("loadMapProfile", () => {
     const path = fileURLToPath(new URL("../profiles/map.json", import.meta.url));
     const p = loadMapProfile(path);
     expect(p.edit.prompt.length).toBeGreaterThan(0);
-    expect(p.edit.styleRef.length).toBeGreaterThan(0);
+    expect(p.edit.styleRef?.length).toBeGreaterThan(0);
     expect(p.base.outputSize.width).toBeGreaterThan(0);
     expect(p.base.organicSigma).toBeGreaterThanOrEqual(0);
     expect(p.base.background).toBe("sea"); // custom maps default to islands-in-an-ocean

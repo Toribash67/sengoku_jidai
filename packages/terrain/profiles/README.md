@@ -17,11 +17,16 @@ applied to every map so backgrounds look like siblings.
 
 ## `edit` — the style pass
 
-- `model`: the fal.ai multi-image edit endpoint (default `fal-ai/nano-banana-pro/edit`).
-- `styleRef`: path (relative to the package root) to the style reference image.
-- `resolution`: `1K` / `2K` / `4K`.
-- `seed`: locked seed for reproducibility.
+- `model`: the fal.ai multi-image edit endpoint (default `fal-ai/gpt-image-1.5/edit`).
+- `styleRef`: optional path (relative to the package root) to the style reference image. When
+  absent, generation is prompt-only (just the control image is sent).
+- `quality`: gpt-image cost/quality tier — `low` / `medium` / `high`.
+- `inputFidelity`: how strongly gpt-image preserves the control's structure — `low` / `high`
+  (`high` keeps island placement).
 - `prompt`: instructions mapping green→land and blue→sea in the reference's style.
+
+The board's variable aspect is reconciled with gpt-image's fixed output sizes by padding the
+control into the least-padding size and cropping the result back (see `gptImageAspect.ts`).
 
 ## `webpQuality`
 

@@ -33,10 +33,13 @@ const MapProfileSchema = z.object({
    *  reference image → the map redrawn in that style. `styleRef` is relative to the terrain
    *  package root. */
   edit: z.object({
-    model: z.string().default("fal-ai/nano-banana-pro/edit"),
-    styleRef: z.string().default("assets/style-ref.jpeg"),
-    resolution: z.enum(["1K", "2K", "4K"]).default("2K"),
-    seed: z.number().int().default(1568),
+    model: z.string().default("fal-ai/gpt-image-1.5/edit"),
+    /** Optional style-reference image (relative to the terrain package root). Absent = prompt-only. */
+    styleRef: z.string().optional(),
+    /** gpt-image cost/quality tier. */
+    quality: z.enum(["low", "medium", "high"]).default("high"),
+    /** How strongly gpt-image preserves the control's structure. "high" keeps island placement. */
+    inputFidelity: z.enum(["low", "high"]).default("high"),
     prompt: z.string().min(1)
   }),
   webpQuality: z.number().int().min(1).max(100).default(82)

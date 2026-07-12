@@ -24,25 +24,64 @@ describe("editMapPass", () => {
       {
         controlImage: Buffer.from("control"),
         styleImage: Buffer.from("style"),
-        model: "fal-ai/nano-banana-pro/edit",
+        model: "fal-ai/gpt-image-1.5/edit",
         prompt: "grey is land, blue is sea",
-        resolution: "2K",
-        seed: 1568
+        imageSize: "1024x1024",
+        quality: "high",
+        inputFidelity: "high"
       }
     );
 
     expect(upload).toHaveBeenCalledTimes(2); // control + style reference
     const [model, opts] = fal.subscribe.mock.calls[0]!;
-    expect(model).toBe("fal-ai/nano-banana-pro/edit");
+    expect(model).toBe("fal-ai/gpt-image-1.5/edit");
     expect(opts.input).toMatchObject({
-      prompt: "grey is land, blue is sea",
-      image_urls: ["https://up/control.png", "https://up/style.jpeg"],
-      resolution: "2K",
-      seed: 1568,
-      num_images: 1
+      prompt: expect.any(String),
+      image_urls: [expect.any(String), expect.any(String)],
+      num_images: 1,
+      image_size: "1024x1024",
+      quality: "high",
+      input_fidelity: "high",
+      output_format: "png"
     });
+    expect(opts.input).not.toHaveProperty("resolution");
+    expect(opts.input).not.toHaveProperty("seed");
     expect(fetch).toHaveBeenCalledWith("https://out/map.png");
     expect(out.toString()).toBe("MAPBYTES");
+  });
+
+  it("uploads only the control image when styleImage is null", async () => {
+    const upload = vi
+      .fn<(blob: Blob) => Promise<string>>()
+      .mockResolvedValueOnce("https://up/control.png");
+    const fal = {
+      storage: { upload },
+      subscribe: vi.fn(async (_model: string, _opts: { input: Record<string, unknown> }) => ({
+        data: { images: [{ url: "https://out/map.png" }] }
+      }))
+    };
+    const fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => new TextEncoder().encode("MAPBYTES").buffer
+    }));
+
+    await editMapPass(
+      { fal, fetch },
+      {
+        controlImage: Buffer.from("control"),
+        styleImage: null,
+        model: "fal-ai/gpt-image-1.5/edit",
+        prompt: "grey is land, blue is sea",
+        imageSize: "1024x1024",
+        quality: "high",
+        inputFidelity: "high"
+      }
+    );
+
+    expect(upload).toHaveBeenCalledTimes(1);
+    const [, opts] = fal.subscribe.mock.calls[0]!;
+    expect((opts.input as { image_urls: string[] }).image_urls).toHaveLength(1);
   });
 
   it("throws when the result fetch fails", async () => {
@@ -63,8 +102,9 @@ describe("editMapPass", () => {
           styleImage: Buffer.from("s"),
           model: "m",
           prompt: "p",
-          resolution: "1K",
-          seed: 1
+          imageSize: "1024x1024",
+          quality: "high",
+          inputFidelity: "high"
         }
       )
     ).rejects.toThrow(/503/);

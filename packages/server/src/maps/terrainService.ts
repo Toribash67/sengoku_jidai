@@ -72,16 +72,12 @@ export class TerrainService {
       const compiled = compileHexMap(source);
       const svgMarkup = assembleBoardSvg(buildScene(compiled));
       const deps = await this.resolveDeps();
-      // Reroll the seed each run so regenerating the same map yields a different look
-      // (spec: "each run varies the fal seed"). A fresh 31-bit seed per generation.
-      const profile: MapProfile = {
-        ...this.profile,
-        edit: { ...this.profile.edit, seed: Math.floor(Math.random() * 0x7fffffff) }
-      };
+      // gpt-image has no seed and varies naturally between runs, so regenerate-for-variety
+      // still produces a different look without any reroll here.
       const webp = await generateTerrainWebp(deps, {
         svgMarkup,
         map: compiled.definition,
-        profile
+        profile: this.profile
       });
       this.store.saveReady(mapId, webp);
     } catch (err) {
