@@ -1,7 +1,13 @@
-# Map profile
+# Map profiles
 
-[`map.json`](map.json) is the single shared profile for terrain generation. One style is
-applied to every map so backgrounds look like siblings.
+Each terrain **style** is one profile JSON here, sharing the schema below:
+
+- [`map.json`](map.json) — `antique`, the colored hand-drawn Japanese look (default).
+- [`ink.json`](ink.json) — `ink`, a greyscale pen-and-ink cartography look (same schema, a
+  different prompt + texture swatch).
+
+`loadStyleProfile(id)` in the terrain package resolves a style id (from `TERRAIN_STYLES` in
+`@sengoku-jidai/shared`) to one of these files.
 
 ## `base` — the land/sea control
 
