@@ -269,6 +269,7 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
       ) : null}
       {state.doc.id && state.doc.id !== "rivers" ? (
         <TerrainsPanel
+          key={state.doc.id}
           mapId={state.doc.id}
           terrains={terrains}
           selectedTerrainId={selectedTerrainId}

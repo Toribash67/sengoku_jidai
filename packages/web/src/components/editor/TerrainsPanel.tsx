@@ -150,7 +150,14 @@ export function TerrainsPanel({
     setError(null);
     setBusy(true);
     try {
-      await deleteTerrain(mapId, terrain.id);
+      try {
+        await deleteTerrain(mapId, terrain.id);
+      } catch (err) {
+        if (!(err instanceof ApiError && err.status === 404)) {
+          throw err; // a real delete failure aborts the retry
+        }
+        // 404: the terrain was already removed — proceed to create a fresh one
+      }
       const { id } = await createTerrain(mapId, terrain.styleId);
       onSelect(id);
       await refetch();
