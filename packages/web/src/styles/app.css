@@ -1064,6 +1064,77 @@ button:disabled {
   align-items: center;
   gap: 8px;
 }
+.editor-terrains {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+.terrains-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.terrains-title {
+  font-weight: 600;
+}
+.terrains-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.terrain-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.terrain-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.terrain-name {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: text;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+.terrain-name-edit {
+  font: inherit;
+  padding: 2px 4px;
+}
+.terrain-badge {
+  font-size: 12px;
+  text-transform: capitalize;
+}
+.terrain-badge.is-ready {
+  color: #2e7d32;
+}
+.terrain-badge.is-pending {
+  color: var(--muted, #888);
+}
+.terrain-badge.is-failed {
+  color: #c62828;
+}
+.terrain-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.terrain-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
 .editor-body {
   display: flex;
   flex: 1;
