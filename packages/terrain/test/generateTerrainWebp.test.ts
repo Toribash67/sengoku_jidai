@@ -33,8 +33,8 @@ const PROFILE: MapProfile = {
   edit: {
     model: "fake/model",
     styleRef: "assets/style-ref.jpeg",
-    resolution: "1K",
-    seed: 1,
+    quality: "high",
+    inputFidelity: "high",
     prompt: "draw a map"
   },
   webpQuality: 80

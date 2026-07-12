@@ -39,7 +39,7 @@ describe("runMapPipeline", () => {
     expect(fal.storage.upload).toHaveBeenCalledTimes(2); // control + style reference uploaded
     // image_urls carries both uploads, ordered [control, style].
     const [model, opts] = subscribe.mock.calls[0]!;
-    expect(model).toBe("fal-ai/nano-banana-pro/edit");
+    expect(model).toBe("fal-ai/gpt-image-1.5/edit");
     expect((opts.input as { image_urls: string[] }).image_urls).toHaveLength(2);
     // The core no longer returns intermediates, so the dev CLI only writes the final webp.
     expect(existsSync(join(outDir, "background.webp"))).toBe(true);

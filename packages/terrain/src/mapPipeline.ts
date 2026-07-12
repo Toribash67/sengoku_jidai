@@ -53,8 +53,10 @@ export async function generateTerrainWebp(
     styleImage,
     model: profile.edit.model,
     prompt: profile.edit.prompt,
-    resolution: profile.edit.resolution,
-    seed: profile.edit.seed
+    // TODO(Task 3): derive from planGptImageAspect + pad/crop instead of a fixed square.
+    imageSize: "1024x1024",
+    quality: profile.edit.quality,
+    inputFidelity: profile.edit.inputFidelity
   });
   return toWebp(edited, { width, height, quality: profile.webpQuality });
 }
