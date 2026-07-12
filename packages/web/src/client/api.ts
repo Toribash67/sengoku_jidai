@@ -4,7 +4,8 @@ import type {
   ListMapsResponse,
   MapDetail,
   PlayerGameViewEnvelope,
-  SubmitCommandResponse
+  SubmitCommandResponse,
+  TerrainStyleId
 } from "@sengoku-jidai/shared";
 import type {
   Command,
@@ -77,6 +78,34 @@ export async function deleteMap(mapId: string): Promise<void> {
 
 export async function generateTerrain(mapId: string): Promise<void> {
   await request(`/api/maps/${encodeURIComponent(mapId)}/terrain`, { method: "POST" });
+}
+
+export async function createTerrain(
+  mapId: string,
+  styleId: TerrainStyleId
+): Promise<{ id: string }> {
+  return request(`/api/maps/${encodeURIComponent(mapId)}/terrains`, {
+    method: "POST",
+    body: JSON.stringify({ styleId })
+  });
+}
+
+export async function renameTerrain(
+  mapId: string,
+  terrainId: string,
+  name: string
+): Promise<void> {
+  await request(
+    `/api/maps/${encodeURIComponent(mapId)}/terrains/${encodeURIComponent(terrainId)}`,
+    { method: "PATCH", body: JSON.stringify({ name }) }
+  );
+}
+
+export async function deleteTerrain(mapId: string, terrainId: string): Promise<void> {
+  await request(
+    `/api/maps/${encodeURIComponent(mapId)}/terrains/${encodeURIComponent(terrainId)}`,
+    { method: "DELETE" }
+  );
 }
 
 export async function fetchGameView(
