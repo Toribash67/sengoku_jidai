@@ -206,7 +206,10 @@ describe("terrain API", () => {
     const { app, store } = buildTestApp();
     const mapId = await createMap(app);
     const tid = store.create(mapId, "Terrain 1", "antique");
-    const before = await app.inject({ method: "GET", url: `/api/maps/${mapId}/terrains/${tid}.webp` });
+    const before = await app.inject({
+      method: "GET",
+      url: `/api/maps/${mapId}/terrains/${tid}.webp`
+    });
     expect(before.statusCode).toBe(404);
     store.markReadyById(tid, Buffer.from([1, 2, 3]));
     const ok = await app.inject({ method: "GET", url: `/api/maps/${mapId}/terrains/${tid}.webp` });

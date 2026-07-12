@@ -6,6 +6,10 @@ import { TerrainStore } from "../src/maps/terrainStore.js";
 import { TerrainService } from "../src/maps/terrainService.js";
 import type { EditDeps } from "@sengoku-jidai/terrain";
 
+// Generation is fire-and-forget and does real sharp image work, which is markedly slower under
+// the full parallel suite — poll with a generous budget (exits as soon as the condition holds).
+const waitFor = (fn: () => void) => vi.waitFor(fn, { timeout: 20000, interval: 50 });
+
 function fakeDeps(): EditDeps {
   const onePxPng = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
@@ -46,7 +50,7 @@ describe("TerrainService", () => {
     const { library, store, mapId } = setup();
     const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
     const id = service.generate(mapId, "antique");
-    await vi.waitFor(() => expect(store.get(id)?.status).toBe("ready"));
+    await waitFor(() => expect(store.get(id)?.status).toBe("ready"));
     expect(store.webpById(id)?.subarray(8, 12).toString("ascii")).toBe("WEBP");
     expect(store.list(mapId).map((t) => t.name)).toEqual(["Terrain 1"]);
   });
@@ -55,7 +59,7 @@ describe("TerrainService", () => {
     const { library, store, mapId } = setup();
     const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
     const id = service.generate(mapId, "ink");
-    await vi.waitFor(() => expect(store.get(id)?.status).toBe("ready"));
+    await waitFor(() => expect(store.get(id)?.status).toBe("ready"));
     expect(store.styleIdOf(id)).toBe("ink");
   });
 
@@ -64,17 +68,17 @@ describe("TerrainService", () => {
     const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
     service.generate(mapId, "antique");
     expect(service.isGenerating(mapId)).toBe(true);
-    await vi.waitFor(() => expect(service.isGenerating(mapId)).toBe(false));
+    await waitFor(() => expect(service.isGenerating(mapId)).toBe(false));
   });
 
   it("regeneratePrimary() creates Terrain 1 when none, then regenerates it in place", async () => {
     const { library, store, mapId } = setup();
     const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
     service.regeneratePrimary(mapId);
-    await vi.waitFor(() => expect(store.status(mapId)).toBe("ready"));
+    await waitFor(() => expect(store.status(mapId)).toBe("ready"));
     const firstId = store.primaryId(mapId);
     service.regeneratePrimary(mapId);
-    await vi.waitFor(() => expect(store.status(mapId)).toBe("ready"));
+    await waitFor(() => expect(store.status(mapId)).toBe("ready"));
     expect(store.primaryId(mapId)).toBe(firstId); // same row, regenerated
     expect(store.list(mapId)).toHaveLength(1);
   });
@@ -89,7 +93,7 @@ describe("TerrainService", () => {
     });
     const service = new TerrainService({ library, store, falKey: "k", deps });
     const id = service.generate(mapId, "antique");
-    await vi.waitFor(() => expect(store.get(id)?.status).toBe("ready"));
+    await waitFor(() => expect(store.get(id)?.status).toBe("ready"));
     expect(inputs).toHaveLength(1);
     expect(inputs[0]).not.toHaveProperty("seed");
     expect(inputs[0]).not.toHaveProperty("resolution");
@@ -103,6 +107,6 @@ describe("TerrainService", () => {
     });
     const service = new TerrainService({ library, store, falKey: "k", deps });
     const id = service.generate(mapId, "antique");
-    await vi.waitFor(() => expect(store.get(id)?.status).toBe("failed"));
+    await waitFor(() => expect(store.get(id)?.status).toBe("failed"));
   });
 });

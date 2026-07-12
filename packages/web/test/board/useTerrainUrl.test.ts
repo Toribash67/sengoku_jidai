@@ -9,6 +9,7 @@ function detail(terrain: MapDetail["terrain"]): MapDetail {
     builtin: false,
     updatedAt: "t",
     terrain,
+    terrains: [],
     source: {} as never
   };
 }

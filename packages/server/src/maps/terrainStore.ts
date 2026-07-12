@@ -107,9 +107,9 @@ export class TerrainStore {
   }
 
   webpById(terrainId: string): Buffer | null {
-    const r = this.db.prepare("SELECT status, webp FROM map_terrains WHERE id = ?").get(terrainId) as
-      | Pick<Row, "status" | "webp">
-      | undefined;
+    const r = this.db
+      .prepare("SELECT status, webp FROM map_terrains WHERE id = ?")
+      .get(terrainId) as Pick<Row, "status" | "webp"> | undefined;
     return r?.status === "ready" && r.webp ? r.webp : null;
   }
 

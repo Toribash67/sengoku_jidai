@@ -34,11 +34,13 @@ describe("migration 004 (map_terrain -> map_terrains)", () => {
       webp: Buffer;
     }>;
     expect(rows).toHaveLength(1);
-    expect(rows[0].map_id).toBe("m1");
-    expect(rows[0].name).toBe("Terrain 1");
-    expect(rows[0].style_id).toBe("antique");
-    expect(rows[0].status).toBe("ready");
-    expect(Buffer.from(rows[0].webp)).toEqual(blob);
+    const row = rows[0];
+    if (!row) throw new Error("expected a migrated row");
+    expect(row.map_id).toBe("m1");
+    expect(row.name).toBe("Terrain 1");
+    expect(row.style_id).toBe("antique");
+    expect(row.status).toBe("ready");
+    expect(Buffer.from(row.webp)).toEqual(blob);
     expect(() => db.prepare("SELECT 1 FROM map_terrain").get()).toThrow(/no such table/);
   });
 });

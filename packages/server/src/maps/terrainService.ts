@@ -3,7 +3,12 @@ import type { HexMapSource } from "@sengoku-jidai/engine";
 import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
 import { DEFAULT_TERRAIN_STYLE } from "@sengoku-jidai/shared";
 import type { TerrainInfo } from "@sengoku-jidai/shared";
-import { createFalClient, generateTerrainWebp, loadStyleProfile, type EditDeps } from "@sengoku-jidai/terrain";
+import {
+  createFalClient,
+  generateTerrainWebp,
+  loadStyleProfile,
+  type EditDeps
+} from "@sengoku-jidai/terrain";
 import type { MapLibrary } from "./library.js";
 import type { TerrainStore } from "./terrainStore.js";
 
