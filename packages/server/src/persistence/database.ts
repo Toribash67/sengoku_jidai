@@ -27,7 +27,8 @@ export function runMigrations(db: SqliteDatabase): void {
     "001_initial.sql",
     "002_maps.sql",
     "003_map_terrain.sql",
-    "004_map_terrains.sql"
+    "004_map_terrains.sql",
+    "005_admin_tokens.sql"
   ];
   const migrationDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../migrations");
 

@@ -26,6 +26,28 @@ export interface SeatToken {
   token: string;
 }
 
+export interface AdminSeatSummary {
+  seat: SeatId;
+  name: string | null;
+  status: SeatStatus;
+  token: string | null;
+}
+
+export interface AdminGameSummary {
+  id: string;
+  mode: GameMode;
+  status: string;
+  mapId: string;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+  seats: AdminSeatSummary[];
+}
+
+export interface AdminGamesResponse {
+  games: AdminGameSummary[];
+}
+
 export interface CreateGameResponse<View = unknown> extends PlayerGameViewEnvelope<View> {
   seats: SeatToken[];
 }

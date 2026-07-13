@@ -13,7 +13,7 @@ import {
   type PlayerGameView,
   type SeatId
 } from "@sengoku-jidai/engine";
-import type { GameSeatInfo, SeatStatus } from "@sengoku-jidai/shared";
+import type { AdminGameSummary, GameSeatInfo, SeatStatus } from "@sengoku-jidai/shared";
 import { randomUUID } from "node:crypto";
 import { issueToken } from "../sessions/tokens.js";
 import type { SqliteDatabase } from "./database.js";
@@ -75,6 +75,23 @@ interface SeatInfoRow {
   status: SeatStatus;
 }
 
+interface AdminGameRow {
+  id: string;
+  mode: AdminGameSummary["mode"];
+  status: string;
+  map_id: string;
+  current_revision: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AdminSeatRow {
+  seat: SeatId;
+  display_name: string | null;
+  status: SeatStatus;
+  token: string | null;
+}
+
 export class GameRepository {
   constructor(private readonly db: SqliteDatabase) {}
 
@@ -83,6 +100,46 @@ export class GameRepository {
       .prepare("SELECT seat, display_name, status FROM game_seats WHERE game_id = ? ORDER BY seat")
       .all(gameId) as SeatInfoRow[];
     return rows.map((r) => ({ seat: r.seat, name: r.display_name, status: r.status }));
+  }
+
+  listGamesForAdmin(): AdminGameSummary[] {
+    const games = this.db
+      .prepare(
+        `SELECT id, mode, status, map_id, current_revision, created_at, updated_at
+         FROM games
+         ORDER BY updated_at DESC`
+      )
+      .all() as AdminGameRow[];
+
+    const seatStmt = this.db.prepare(
+      `SELECT s.seat AS seat, s.display_name AS display_name, s.status AS status, sess.token AS token
+       FROM game_seats s
+       LEFT JOIN game_sessions sess
+         ON sess.game_id = s.game_id AND sess.seat = s.seat AND sess.revoked_at IS NULL
+       WHERE s.game_id = ?
+       ORDER BY s.seat`
+    );
+
+    return games.map((game) => ({
+      id: game.id,
+      mode: game.mode,
+      status: game.status,
+      mapId: game.map_id,
+      revision: game.current_revision,
+      createdAt: game.created_at,
+      updatedAt: game.updated_at,
+      seats: (seatStmt.all(game.id) as AdminSeatRow[]).map((row) => ({
+        seat: row.seat,
+        name: row.display_name,
+        status: row.status,
+        token: row.token ?? null
+      }))
+    }));
+  }
+
+  deleteGame(gameId: string): boolean {
+    const info = this.db.prepare("DELETE FROM games WHERE id = ?").run(gameId);
+    return info.changes > 0;
   }
 
   createGame(
@@ -140,10 +197,10 @@ export class GameRepository {
         this.db
           .prepare(
             `INSERT INTO game_sessions
-              (id, token_hash, game_id, seat, created_at, last_seen_at, revoked_at)
-             VALUES (?, ?, ?, ?, ?, ?, NULL)`
+              (id, token_hash, token, game_id, seat, created_at, last_seen_at, revoked_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`
           )
-          .run(token.id, token.tokenHash, gameId, seat, now, now);
+          .run(token.id, token.tokenHash, token.token, gameId, seat, now, now);
       }
 
       this.insertSnapshot(state, now);
