@@ -152,6 +152,8 @@ export interface PlayerGameView {
   mode: GameMode;
   status: GameStatus;
   round: number;
+  /** The final round after which victory points are scored (from the ruleset). */
+  maxRounds: number;
   phase: Phase;
   initiative: SeatId;
   activeSeat: SeatId;
@@ -211,6 +213,7 @@ export function playerView(state: GameState, viewerSeat: SeatId): PlayerGameView
     mode: state.mode,
     status: state.status,
     round: state.round,
+    maxRounds: state.rules.maxRounds,
     phase: state.phase,
     initiative: state.initiative,
     activeSeat: state.activeSeat,
