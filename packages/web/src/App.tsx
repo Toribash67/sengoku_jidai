@@ -752,6 +752,9 @@ export function App() {
 
   const isViewerActive = game.view.activeSeat === game.view.viewerSeat;
 
+  // The engine always sets `winner` alongside `status: "complete"` (see engine resolve.ts /
+  // scoring.ts evaluateGameEnd), so the "" fallback here — and the unguarded winnerName in the
+  // completed-game banner below — is only a defence against a future refactor decoupling them.
   const winnerName = game.view.winner ? seatDisplayName(game.view.winner, game.seatInfo) : "";
 
   // A paused combat replaces the order bar with the roll step.
