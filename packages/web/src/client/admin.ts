@@ -1,11 +1,7 @@
 import type { AdminGamesResponse } from "@sengoku-jidai/shared";
 import { ApiError } from "./api.js";
 
-async function adminRequest<T>(
-  url: string,
-  password: string,
-  init: RequestInit = {}
-): Promise<T> {
+async function adminRequest<T>(url: string, password: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("authorization", `Bearer ${password}`);
 
