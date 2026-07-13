@@ -11,6 +11,9 @@ services:
       PORT: "80"
       SQLITE_PATH: /data/sengoku.sqlite
       LOG_LEVEL: info
+      # Set to enable the /admin panel (list, invite links, delete games).
+      # Leave unset to keep admin disabled. Only send over HTTPS.
+      # ADMIN_PASSWORD: change-me
     ports:
       - "18081:80"
     volumes:

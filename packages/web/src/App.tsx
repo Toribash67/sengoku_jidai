@@ -61,6 +61,7 @@ import { CreateGameScreen } from "./components/CreateGameScreen.js";
 import { ClaimSeatPrompt } from "./components/ClaimSeatPrompt.js";
 import { EditorScreen } from "./components/editor/EditorScreen.js";
 import { MapLibraryScreen } from "./components/MapLibraryScreen.js";
+import { AdminScreen } from "./components/AdminScreen.js";
 import { PlayersPanel } from "./components/PlayersPanel.js";
 
 const MIN_PANEL_WIDTH = 260;
@@ -689,6 +690,10 @@ export function App() {
 
   if (route.kind === "maps") {
     return <MapLibraryScreen />;
+  }
+
+  if (route.kind === "admin") {
+    return <AdminScreen />;
   }
 
   if (route.kind === "editor") {
