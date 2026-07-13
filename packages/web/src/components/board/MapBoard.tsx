@@ -10,7 +10,6 @@ export interface MapBoardProps {
    *  which App warms via `ensureMapLoaded` before rendering the game. */
   mapId: string;
   areas: PlayerAreaView[];
-  activeSeat: SeatId;
   selectedAreaId: string | null;
   actionSpaces: Record<string, SeatId | null>;
   onSelectArea: (areaId: string) => void;
@@ -561,7 +560,6 @@ function decorate(
 export function MapBoard({
   mapId,
   areas,
-  activeSeat,
   selectedAreaId,
   actionSpaces,
   onSelectArea,
@@ -627,7 +625,6 @@ export function MapBoard({
   return (
     <section className="board" data-testid="board" aria-label="Sengoku Jidai battlefield">
       <div className="map-host" ref={hostRef} />
-      <p className="board-status">Active seat: {activeSeat}</p>
     </section>
   );
 }

@@ -290,12 +290,6 @@ button:disabled {
   height: auto;
 }
 
-.board-status {
-  color: var(--sumi);
-  font-size: 20px;
-  font-weight: 700;
-}
-
 .side-panel {
   display: flex;
   flex-direction: column;
@@ -636,6 +630,50 @@ button:disabled {
 .die-pending {
   color: var(--shu);
   border-style: dashed;
+}
+
+/* Fresh rolls flicker through random faces, then settle on the real value with a small pop. */
+@keyframes die-tumble {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-4px) rotate(-9deg);
+  }
+  75% {
+    transform: translateY(3px) rotate(9deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes die-settle {
+  0% {
+    transform: scale(1.18);
+  }
+  60% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.die-rolling {
+  color: var(--sumi);
+  animation: die-tumble 0.18s linear infinite;
+}
+
+.die-rolled {
+  animation: die-settle 0.22s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .die-rolling,
+  .die-rolled {
+    animation: none;
+  }
 }
 
 .combat-total {
