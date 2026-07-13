@@ -29,7 +29,8 @@ import { CombatPanel } from "./components/board/CombatPanel.js";
 import { PendingDecisionPanel } from "./components/board/PendingDecisionPanel.js";
 import { Hand } from "./components/board/Hand.js";
 import { describeArea } from "./components/board/areaLabel.js";
-import { capitalizeSeat } from "./components/board/gameOver.js";
+import { capitalizeSeat, seatDisplayName } from "./components/board/gameOver.js";
+import { GameOverOverlay } from "./components/GameOverOverlay.js";
 import {
   type ComposerState,
   VERB,
@@ -93,6 +94,9 @@ export function App() {
   const [events, setEvents] = useState<PlayerGameEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The gameId whose game-over overlay has been dismissed (to view the final board). Keyed by
+  // gameId so it auto-resets for a different game and survives the 3s poll replacing the view.
+  const [dismissedEndFor, setDismissedEndFor] = useState<string | null>(null);
   const [panelWidth, setPanelWidth] = useState(() => loadPanelWidth() ?? DEFAULT_PANEL_WIDTH);
   const layoutRef = useRef<HTMLElement>(null);
   const draggingRef = useRef(false);
@@ -748,6 +752,8 @@ export function App() {
 
   const isViewerActive = game.view.activeSeat === game.view.viewerSeat;
 
+  const winnerName = game.view.winner ? seatDisplayName(game.view.winner, game.seatInfo) : "";
+
   // A paused combat replaces the order bar with the roll step.
   const pendingCombat = game.view.pendingCombat;
   const combatAreaLabel = pendingCombat
@@ -880,6 +886,24 @@ export function App() {
                 return kind === "shipStrike" ? `Shell ${describeArea(area)}` : describeArea(area);
               }}
             />
+          ) : game.view.status === "complete" ? (
+            <div className="game-over-banner" role="status">
+              <span className="game-over-banner-text">
+                Game over &mdash; {winnerName} wins {game.view.victoryPoints.red}&ndash;
+                {game.view.victoryPoints.black}
+              </span>
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => setDismissedEndFor(null)}
+              >
+                Show result
+              </button>
+            </div>
+          ) : game.view.status === "abandoned" ? (
+            <div className="game-over-banner" role="status">
+              <span className="game-over-banner-text">Game abandoned</span>
+            </div>
           ) : (
             <ActionBar
               composer={composer}
@@ -987,6 +1011,18 @@ export function App() {
             }
           }}
           onClose={() => setPreviewCard(null)}
+        />
+      ) : null}
+
+      {game.view.status === "complete" && game.view.winner && dismissedEndFor !== game.gameId ? (
+        <GameOverOverlay
+          winnerName={winnerName}
+          winnerSeat={game.view.winner}
+          endReason={game.view.endReason}
+          redVp={game.view.victoryPoints.red}
+          blackVp={game.view.victoryPoints.black}
+          onNewGame={() => navigateTo("/")}
+          onDismiss={() => setDismissedEndFor(game.gameId)}
         />
       ) : null}
     </main>
