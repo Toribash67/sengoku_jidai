@@ -63,6 +63,7 @@ describe("admin API", () => {
       headers: { authorization: "Bearer secret" }
     });
     expect(res.statusCode).toBe(200);
+    expect(res.headers["cache-control"]).toBe("no-store");
     const { games } = res.json();
     expect(games).toHaveLength(1);
     expect(games[0].id).toBe(created.gameId);

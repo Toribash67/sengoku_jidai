@@ -16,6 +16,13 @@ export function AdminScreen() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
+  function handleUnauthorized() {
+    sessionStorage.removeItem(PASSWORD_KEY);
+    setPassword(null);
+    setGames(null);
+    setLoadError("That password was not accepted.");
+  }
+
   async function load(pw: string) {
     setLoadError(null);
     try {
@@ -23,10 +30,7 @@ export function AdminScreen() {
       setGames(response.games);
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
-        sessionStorage.removeItem(PASSWORD_KEY);
-        setPassword(null);
-        setGames(null);
-        setLoadError("That password was not accepted.");
+        handleUnauthorized();
         return;
       }
       setLoadError(apiErrorMessage(caught));
@@ -65,6 +69,10 @@ export function AdminScreen() {
       await deleteAdminGame(password, game.id);
       await load(password);
     } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        handleUnauthorized();
+        return;
+      }
       setActionError(apiErrorMessage(caught));
     }
   }

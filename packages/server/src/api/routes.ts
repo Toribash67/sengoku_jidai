@@ -331,7 +331,9 @@ export function registerApiRoutes(
     if (!requireAdmin(request, reply, adminPassword)) {
       return reply;
     }
-    return reply.send({ games: repository.listGamesForAdmin() });
+    return reply
+      .header("cache-control", "no-store")
+      .send({ games: repository.listGamesForAdmin() });
   });
 
   app.delete("/api/admin/games/:gameId", async (request, reply) => {
