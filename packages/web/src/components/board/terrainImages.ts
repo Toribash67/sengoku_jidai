@@ -1,4 +1,4 @@
-import type { TerrainInfo, TerrainStatus } from "@sengoku-jidai/shared";
+import type { TerrainInfo } from "@sengoku-jidai/shared";
 
 /**
  * Committed terrain background assets, keyed by map id. Each map's background lives at
@@ -25,23 +25,6 @@ export function resolveTerrain(modules: Record<string, string>, mapId: string): 
 /** Terrain background URL for a map id, or null if no asset is committed. */
 export function terrainImage(mapId: string): string | null {
   return resolveTerrain(TERRAIN_MODULES, mapId);
-}
-
-export function terrainApiUrl(mapId: string): string {
-  return `/api/maps/${encodeURIComponent(mapId)}/terrain.webp`;
-}
-
-/** Pick the terrain background URL for a map: a committed asset (built-ins) always wins;
- *  a custom map uses the server-generated image only once its status is "ready". */
-export function resolveTerrainUrl(args: {
-  committed: string | null;
-  terrain: TerrainStatus;
-  mapId: string;
-}): string | null {
-  if (args.committed) {
-    return args.committed;
-  }
-  return args.terrain === "ready" ? terrainApiUrl(args.mapId) : null;
 }
 
 /** Per-terrain background webp URL (many-terrains API). */

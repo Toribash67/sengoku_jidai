@@ -13,13 +13,10 @@ function db() {
 }
 
 describe("TerrainStore", () => {
-  it("reports empty/none for a map with no terrains", () => {
+  it("reports empty for a map with no terrains", () => {
     const s = new TerrainStore(db());
     expect(s.list("m1")).toEqual([]);
     expect(s.countForMap("m1")).toBe(0);
-    expect(s.status("m1")).toBe("none");
-    expect(s.webp("m1")).toBeNull();
-    expect(s.primaryId("m1")).toBeNull();
   });
 
   it("creates, lists (oldest first), and round-trips pending -> ready by id", () => {
@@ -59,17 +56,13 @@ describe("TerrainStore", () => {
     expect(s.remove("nope")).toBe(false);
   });
 
-  it("primary is the oldest row and promotes after delete", () => {
+  it("lists oldest-first and promotes the next after a delete", () => {
     const s = new TerrainStore(db());
     const a = s.create("m1", "Terrain 1", "antique");
     const b = s.create("m1", "Terrain 2", "antique");
-    s.markReadyById(a, Buffer.from([1]));
-    s.markReadyById(b, Buffer.from([2]));
-    expect(s.primaryId("m1")).toBe(a);
-    expect(s.webp("m1")).toEqual(Buffer.from([1]));
+    expect(s.list("m1").map((t) => t.id)).toEqual([a, b]);
     s.remove(a);
-    expect(s.primaryId("m1")).toBe(b);
-    expect(s.webp("m1")).toEqual(Buffer.from([2]));
+    expect(s.list("m1").map((t) => t.id)).toEqual([b]);
   });
 
   it("resetInterrupted flips pending to failed", () => {

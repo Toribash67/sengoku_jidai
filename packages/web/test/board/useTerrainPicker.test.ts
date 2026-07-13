@@ -8,8 +8,6 @@ function detail(terrains: MapDetail["terrains"]): MapDetail {
     name: "Custom",
     builtin: false,
     updatedAt: "t",
-    // TODO(PR-C Task 5): drop `terrain` once MapDetail.terrain is removed.
-    terrain: "none",
     terrains,
     source: {} as never
   };
@@ -20,7 +18,12 @@ describe("fetchTerrains", () => {
     const ts: MapDetail["terrains"] = [
       { id: "a", name: "Terrain 1", styleId: "antique", status: "ready", updatedAt: "u" }
     ];
-    expect(await fetchTerrains("abc", vi.fn(async () => detail(ts)))).toEqual(ts);
+    expect(
+      await fetchTerrains(
+        "abc",
+        vi.fn(async () => detail(ts))
+      )
+    ).toEqual(ts);
   });
 
   it("returns [] when the fetch fails (e.g. built-in 404)", async () => {

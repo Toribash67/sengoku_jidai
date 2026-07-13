@@ -40,11 +40,7 @@ export function registerApiRoutes(
     if (!params.success) {
       return sendError(reply, 400, "invalidRequest", "Map id is invalid.");
     }
-    const map = mapLibrary.get(
-      params.data.mapId,
-      (id) => terrainStore.status(id),
-      (id) => terrainStore.list(id)
-    );
+    const map = mapLibrary.get(params.data.mapId, (id) => terrainStore.list(id));
     if (!map) {
       return sendError(reply, 404, "mapNotFound", "Map was not found.");
     }
@@ -106,48 +102,7 @@ export function registerApiRoutes(
     return reply.status(204).send();
   });
 
-  app.post("/api/maps/:mapId/terrain", async (request, reply) => {
-    const params = mapParamsSchema.safeParse(request.params);
-    if (!params.success) {
-      return sendError(reply, 400, "invalidRequest", "Map id is invalid.");
-    }
-    if (!terrainService.available()) {
-      return sendError(reply, 503, "terrainUnavailable", "Terrain generation is not configured.");
-    }
-    const detail = mapLibrary.get(params.data.mapId);
-    if (!detail) {
-      return sendError(reply, 404, "mapNotFound", "Map was not found.");
-    }
-    if (detail.builtin) {
-      return sendError(reply, 403, "builtinMap", "Built-in maps already have terrain.");
-    }
-    if (terrainService.isGenerating(params.data.mapId)) {
-      return sendError(reply, 409, "terrainInProgress", "Terrain is already generating.");
-    }
-    // Fire-and-forget: generation runs in-process and records its own result. Legacy adapter —
-    // regenerates the map's primary terrain in place (or creates "Terrain 1" if none).
-    terrainService.regeneratePrimary(params.data.mapId);
-    return reply.status(202).send({ status: "pending" });
-  });
-
-  app.get("/api/maps/:mapId/terrain.webp", async (request, reply) => {
-    const params = mapParamsSchema.safeParse(request.params);
-    if (!params.success) {
-      return sendError(reply, 400, "invalidRequest", "Map id is invalid.");
-    }
-    const webp = terrainStore.webp(params.data.mapId);
-    if (!webp) {
-      return sendError(reply, 404, "terrainNotFound", "No terrain for this map.");
-    }
-    const updatedAt = terrainStore.updatedAt(params.data.mapId) ?? "";
-    return reply
-      .header("Content-Type", "image/webp")
-      .header("Cache-Control", "public, max-age=60")
-      .header("ETag", `"${params.data.mapId}-${updatedAt}"`)
-      .send(webp);
-  });
-
-  // --- Many-terrains endpoints (PR-A). The legacy /terrain routes above stay until PR-B/PR-C. ---
+  // --- Many-terrains endpoints. Each terrain is addressed by its surrogate id. ---
 
   const terrainParamsSchema = z.object({
     mapId: z.string().min(1),

@@ -1,7 +1,6 @@
 import { compileHexMap } from "@sengoku-jidai/engine";
 import type { HexMapSource } from "@sengoku-jidai/engine";
 import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
-import { DEFAULT_TERRAIN_STYLE } from "@sengoku-jidai/shared";
 import type { TerrainInfo } from "@sengoku-jidai/shared";
 import {
   createFalClient,
@@ -68,22 +67,9 @@ export class TerrainService {
     return id;
   }
 
-  /** Legacy adapter for POST /terrain: regenerate the map's primary terrain in place, or create
-   *  "Terrain 1" (antique) if the map has none. Preserves the current single-terrain UX. */
-  regeneratePrimary(mapId: string): void {
-    const primary = this.store.primaryId(mapId);
-    if (primary) {
-      const styleId = this.store.styleIdOf(primary) ?? DEFAULT_TERRAIN_STYLE;
-      void this.run(mapId, primary, styleId);
-      return;
-    }
-    const id = this.store.create(mapId, "Terrain 1", DEFAULT_TERRAIN_STYLE);
-    void this.run(mapId, id, DEFAULT_TERRAIN_STYLE);
-  }
-
   /** Shared worker: compile → board SVG → terrain webp (style profile) → store by id. In-flight
    *  guard is keyed by map id so a map generates one terrain at a time. Re-flags the row pending
-   *  first so a regenerated primary shows progress (a fresh row is already pending — harmless). */
+   *  first so a regenerated terrain shows progress (a fresh row is already pending — harmless). */
   private async run(mapId: string, terrainId: string, styleId: string): Promise<void> {
     const detail = this.library.get(mapId);
     if (!detail || detail.builtin) {

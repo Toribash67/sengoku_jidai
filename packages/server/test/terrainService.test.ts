@@ -71,18 +71,6 @@ describe("TerrainService", () => {
     await waitFor(() => expect(service.isGenerating(mapId)).toBe(false));
   });
 
-  it("regeneratePrimary() creates Terrain 1 when none, then regenerates it in place", async () => {
-    const { library, store, mapId } = setup();
-    const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
-    service.regeneratePrimary(mapId);
-    await waitFor(() => expect(store.status(mapId)).toBe("ready"));
-    const firstId = store.primaryId(mapId);
-    service.regeneratePrimary(mapId);
-    await waitFor(() => expect(store.status(mapId)).toBe("ready"));
-    expect(store.primaryId(mapId)).toBe(firstId); // same row, regenerated
-    expect(store.list(mapId)).toHaveLength(1);
-  });
-
   it("sends no seed/resolution — gpt-image has none and varies naturally", async () => {
     const { library, store, mapId } = setup();
     const inputs: Record<string, unknown>[] = [];

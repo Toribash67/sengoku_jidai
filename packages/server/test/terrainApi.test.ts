@@ -55,48 +55,42 @@ describe("terrain API", () => {
   it("503 when no FAL_KEY is configured", async () => {
     const { app } = buildTestApp({ falKey: undefined });
     const id = await createMap(app);
-    const res = await app.inject({ method: "POST", url: `/api/maps/${id}/terrain` });
+    const res = await app.inject({ method: "POST", url: `/api/maps/${id}/terrains`, payload: {} });
     expect(res.statusCode).toBe(503);
   });
 
   it("404 for an unknown map", async () => {
     const { app } = buildTestApp();
-    const res = await app.inject({ method: "POST", url: "/api/maps/nope/terrain" });
+    const res = await app.inject({ method: "POST", url: "/api/maps/nope/terrains", payload: {} });
     expect(res.statusCode).toBe(404);
   });
 
   it("403 for a built-in map", async () => {
     const { app } = buildTestApp();
-    const res = await app.inject({ method: "POST", url: "/api/maps/rivers/terrain" });
+    const res = await app.inject({ method: "POST", url: "/api/maps/rivers/terrains", payload: {} });
     expect(res.statusCode).toBe(403);
   });
 
-  it("generates, reports ready, and serves the webp", async () => {
+  it("generates via POST /terrains, reports ready in terrains[], and serves the webp", async () => {
     const { app } = buildTestApp();
     const id = await createMap(app);
-    const post = await app.inject({ method: "POST", url: `/api/maps/${id}/terrain` });
+    const post = await app.inject({ method: "POST", url: `/api/maps/${id}/terrains`, payload: {} });
     expect(post.statusCode).toBe(202);
+    const tid = post.json().id as string;
     // Generation is fire-and-forget and does real sharp image work, which is markedly
     // slower on CI's shared runners — poll with a generous budget (exits as soon as ready).
-    let terrain = "pending";
-    for (let i = 0; i < 150 && terrain !== "ready"; i++) {
+    let status = "pending";
+    for (let i = 0; i < 150 && status !== "ready"; i++) {
       const detail = await app.inject({ method: "GET", url: `/api/maps/${id}` });
-      terrain = detail.json().terrain;
-      if (terrain !== "ready") await new Promise((r) => setTimeout(r, 100));
+      status = detail.json().terrains[0]?.status;
+      if (status !== "ready") await new Promise((r) => setTimeout(r, 100));
     }
-    expect(terrain).toBe("ready");
-    const img = await app.inject({ method: "GET", url: `/api/maps/${id}/terrain.webp` });
+    expect(status).toBe("ready");
+    const img = await app.inject({ method: "GET", url: `/api/maps/${id}/terrains/${tid}.webp` });
     expect(img.statusCode).toBe(200);
     expect(img.headers["content-type"]).toBe("image/webp");
     expect(img.rawPayload.subarray(8, 12).toString("ascii")).toBe("WEBP");
   }, 20000);
-
-  it("404 on the webp before generation", async () => {
-    const { app } = buildTestApp();
-    const id = await createMap(app);
-    const res = await app.inject({ method: "GET", url: `/api/maps/${id}/terrain.webp` });
-    expect(res.statusCode).toBe(404);
-  });
 
   it("409 when generation is already in progress", async () => {
     let resolveGeneration: (value: { data: { images: { url: string }[] } }) => void;
@@ -126,12 +120,20 @@ describe("terrain API", () => {
     const id = await createMap(app);
 
     // Fire the first POST - it returns 202 but generation is now in-flight
-    const firstRes = await app.inject({ method: "POST", url: `/api/maps/${id}/terrain` });
+    const firstRes = await app.inject({
+      method: "POST",
+      url: `/api/maps/${id}/terrains`,
+      payload: {}
+    });
     expect(firstRes.statusCode).toBe(202);
 
     // Generation is blocked on the deferred promise, so mapId is still in inflight
     // Fire the second POST - should get 409
-    const secondRes = await app.inject({ method: "POST", url: `/api/maps/${id}/terrain` });
+    const secondRes = await app.inject({
+      method: "POST",
+      url: `/api/maps/${id}/terrains`,
+      payload: {}
+    });
     expect(secondRes.statusCode).toBe(409);
     expect(secondRes.json().error.code).toBe("terrainInProgress");
 
@@ -217,14 +219,13 @@ describe("terrain API", () => {
     expect(ok.headers["content-type"]).toBe("image/webp");
   });
 
-  it("MapDetail exposes terrains[] and the legacy terrain field", async () => {
+  it("MapDetail exposes terrains[]", async () => {
     const { app, store } = buildTestApp();
     const mapId = await createMap(app);
     const tid = store.create(mapId, "Terrain 1", "antique");
     store.markReadyById(tid, Buffer.from([1]));
     const res = await app.inject({ method: "GET", url: `/api/maps/${mapId}` });
     const body = res.json();
-    expect(body.terrain).toBe("ready"); // legacy primary status
     expect(body.terrains).toHaveLength(1);
     expect(body.terrains[0]).toMatchObject({
       id: tid,
