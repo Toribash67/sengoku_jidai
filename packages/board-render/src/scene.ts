@@ -49,11 +49,19 @@ function centroidOf(hexes: Axial[], layout: HexLayout): Pixel {
   return { x: x / hexes.length, y: y / hexes.length };
 }
 
-/** Topmost hex centre of a (possibly fused) tile; leftmost on ties. */
-function topmostHex(hexes: Axial[], layout: HexLayout): Pixel {
-  return hexes
-    .map((h) => axialToPixel(h, layout))
-    .reduce((a, b) => (b.y < a.y - 0.01 || (Math.abs(b.y - a.y) <= 0.01 && b.x < a.x) ? b : a));
+function dist2(a: Pixel, b: Pixel): number {
+  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+}
+
+/** The hex to nest order tokens against. For a single-hex tile this is that hex (unchanged). For
+ *  a fused multi-hex tile it is the hex nearest the tile's top-centre — (centroid.x, topmost-row
+ *  y) — so tokens sit over the tile body instead of hanging off the extreme topmost hex's outer
+ *  vertex, which on large/irregular tiles pushed them to the top edge or over a neighbour. */
+function topAnchorHex(hexes: Axial[], layout: HexLayout, centroid: Pixel): Pixel {
+  const pts = hexes.map((h) => axialToPixel(h, layout));
+  const minY = Math.min(...pts.map((p) => p.y));
+  const target = { x: centroid.x, y: minY };
+  return pts.reduce((a, b) => (dist2(b, target) < dist2(a, target) ? b : a));
 }
 
 /** Bottommost hex centre of a tile; rightmost on ties (dual of topmostHex, for SE features). */
@@ -70,7 +78,12 @@ function bottommostHex(hexes: Axial[], layout: HexLayout): Pixel {
  *  action (move/sail) takes the NW vertex (120°), the secondary (shell/bombard) the NE
  *  (60°). Value-star badges live in the SE corner, so tokens never collide with them.
  *  The occupancy dot anchors to the token centre. */
-function slotsFor(area: MapArea, hexes: Axial[], layout: HexLayout): Record<string, Pixel> {
+function slotsFor(
+  area: MapArea,
+  hexes: Axial[],
+  layout: HexLayout,
+  centroid: Pixel
+): Record<string, Pixel> {
   const ids: string[] = [];
   if (area.kind === "land") {
     ids.push(`move-${area.id}`);
@@ -80,7 +93,7 @@ function slotsFor(area: MapArea, hexes: Axial[], layout: HexLayout): Record<stri
   } else {
     ids.push(`sail-${area.id}`, `bombard-${area.id}`);
   }
-  const anchor = topmostHex(hexes, layout);
+  const anchor = topAnchorHex(hexes, layout, centroid);
   const nest = layout.size - ORDER_TOKEN_RADIUS * (layout.size / NATIVE_HEX_SIZE);
   const slots: Record<string, Pixel> = {};
   ids.forEach((id, i) => {
@@ -140,7 +153,7 @@ export function buildScene(compiled: CompiledMap): BoardScene {
             : undefined
       },
       bonusGlyph: bonusSlot !== undefined ? bonusGlyph(bonusSlot) : undefined,
-      slots: slotsFor(area, hexes, layout),
+      slots: slotsFor(area, hexes, layout, centroid),
       ports: []
     });
   }

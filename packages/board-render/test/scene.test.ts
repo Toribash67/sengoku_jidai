@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { compileHexMap, FIXTURE_HEX_MAP } from "@sengoku-jidai/engine";
+import { axialToPixel, compileHexMap, FIXTURE_HEX_MAP } from "@sengoku-jidai/engine";
+import type { CompiledMap } from "@sengoku-jidai/engine";
 import { buildScene } from "../src/scene.js";
 import { NATIVE_HEX_SIZE, ORDER_TOKEN_RADIUS } from "../src/assets.js";
 
@@ -44,9 +45,45 @@ describe("buildScene", () => {
     expect(bombard.x).toBeCloseTo(0.5 * nest, 1);
     expect(sail.y).toBeCloseTo(197.45 - (Math.sqrt(3) / 2) * nest, 1);
     expect(bombard.y).toBeCloseTo(sail.y, 5);
-    // Multi-hex tile B anchors on its topmost hex (centre 171,-98.73), not the tile centroid.
+    // Multi-hex tile B nests on the hex nearest its top-centre — here the topmost hex (171,-98.73)
+    // already sits at the tile's horizontal centre, so placement is unchanged.
     expect(byId("B").slots["move-B"]!.x).toBeCloseTo(171 - 0.5 * nest, 1);
     expect(byId("B").slots["move-B"]!.y).toBeCloseTo(-98.73 - (Math.sqrt(3) / 2) * nest, 1);
+  });
+
+  it("pulls a multi-hex tile's order tokens toward its top-centre, not the extreme topmost hex", () => {
+    // An asymmetric tile: a lone hex up at the far left, with the body (a column) off to the right.
+    // Old behaviour anchored on the leftmost topmost hex, hanging tokens off the tile's edge; the
+    // fix nests them on the top-row hex nearest the centroid's column instead.
+    const size = 100;
+    const hexes = [
+      { q: 0, r: -1 }, // top-left lone hex
+      { q: 2, r: -2 }, // top of the right-hand column (same top row)
+      { q: 2, r: -1 },
+      { q: 2, r: 0 }
+    ];
+    const compiled = {
+      layout: { size, origin: { x: 0, y: 0 }, tiles: { T: { hexes } } },
+      definition: {
+        areas: { T: { id: "T", kind: "land", hq: null, valueStars: 0, harbor: false, ports: [] } },
+        bonusSlots: []
+      }
+    } as unknown as CompiledMap;
+    const tile = buildScene(compiled).tiles[0]!;
+    const px = hexes.map((h) => axialToPixel(h, { size, originX: 0, originY: 0 }));
+    const minY = Math.min(...px.map((p) => p.y));
+    // Old anchor: leftmost hex in the topmost row.
+    const oldAnchor = px
+      .filter((p) => Math.abs(p.y - minY) < 0.01)
+      .reduce((a, b) => (a.x < b.x ? a : b));
+    const nest = size - ORDER_TOKEN_RADIUS * (size / NATIVE_HEX_SIZE);
+    const newAnchorX = tile.slots["move-T"]!.x + 0.5 * nest; // undo the NW-vertex offset
+    // Precondition: the extreme topmost hex is well off the tile's horizontal centre.
+    expect(Math.abs(oldAnchor.x - tile.centroid.x)).toBeGreaterThan(size);
+    // The fix nests on a hex nearer the centroid than that extreme (fails under the old logic).
+    expect(Math.abs(newAnchorX - tile.centroid.x)).toBeLessThan(
+      Math.abs(oldAnchor.x - tile.centroid.x)
+    );
   });
 
   it("anchors value-star badges in the SE corner, clear of the order tokens (as on board.svg)", () => {
