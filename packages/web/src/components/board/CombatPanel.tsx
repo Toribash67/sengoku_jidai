@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from "react";
 import type { PendingCombat } from "@sengoku-jidai/engine/client";
+import { diceKey, randomFaces, shouldTumble } from "./diceReveal.js";
 
 interface CombatPanelProps {
   pendingCombat: PendingCombat;
@@ -40,13 +42,75 @@ export function describeCombat(
   };
 }
 
-/** A row of dice: the rolled faces once thrown, else placeholders for the count to come. */
-function DiceRow({ count, values }: { count: number; values?: number[] }) {
-  const faces: (number | null)[] = values ?? Array.from({ length: count }, () => null);
+/** Milliseconds the dice flicker through random faces before settling on the real roll. */
+const TUMBLE_MS = 600;
+/** Milliseconds between flicker frames during the tumble. */
+const FLICKER_MS = 70;
+
+function prefersReducedMotion(): boolean {
   return (
-    <span className="combat-dice" aria-hidden="true">
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true
+  );
+}
+
+/** Drives the reveal: when a roll we witness arrives, flicker random faces for ~600ms, then
+ *  settle on the real values. Returns the faces to show plus whether we're mid-tumble. The
+ *  decision to animate lives in the pure `shouldTumble`; this hook only owns the timers. */
+function useDiceReveal(
+  count: number,
+  values?: number[]
+): { faces: (number | null)[]; rolling: boolean } {
+  const restFaces: (number | null)[] = values ?? Array.from({ length: count }, () => null);
+  const [faces, setFaces] = useState<(number | null)[]>(restFaces);
+  const [rolling, setRolling] = useState(false);
+  const seenRef = useRef(false);
+  const prevKeyRef = useRef<string | null>(null);
+  const nextKey = diceKey(values);
+
+  useEffect(() => {
+    const seenBefore = seenRef.current;
+    const prevKey = prevKeyRef.current;
+    seenRef.current = true;
+    prevKeyRef.current = nextKey;
+
+    if (!shouldTumble({ seenBefore, reducedMotion: prefersReducedMotion(), prevKey, nextKey })) {
+      setRolling(false);
+      setFaces(values ?? Array.from({ length: count }, () => null));
+      return;
+    }
+
+    setRolling(true);
+    const flicker = setInterval(() => setFaces(randomFaces(count)), FLICKER_MS);
+    const settle = setTimeout(() => {
+      clearInterval(flicker);
+      setRolling(false);
+      setFaces(values ?? []);
+    }, TUMBLE_MS);
+    return () => {
+      clearInterval(flicker);
+      clearTimeout(settle);
+    };
+    // Keyed on the roll identity + count; `values` is captured via `nextKey`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextKey, count]);
+
+  return { faces, rolling };
+}
+
+/** A row of dice: the rolled faces once thrown, else placeholders for the count to come.
+ *  Fresh rolls tumble in via `useDiceReveal`. */
+function DiceRow({ count, values }: { count: number; values?: number[] }) {
+  const { faces, rolling } = useDiceReveal(count, values);
+  return (
+    <span className={`combat-dice${rolling ? " is-rolling" : ""}`} aria-hidden="true">
       {faces.map((face, i) => (
-        <span key={i} className={face === null ? "die die-pending" : "die die-rolled"}>
+        <span
+          key={i}
+          className={
+            face === null ? "die die-pending" : rolling ? "die die-rolling" : "die die-rolled"
+          }
+        >
           {face === null ? "?" : face}
         </span>
       ))}

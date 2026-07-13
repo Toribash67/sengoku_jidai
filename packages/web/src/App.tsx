@@ -845,7 +845,6 @@ export function App() {
           <MapBoard
             mapId={game.view.mapId}
             areas={game.view.areas}
-            activeSeat={game.view.activeSeat}
             selectedAreaId={goldAreaId}
             actionSpaces={game.view.actionSpaces}
             onSelectArea={handleSelectArea}
