@@ -106,6 +106,22 @@ function centerInRoot(svg: SVGSVGElement, el: SVGGraphicsElement): Point | null 
   return bboxPointInRoot(svg, el, 0.5, 0.5);
 }
 
+/** Root-space centre of an order-slot anchor. The anchor is a zero-radius `<circle>`, and
+ *  WebKit's `getBBox()` returns `{0,0,0,0}` for `r=0` (Chromium returns the point) — which
+ *  collapsed every commander occupancy mark onto the SVG origin on iOS Safari. Read cx/cy
+ *  explicitly so placement is browser-agnostic; fall back to the bbox centre for any other tag. */
+function anchorCenterInRoot(svg: SVGSVGElement, el: SVGGraphicsElement): Point | null {
+  if (el instanceof SVGCircleElement) {
+    const m = localToRoot(svg, el);
+    if (!m) {
+      return null;
+    }
+    const p = new DOMPoint(el.cx.baseVal.value, el.cy.baseVal.value).matrixTransform(m);
+    return { x: p.x, y: p.y };
+  }
+  return centerInRoot(svg, el);
+}
+
 function makeText(label: string, at: Point): SVGTextElement {
   const text = document.createElementNS(SVG_NS, "text");
   text.setAttribute("x", String(at.x));
@@ -525,7 +541,7 @@ function decorate(
     if (!slot) {
       continue;
     }
-    const center = centerInRoot(svg, slot);
+    const center = anchorCenterInRoot(svg, slot);
     if (center) {
       overlay.appendChild(makeOccupancy(center, SEAT_MARK[occupant]));
     }
