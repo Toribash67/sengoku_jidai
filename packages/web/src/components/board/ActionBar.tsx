@@ -243,7 +243,9 @@ function PlanBar({
       <span className="action-bar-info">
         <strong>Plan</strong>
         <span className="action-bar-hint">
-          {composer.initiative ? "Draw a card and seize next round's initiative." : "Draw a card."}
+          {composer.initiative
+            ? "Draw a card and seize next round's initiative."
+            : "Draw two cards."}
         </span>
       </span>
       <ComposerActions
