@@ -34,7 +34,14 @@ export function buildApp(config: ServerConfig) {
     origin: config.nodeEnv === "production" ? false : config.webOrigin
   });
 
-  registerApiRoutes(app, repository, mapLibrary, terrainStore, terrainService);
+  registerApiRoutes(
+    app,
+    repository,
+    mapLibrary,
+    terrainStore,
+    terrainService,
+    config.adminPassword
+  );
 
   if (config.nodeEnv === "production") {
     const webDistPath = resolve(process.cwd(), "packages/web/dist");

@@ -37,4 +37,14 @@ describe("loadConfig", () => {
     const config = loadConfig({ NODE_ENV: "development", FAL_KEY: "test-key-123" });
     expect(config.falKey).toBe("test-key-123");
   });
+
+  it("parses ADMIN_PASSWORD into adminPassword", () => {
+    const config = loadConfig({ NODE_ENV: "development", ADMIN_PASSWORD: "hunter2" });
+    expect(config.adminPassword).toBe("hunter2");
+  });
+
+  it("leaves adminPassword undefined when ADMIN_PASSWORD is unset", () => {
+    const config = loadConfig({ NODE_ENV: "development" });
+    expect(config.adminPassword).toBeUndefined();
+  });
 });

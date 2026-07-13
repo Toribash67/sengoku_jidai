@@ -4,8 +4,10 @@ export type Route =
   | { kind: "create"; map: string | null }
   | { kind: "game"; gameId: string; token: string }
   | { kind: "maps" }
-  | { kind: "editor"; mapId: string | null };
+  | { kind: "editor"; mapId: string | null }
+  | { kind: "admin" };
 
+const ADMIN_PATH = /^\/admin\/?$/;
 const GAME_PATH = /^\/g\/([^/]+)\/?$/;
 const MAPS_PATH = /^\/maps\/?$/;
 const EDITOR_NEW_PATH = /^\/maps\/new\/?$/;
@@ -18,6 +20,9 @@ export function parseRoute(loc: { pathname: string; hash: string; search: string
   if (game) {
     const token = loc.hash.startsWith("#") ? loc.hash.slice(1) : "";
     return { kind: "game", gameId: decodeURIComponent(game[1]!), token };
+  }
+  if (ADMIN_PATH.test(loc.pathname)) {
+    return { kind: "admin" };
   }
   if (EDITOR_NEW_PATH.test(loc.pathname)) {
     return { kind: "editor", mapId: null };

@@ -1375,3 +1375,69 @@ button:disabled {
     min-height: 44px;
   }
 }
+
+.admin-panel {
+  max-width: 720px;
+  width: 100%;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-header h1 {
+  margin-right: auto;
+}
+
+.admin-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-row {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.admin-row-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-row-head strong {
+  font-family: monospace;
+}
+
+.admin-row-head .secondary-action {
+  margin-left: auto;
+}
+
+.admin-row-meta {
+  font-size: 0.85em;
+  margin: 0.25rem 0;
+}
+
+.admin-seats {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.admin-seat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+}

@@ -29,7 +29,8 @@ export function registerApiRoutes(
   repository: GameRepository,
   mapLibrary: MapLibrary,
   terrainStore: TerrainStore,
-  terrainService: TerrainService
+  terrainService: TerrainService,
+  adminPassword?: string
 ): void {
   app.get("/healthz", async () => ({ ok: true }));
 
@@ -325,6 +326,29 @@ export function registerApiRoutes(
       events: repository.eventsAfter(params.data.gameId, session.seat, query.data.after)
     });
   });
+
+  app.get("/api/admin/games", async (request, reply) => {
+    if (!requireAdmin(request, reply, adminPassword)) {
+      return reply;
+    }
+    return reply
+      .header("cache-control", "no-store")
+      .send({ games: repository.listGamesForAdmin() });
+  });
+
+  app.delete("/api/admin/games/:gameId", async (request, reply) => {
+    if (!requireAdmin(request, reply, adminPassword)) {
+      return reply;
+    }
+    const params = gameParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Game id is invalid.");
+    }
+    if (!repository.deleteGame(params.data.gameId)) {
+      return sendError(reply, 404, "gameNotFound", "Game was not found.");
+    }
+    return reply.status(204).send();
+  });
 }
 
 function authenticate(request: FastifyRequest, repository: GameRepository): SessionRecord | null {
@@ -333,6 +357,23 @@ function authenticate(request: FastifyRequest, repository: GameRepository): Sess
     return null;
   }
   return repository.getSession(hashToken(token));
+}
+
+function requireAdmin(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  adminPassword: string | undefined
+): boolean {
+  if (!adminPassword) {
+    sendError(reply, 503, "adminDisabled", "Admin API is not configured.");
+    return false;
+  }
+  const token = bearerToken(request.headers.authorization);
+  if (!token || token !== adminPassword) {
+    sendError(reply, 401, "invalidAdmin", "Admin password is invalid.");
+    return false;
+  }
+  return true;
 }
 
 function sendError(reply: FastifyReply, status: number, code: string, message: string) {
