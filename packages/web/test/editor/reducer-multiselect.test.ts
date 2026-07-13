@@ -31,3 +31,16 @@ describe("multi-select mode", () => {
     expect(state.multiSelect).toBe(false);
   });
 });
+
+describe("selectEpoch (mobile sheet re-open signal)", () => {
+  it("bumps on every tile-selecting tap, even re-selecting the same tile", () => {
+    let state = twoTiles();
+    expect(state.selectEpoch).toBe(0);
+    state = editorReducer(state, { type: "selectTile", tileId: "t1" });
+    expect(state.selectEpoch).toBe(1);
+    // Re-tapping the same tile leaves the selection unchanged but still bumps the epoch.
+    state = editorReducer(state, { type: "selectTile", tileId: "t1" });
+    expect(state.selection).toEqual(["t1"]);
+    expect(state.selectEpoch).toBe(2);
+  });
+});

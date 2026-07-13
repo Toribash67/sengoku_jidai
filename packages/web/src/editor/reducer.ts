@@ -13,6 +13,9 @@ export interface EditorState {
   portArming: boolean;
   /** Sticky multi-select mode: taps add/remove tiles like shift-click (Select tool only). */
   multiSelect: boolean;
+  /** Bumps on every tile-selecting tap — even re-selecting the same tile — so the mobile
+   *  inspector bottom sheet can re-open on each tap, not only when the selection changes. */
+  selectEpoch: number;
   past: EditorDoc[];
   future: EditorDoc[];
 }
@@ -51,6 +54,7 @@ export function initialEditorState(doc: EditorDoc): EditorState {
     selection: [],
     portArming: false,
     multiSelect: false,
+    selectEpoch: 0,
     past: [],
     future: []
   };
@@ -393,7 +397,9 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
           ? state.selection.filter((id) => id !== action.tileId)
           : [...state.selection, action.tileId]
         : [action.tileId];
-      return normalize({ ...state, selection });
+      // Bump the epoch on every tap so the mobile sheet re-opens even when the selection is
+      // unchanged (re-tapping the already-selected tile).
+      return normalize({ ...state, selection, selectEpoch: state.selectEpoch + 1 });
     }
     case "undo": {
       const previous = state.past[state.past.length - 1];

@@ -1,6 +1,34 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SeatId } from "@sengoku-jidai/engine/client";
 import type { GameSeatInfo } from "@sengoku-jidai/shared";
+
+/** Copy text to the clipboard, falling back to a hidden-textarea `execCommand` when the async
+ *  Clipboard API is unavailable — it is undefined in insecure (plain-HTTP / LAN-IP) contexts,
+ *  which is exactly how this app is often reached. Returns whether the copy succeeded. */
+async function copyToClipboard(text: string): Promise<boolean> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // fall through to the legacy path
+    }
+  }
+  try {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(area);
+    return ok;
+  } catch {
+    return false;
+  }
+}
 
 interface PlayersPanelProps {
   seatInfo: GameSeatInfo[];
@@ -25,6 +53,15 @@ export function PlayersPanel({
   onSwitchSeat
 }: PlayersPanelProps) {
   const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<number | null>(null);
+  // Clear any pending "Copied!" reset on unmount so it can't fire after the panel is gone.
+  useEffect(() => {
+    return () => {
+      if (copiedTimer.current !== null) {
+        window.clearTimeout(copiedTimer.current);
+      }
+    };
+  }, []);
   const ordered = seatOrder
     .map((seat) => seatInfo.find((s) => s.seat === seat))
     .filter((s): s is GameSeatInfo => Boolean(s));
@@ -33,12 +70,13 @@ export function PlayersPanel({
     if (!inviteLink) {
       return;
     }
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
+    const ok = await copyToClipboard(inviteLink);
+    setCopied(ok);
+    if (ok) {
+      if (copiedTimer.current !== null) {
+        window.clearTimeout(copiedTimer.current);
+      }
+      copiedTimer.current = window.setTimeout(() => setCopied(false), 2000);
     }
   }
 

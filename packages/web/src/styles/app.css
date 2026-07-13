@@ -10,6 +10,9 @@
   --shu-deep: #7c241d; /* vermilion pressed / border */
   --ai: #2c3e50; /* indigo: black faction */
   --kin: #b3852e; /* gold: initiative + small accents */
+  --dock-land: #dcc98f; /* editor dock: land-tool glyph */
+  --dock-sea: #9fc3d8; /* editor dock: sea-tool glyph */
+  --dock-active: #4a6fa5; /* editor dock: active-button outline */
   --hairline: rgba(33, 27, 22, 0.16);
 
   /* Faction colour for the active seat, recoloured per [data-active-seat]. */
@@ -1187,13 +1190,13 @@ button:disabled {
   line-height: 1;
 }
 .dock-glyph.is-land {
-  color: #dcc98f;
+  color: var(--dock-land);
 }
 .dock-glyph.is-sea {
-  color: #9fc3d8;
+  color: var(--dock-sea);
 }
 .dock-button.is-active {
-  outline: 2px solid #4a6fa5;
+  outline: 2px solid var(--dock-active);
 }
 .dock-label {
   font-size: 0.7rem;

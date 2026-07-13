@@ -300,6 +300,7 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
         dispatch={dispatch}
         onZoomIn={() => setView((v) => zoomViewCentered(v, 1 / ZOOM_STEP))}
         onZoomOut={() => setView((v) => zoomViewCentered(v, ZOOM_STEP))}
+        zoomDisabled={preview}
       />
     </main>
   );
