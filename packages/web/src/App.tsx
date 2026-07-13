@@ -29,6 +29,7 @@ import { CombatPanel } from "./components/board/CombatPanel.js";
 import { PendingDecisionPanel } from "./components/board/PendingDecisionPanel.js";
 import { Hand } from "./components/board/Hand.js";
 import { describeArea } from "./components/board/areaLabel.js";
+import { capitalizeSeat } from "./components/board/gameOver.js";
 import {
   type ComposerState,
   VERB,
@@ -795,6 +796,7 @@ export function App() {
         </div>
         <div className="scoreboard" aria-label="Game status">
           <span className={`score score-red${game.view.activeSeat === "red" ? " is-active" : ""}`}>
+            {game.view.initiative === "red" ? <InitiativeBadge side="red" /> : null}
             <span className="score-side">Red</span>
             <span className="score-marker" aria-hidden="true" />
             <span className="score-vp">{game.view.victoryPoints.red}</span>
@@ -808,6 +810,7 @@ export function App() {
             <span className="score-vp">{game.view.victoryPoints.black}</span>
             <span className="score-marker" aria-hidden="true" />
             <span className="score-side">Black</span>
+            {game.view.initiative === "black" ? <InitiativeBadge side="black" /> : null}
           </span>
           <span className="round-meta">
             <span className="round-line">
@@ -1046,6 +1049,18 @@ function clamp(value: number, min: number, max: number): number {
 /** Title-case a phase id ("deploy" → "Deploy") for the scoreboard's secondary line. */
 function phaseLabel(phase: string): string {
   return phase.length === 0 ? phase : phase[0]!.toUpperCase() + phase.slice(1);
+}
+
+/** A gold war-banner glyph marking the seat that holds initiative (first move next round +
+ *  the final-VP tiebreak). The glyph is decorative; the label is read by screen readers. */
+function InitiativeBadge({ side }: { side: SeatId }) {
+  const label = `${capitalizeSeat(side)} holds initiative`;
+  return (
+    <span className="score-initiative" title={label}>
+      <span aria-hidden="true">⚑</span>
+      <span className="visually-hidden">{label}</span>
+    </span>
+  );
 }
 
 function eventLabel(event: PlayerGameEvent): string {

@@ -194,6 +194,33 @@ button:disabled {
   opacity: 0.5;
 }
 
+.score-initiative {
+  color: var(--kin);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.score-red .score-initiative {
+  margin-right: 6px;
+}
+
+.score-black .score-initiative {
+  margin-left: 6px;
+}
+
+/* Screen-reader-only text (no such utility existed before this feature). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .round-meta {
   display: flex;
   flex-direction: column;
