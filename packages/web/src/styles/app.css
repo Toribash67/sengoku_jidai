@@ -194,6 +194,33 @@ button:disabled {
   opacity: 0.5;
 }
 
+.score-initiative {
+  color: var(--kin);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.score-red .score-initiative {
+  margin-right: 6px;
+}
+
+.score-black .score-initiative {
+  margin-left: 6px;
+}
+
+/* Screen-reader-only text (no such utility existed before this feature). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .round-meta {
   display: flex;
   flex-direction: column;
@@ -213,6 +240,17 @@ button:disabled {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--sumi-soft);
+}
+
+.round-meta .round-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.round-meta .round-total {
+  color: var(--sumi-soft);
+  font-variant-numeric: tabular-nums;
 }
 
 .game-layout {
@@ -696,6 +734,109 @@ button:disabled {
 .card-preview-actions {
   display: flex;
   gap: 8px;
+}
+
+/* End-of-game modal + the terminal banner that replaces the action bar once a game ends. */
+.game-over-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 20, 18, 0.72);
+}
+
+.game-over-card {
+  width: min(92vw, 420px);
+  padding: 28px;
+  border-radius: 10px;
+  background: var(--washi-raised);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+.game-over-eyebrow {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sumi-soft);
+}
+
+.game-over-winner {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+}
+
+.game-over-winner span[aria-hidden] {
+  color: var(--kin);
+}
+
+.game-over-winner-red {
+  color: var(--shu);
+}
+
+.game-over-winner-black {
+  color: var(--ai);
+}
+
+.game-over-reason {
+  margin: 0 0 16px;
+  color: var(--sumi-soft);
+}
+
+.game-over-score {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 0 22px;
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.game-over-score-red {
+  color: var(--shu);
+}
+
+.game-over-score-black {
+  color: var(--ai);
+}
+
+.game-over-score-dash {
+  color: var(--sumi-soft);
+}
+
+.game-over-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.game-over-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--washi-raised);
+  min-height: 60px;
+}
+
+.game-over-banner-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.game-over-banner button {
+  margin-left: auto;
 }
 
 .action-bar-group {

@@ -12,6 +12,12 @@ describe("playerView (v2)", () => {
     expect(view.phase).toBe("deploy");
   });
 
+  it("exposes maxRounds from the ruleset", () => {
+    const view = playerView(state, "red");
+    expect(view.maxRounds).toBe(state.rules.maxRounds);
+    expect(view.maxRounds).toBeGreaterThan(0);
+  });
+
   it("exposes the red HQ (tile9) garrison via owner + units", () => {
     const view = playerView(state, "red");
     const hq = view.areas.find((area) => area.id === "tile9");

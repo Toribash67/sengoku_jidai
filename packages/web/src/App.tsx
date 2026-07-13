@@ -29,6 +29,8 @@ import { CombatPanel } from "./components/board/CombatPanel.js";
 import { PendingDecisionPanel } from "./components/board/PendingDecisionPanel.js";
 import { Hand } from "./components/board/Hand.js";
 import { describeArea } from "./components/board/areaLabel.js";
+import { capitalizeSeat, seatDisplayName } from "./components/board/gameOver.js";
+import { GameOverOverlay } from "./components/GameOverOverlay.js";
 import {
   type ComposerState,
   VERB,
@@ -92,6 +94,9 @@ export function App() {
   const [events, setEvents] = useState<PlayerGameEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The gameId whose game-over overlay has been dismissed (to view the final board). Keyed by
+  // gameId so it auto-resets for a different game and survives the 3s poll replacing the view.
+  const [dismissedEndFor, setDismissedEndFor] = useState<string | null>(null);
   const [panelWidth, setPanelWidth] = useState(() => loadPanelWidth() ?? DEFAULT_PANEL_WIDTH);
   const layoutRef = useRef<HTMLElement>(null);
   const draggingRef = useRef(false);
@@ -747,6 +752,11 @@ export function App() {
 
   const isViewerActive = game.view.activeSeat === game.view.viewerSeat;
 
+  // The engine always sets `winner` alongside `status: "complete"` (see engine resolve.ts /
+  // scoring.ts evaluateGameEnd), so the "" fallback here — and the unguarded winnerName in the
+  // completed-game banner below — is only a defence against a future refactor decoupling them.
+  const winnerName = game.view.winner ? seatDisplayName(game.view.winner, game.seatInfo) : "";
+
   // A paused combat replaces the order bar with the roll step.
   const pendingCombat = game.view.pendingCombat;
   const combatAreaLabel = pendingCombat
@@ -795,6 +805,7 @@ export function App() {
         </div>
         <div className="scoreboard" aria-label="Game status">
           <span className={`score score-red${game.view.activeSeat === "red" ? " is-active" : ""}`}>
+            {game.view.initiative === "red" ? <InitiativeBadge side="red" /> : null}
             <span className="score-side">Red</span>
             <span className="score-marker" aria-hidden="true" />
             <span className="score-vp">{game.view.victoryPoints.red}</span>
@@ -808,9 +819,13 @@ export function App() {
             <span className="score-vp">{game.view.victoryPoints.black}</span>
             <span className="score-marker" aria-hidden="true" />
             <span className="score-side">Black</span>
+            {game.view.initiative === "black" ? <InitiativeBadge side="black" /> : null}
           </span>
           <span className="round-meta">
-            <span className="round-no">Round {game.view.round}</span>
+            <span className="round-line">
+              <span className="round-no">Round {game.view.round}</span>
+              <span className="round-total">/ {game.view.maxRounds}</span>
+            </span>
             <span className="phase-name">{phaseLabel(game.view.phase)}</span>
           </span>
         </div>
@@ -874,6 +889,24 @@ export function App() {
                 return kind === "shipStrike" ? `Shell ${describeArea(area)}` : describeArea(area);
               }}
             />
+          ) : game.view.status === "complete" ? (
+            <div className="game-over-banner" role="status">
+              <span className="game-over-banner-text">
+                Game over &mdash; {winnerName} wins {game.view.victoryPoints.red}&ndash;
+                {game.view.victoryPoints.black}
+              </span>
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => setDismissedEndFor(null)}
+              >
+                Show result
+              </button>
+            </div>
+          ) : game.view.status === "abandoned" ? (
+            <div className="game-over-banner" role="status">
+              <span className="game-over-banner-text">Game abandoned</span>
+            </div>
           ) : (
             <ActionBar
               composer={composer}
@@ -983,6 +1016,18 @@ export function App() {
           onClose={() => setPreviewCard(null)}
         />
       ) : null}
+
+      {game.view.status === "complete" && game.view.winner && dismissedEndFor !== game.gameId ? (
+        <GameOverOverlay
+          winnerName={winnerName}
+          winnerSeat={game.view.winner}
+          endReason={game.view.endReason}
+          redVp={game.view.victoryPoints.red}
+          blackVp={game.view.victoryPoints.black}
+          onNewGame={() => navigateTo("/")}
+          onDismiss={() => setDismissedEndFor(game.gameId)}
+        />
+      ) : null}
     </main>
   );
 }
@@ -1043,6 +1088,18 @@ function clamp(value: number, min: number, max: number): number {
 /** Title-case a phase id ("deploy" → "Deploy") for the scoreboard's secondary line. */
 function phaseLabel(phase: string): string {
   return phase.length === 0 ? phase : phase[0]!.toUpperCase() + phase.slice(1);
+}
+
+/** A gold war-banner glyph marking the seat that holds initiative (first move next round +
+ *  the final-VP tiebreak). The glyph is decorative; the label is read by screen readers. */
+function InitiativeBadge({ side }: { side: SeatId }) {
+  const label = `${capitalizeSeat(side)} holds initiative`;
+  return (
+    <span className="score-initiative" title={label}>
+      <span aria-hidden="true">⚑</span>
+      <span className="visually-hidden">{label}</span>
+    </span>
+  );
 }
 
 function eventLabel(event: PlayerGameEvent): string {
