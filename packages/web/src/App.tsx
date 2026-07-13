@@ -383,6 +383,9 @@ export function App() {
       setSelectedAreaId(null);
       setComposer(null);
       setArmedOrder(null);
+      // The event log is per-seat (each seat's view redacts the opponent's hidden actions), so
+      // clear it on a view-as switch rather than showing the previous seat's tail.
+      setEvents([]);
     } catch (caught) {
       setError(apiErrorMessage(caught));
     } finally {

@@ -15,12 +15,14 @@ export function InspectorPanel({
   // On phones the panel is a bottom sheet, collapsed by default; selecting opens it.
   // On desktop the toggle and the collapsed state are inert (CSS ignores them).
   const [collapsed, setCollapsed] = useState(true);
-  const selectionKey = selection.join(",");
+  // Re-open on every tile-selecting tap — keyed on selectEpoch (bumps even when re-tapping the
+  // same tile), not on the selection contents, so a manually-collapsed sheet reopens on re-tap.
   useEffect(() => {
-    if (selectionKey !== "") {
+    if (selection.length > 0) {
       setCollapsed(false);
     }
-  }, [selectionKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.selectEpoch]);
 
   const title =
     selection.length > 1
