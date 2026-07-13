@@ -90,9 +90,6 @@ export interface MapDetail {
   name: string;
   builtin: boolean;
   updatedAt: string | null;
-  /** LEGACY: the primary (oldest) terrain's status, "none" if the map has no terrains. Kept for
-   *  the current web app; removed in PR-C once the play view uses `terrains`. */
-  terrain: TerrainStatus;
   /** All terrains for this map, oldest first. Empty for built-ins. */
   terrains: TerrainInfo[];
   source: z.infer<typeof hexMapSourceSchema>;

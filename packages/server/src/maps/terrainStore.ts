@@ -12,9 +12,8 @@ interface Row {
   updated_at: string;
 }
 
-/** Owns `map_terrains`: many named, styled terrains per map. Terrains are addressed by a
- *  surrogate id; the legacy per-map adapters (status/webp/updatedAt/primaryId) resolve the
- *  map's "primary" terrain — the oldest row — for the retained single-terrain routes/field. */
+/** Owns `map_terrains`: many named, styled terrains per map. Each terrain is addressed by its
+ *  surrogate id. */
 export class TerrainStore {
   constructor(private readonly db: SqliteDatabase) {}
 
@@ -128,31 +127,5 @@ export class TerrainStore {
         "UPDATE map_terrains SET status = 'failed', error = 'interrupted', updated_at = ? WHERE status = 'pending'"
       )
       .run(new Date().toISOString());
-  }
-
-  // --- Legacy per-map adapters (primary = oldest row) ---
-
-  primaryId(mapId: string): string | null {
-    const r = this.db
-      .prepare(
-        "SELECT id FROM map_terrains WHERE map_id = ? ORDER BY created_at ASC, rowid ASC LIMIT 1"
-      )
-      .get(mapId) as { id: string } | undefined;
-    return r?.id ?? null;
-  }
-
-  status(mapId: string): TerrainStatus {
-    const id = this.primaryId(mapId);
-    return id ? (this.get(id)!.status as TerrainStatus) : "none";
-  }
-
-  updatedAt(mapId: string): string | null {
-    const id = this.primaryId(mapId);
-    return id ? this.updatedAtById(id) : null;
-  }
-
-  webp(mapId: string): Buffer | null {
-    const id = this.primaryId(mapId);
-    return id ? this.webpById(id) : null;
   }
 }

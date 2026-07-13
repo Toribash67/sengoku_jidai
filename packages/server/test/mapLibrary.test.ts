@@ -65,19 +65,26 @@ describe("MapLibrary create/get/list", () => {
     expect(library.has("nope")).toBe(false);
   });
 
-  it("get() reports terrain status from the provided resolver", () => {
+  it("get() reports terrains from the provided resolver", () => {
     const db = openDatabase(":memory:");
     runMigrations(db);
     const library = new MapLibrary(db);
     const created = library.create(structuredClone(FIXTURE_HEX_MAP));
     if (!created.ok) throw new Error("create failed");
     const id = created.value.id;
-    // default: none
-    expect(library.get(id)?.terrain).toBe("none");
+    const terrain = {
+      id: "t1",
+      name: "Terrain 1",
+      styleId: "antique" as const,
+      status: "ready" as const,
+      updatedAt: "u"
+    };
+    // default: empty
+    expect(library.get(id)?.terrains).toEqual([]);
     // with a resolver
-    expect(library.get(id, () => "ready")?.terrain).toBe("ready");
-    // built-in always none
-    expect(library.get("rivers", () => "ready")?.terrain).toBe("none");
+    expect(library.get(id, () => [terrain])?.terrains).toEqual([terrain]);
+    // built-in always empty
+    expect(library.get("rivers", () => [terrain])?.terrains).toEqual([]);
   });
 
   it("rejects a structurally invalid map (disconnected tile) with the engine's message", () => {

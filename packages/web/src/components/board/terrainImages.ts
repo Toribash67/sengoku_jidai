@@ -1,4 +1,4 @@
-import type { TerrainInfo, TerrainStatus } from "@sengoku-jidai/shared";
+import type { TerrainInfo } from "@sengoku-jidai/shared";
 
 /**
  * Committed terrain background assets, keyed by map id. Each map's background lives at
@@ -27,26 +27,57 @@ export function terrainImage(mapId: string): string | null {
   return resolveTerrain(TERRAIN_MODULES, mapId);
 }
 
-export function terrainApiUrl(mapId: string): string {
-  return `/api/maps/${encodeURIComponent(mapId)}/terrain.webp`;
-}
-
-/** Pick the terrain background URL for a map: a committed asset (built-ins) always wins;
- *  a custom map uses the server-generated image only once its status is "ready". */
-export function resolveTerrainUrl(args: {
-  committed: string | null;
-  terrain: TerrainStatus;
-  mapId: string;
-}): string | null {
-  if (args.committed) {
-    return args.committed;
-  }
-  return args.terrain === "ready" ? terrainApiUrl(args.mapId) : null;
-}
-
 /** Per-terrain background webp URL (many-terrains API). */
 export function terrainByIdApiUrl(mapId: string, terrainId: string): string {
   return `/api/maps/${encodeURIComponent(mapId)}/terrains/${encodeURIComponent(terrainId)}.webp`;
+}
+
+export const FLAT_TERRAIN_KEY = "flat";
+export const ORIGINAL_TERRAIN_KEY = "original";
+
+/** One selectable terrain in the play-view picker: a stable key, a display label, and the
+ *  background URL to paint (null = the Flat shaded look). */
+export interface TerrainOption {
+  key: string;
+  label: string;
+  url: string | null;
+}
+
+/** Per-terrain webp url cache-busted by updatedAt (which also keys the server ETag). */
+export function terrainByIdCacheBustedUrl(mapId: string, terrain: TerrainInfo): string {
+  return `${terrainByIdApiUrl(mapId, terrain.id)}?v=${encodeURIComponent(terrain.updatedAt)}`;
+}
+
+/** Play-view options: Flat first (the default), then Original for a built-in committed asset,
+ *  then each READY terrain (oldest first). Pending/failed terrains are omitted. */
+export function buildTerrainOptions(args: {
+  mapId: string;
+  committed: string | null;
+  terrains: TerrainInfo[];
+}): TerrainOption[] {
+  const options: TerrainOption[] = [{ key: FLAT_TERRAIN_KEY, label: "Flat", url: null }];
+  if (args.committed) {
+    options.push({ key: ORIGINAL_TERRAIN_KEY, label: "Original", url: args.committed });
+  }
+  for (const terrain of args.terrains) {
+    if (terrain.status === "ready") {
+      options.push({
+        key: terrain.id,
+        label: terrain.name,
+        url: terrainByIdCacheBustedUrl(args.mapId, terrain)
+      });
+    }
+  }
+  return options;
+}
+
+/** The option a persisted key selects, or the Flat option (always options[0]) if absent/stale.
+ *  Falls back to a literal Flat option should an empty list ever be passed. */
+export function resolveTerrainOption(options: TerrainOption[], key: string | null): TerrainOption {
+  return (
+    options.find((option) => option.key === key) ??
+    options[0] ?? { key: FLAT_TERRAIN_KEY, label: "Flat", url: null }
+  );
 }
 
 /** The id the editor preview selects on load: the first ready terrain, else null (Flat). */
@@ -69,5 +100,5 @@ export function previewTerrainUrl(args: {
   if (!selected || selected.status !== "ready") {
     return null;
   }
-  return `${terrainByIdApiUrl(args.mapId, selected.id)}?v=${encodeURIComponent(selected.updatedAt)}`;
+  return terrainByIdCacheBustedUrl(args.mapId, selected);
 }

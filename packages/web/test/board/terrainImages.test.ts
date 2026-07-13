@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   resolveTerrain,
-  resolveTerrainUrl,
-  terrainApiUrl,
   defaultSelection,
   previewTerrainUrl,
-  terrainByIdApiUrl
+  terrainByIdApiUrl,
+  buildTerrainOptions,
+  resolveTerrainOption,
+  terrainByIdCacheBustedUrl,
+  FLAT_TERRAIN_KEY,
+  ORIGINAL_TERRAIN_KEY
 } from "../../src/components/board/terrainImages.js";
 import type { TerrainInfo } from "@sengoku-jidai/shared";
 
@@ -20,23 +23,6 @@ describe("resolveTerrain", () => {
 
   it("returns null for a map with no committed terrain", () => {
     expect(resolveTerrain(modules, "mountains")).toBeNull();
-  });
-});
-
-describe("resolveTerrainUrl", () => {
-  it("prefers a committed asset (built-ins) regardless of status", () => {
-    expect(
-      resolveTerrainUrl({ committed: "/assets/rivers/bg.webp", terrain: "none", mapId: "rivers" })
-    ).toBe("/assets/rivers/bg.webp");
-  });
-
-  it("uses the API url for a custom map only when terrain is ready", () => {
-    expect(resolveTerrainUrl({ committed: null, terrain: "ready", mapId: "abc" })).toBe(
-      terrainApiUrl("abc")
-    );
-    expect(resolveTerrainUrl({ committed: null, terrain: "pending", mapId: "abc" })).toBeNull();
-    expect(resolveTerrainUrl({ committed: null, terrain: "failed", mapId: "abc" })).toBeNull();
-    expect(resolveTerrainUrl({ committed: null, terrain: "none", mapId: "abc" })).toBeNull();
   });
 });
 
@@ -81,5 +67,59 @@ describe("previewTerrainUrl", () => {
     expect(previewTerrainUrl({ terrains, selectedTerrainId: "a", mapId: "m1" })).toBe(
       "/api/maps/m1/terrains/a.webp?v=2026-01-01T00%3A00%3A00Z"
     );
+  });
+});
+
+describe("terrainByIdCacheBustedUrl", () => {
+  it("appends the encoded updatedAt", () => {
+    expect(terrainByIdCacheBustedUrl("m1", t("a", "ready", "2026-01-01T00:00:00Z"))).toBe(
+      "/api/maps/m1/terrains/a.webp?v=2026-01-01T00%3A00%3A00Z"
+    );
+  });
+});
+
+describe("buildTerrainOptions", () => {
+  it("built-in with a committed asset yields Flat + Original", () => {
+    const opts = buildTerrainOptions({
+      mapId: "rivers",
+      committed: "/a/rivers.webp",
+      terrains: []
+    });
+    expect(opts).toEqual([
+      { key: FLAT_TERRAIN_KEY, label: "Flat", url: null },
+      { key: ORIGINAL_TERRAIN_KEY, label: "Original", url: "/a/rivers.webp" }
+    ]);
+  });
+
+  it("custom map lists Flat then ready terrains oldest-first, skipping non-ready", () => {
+    const terrains = [
+      t("a", "ready", "2026-01-01T00:00:00Z"),
+      t("b", "pending"),
+      t("c", "ready", "2026-02-02T00:00:00Z")
+    ];
+    const opts = buildTerrainOptions({ mapId: "m1", committed: null, terrains });
+    expect(opts.map((o) => o.key)).toEqual([FLAT_TERRAIN_KEY, "a", "c"]);
+    expect(opts[1]).toEqual({
+      key: "a",
+      label: "a",
+      url: "/api/maps/m1/terrains/a.webp?v=2026-01-01T00%3A00%3A00Z"
+    });
+  });
+
+  it("nothing to pick yields just Flat", () => {
+    expect(buildTerrainOptions({ mapId: "m1", committed: null, terrains: [] })).toEqual([
+      { key: FLAT_TERRAIN_KEY, label: "Flat", url: null }
+    ]);
+  });
+});
+
+describe("resolveTerrainOption", () => {
+  const opts = buildTerrainOptions({ mapId: "m1", committed: null, terrains: [t("a", "ready")] });
+  it("returns the option matching the key", () => {
+    expect(resolveTerrainOption(opts, "a").key).toBe("a");
+  });
+  it("falls back to Flat for null / stale / deleted keys", () => {
+    expect(resolveTerrainOption(opts, null).key).toBe(FLAT_TERRAIN_KEY);
+    expect(resolveTerrainOption(opts, "gone").key).toBe(FLAT_TERRAIN_KEY);
   });
 });

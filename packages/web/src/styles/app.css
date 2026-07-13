@@ -519,6 +519,19 @@ button:disabled {
   min-width: 0;
 }
 
+/* Per-viewer terrain selector above the board (Flat, built-in Original, ready terrains). */
+.terrain-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  font-size: 0.85rem;
+}
+
+.terrain-picker-label {
+  color: var(--sumi-soft);
+}
+
 .action-bar {
   display: flex;
   flex-wrap: wrap;
