@@ -32,6 +32,14 @@ describe("parseRoute", () => {
       expect(route.gameId).toBe("a/b");
     }
   });
+
+  it("parses the admin route", () => {
+    expect(parseRoute({ pathname: "/admin", hash: "", search: "" })).toEqual({ kind: "admin" });
+  });
+
+  it("tolerates a trailing slash on the admin route", () => {
+    expect(parseRoute({ pathname: "/admin/", hash: "", search: "" })).toEqual({ kind: "admin" });
+  });
 });
 
 describe("SP5 routes", () => {
