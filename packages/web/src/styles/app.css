@@ -215,6 +215,17 @@ button:disabled {
   color: var(--sumi-soft);
 }
 
+.round-meta .round-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.round-meta .round-total {
+  color: var(--sumi-soft);
+  font-variant-numeric: tabular-nums;
+}
+
 .game-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 10px var(--panel-width, 340px);

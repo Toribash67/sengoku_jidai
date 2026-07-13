@@ -810,7 +810,10 @@ export function App() {
             <span className="score-side">Black</span>
           </span>
           <span className="round-meta">
-            <span className="round-no">Round {game.view.round}</span>
+            <span className="round-line">
+              <span className="round-no">Round {game.view.round}</span>
+              <span className="round-total">/ {game.view.maxRounds}</span>
+            </span>
             <span className="phase-name">{phaseLabel(game.view.phase)}</span>
           </span>
         </div>
