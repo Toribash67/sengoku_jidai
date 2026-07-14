@@ -545,6 +545,34 @@ button:disabled {
   }
 }
 
+/* Pulse on tiles the opponent just changed (the poll picked up their move). A solid, bright
+   ring that throbs a few times then is removed by App — a neutral "look here" signal, distinct
+   from the amber target and green source rings and from either seat colour. */
+.tile-flash-outline {
+  fill: none;
+  stroke: #22d3ee;
+  stroke-width: 10px;
+  stroke-linejoin: round;
+  animation: tile-flash 0.45s ease-in-out 3;
+}
+
+@keyframes tile-flash {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-flash-outline {
+    animation: none;
+    opacity: 0.9;
+  }
+}
+
 /* Bottom action bar: contextual + support actions when idle, compose controls when an
    order is being built. Sits under the map in the board column. */
 .board-column {
