@@ -29,6 +29,7 @@ import { CombatPanel } from "./components/board/CombatPanel.js";
 import { PendingDecisionPanel } from "./components/board/PendingDecisionPanel.js";
 import { Hand } from "./components/board/Hand.js";
 import { describeArea } from "./components/board/areaLabel.js";
+import { describeEvent, type EventLookup } from "./components/board/eventLog.js";
 import { capitalizeSeat, seatDisplayName } from "./components/board/gameOver.js";
 import { GameOverOverlay } from "./components/GameOverOverlay.js";
 import {
@@ -183,7 +184,7 @@ export function App() {
         setSelectedAreaId(null);
         setComposer(null);
         setArmedOrder(null);
-        setEvents([]);
+        setEvents(await loadHistory(gameId, token));
       })
       .catch((caught) => {
         if (!cancelled) {
@@ -258,7 +259,7 @@ export function App() {
                 flashTimerRef.current = null;
               }, FLASH_MS);
             }
-            setEvents((previous) => [...newEvents.reverse(), ...previous].slice(0, 8));
+            setEvents((previous) => [...newEvents.reverse(), ...previous]);
           }
         })
         .catch(() => {
@@ -378,6 +379,18 @@ export function App() {
     }
   }
 
+  // The full per-seat event history, newest-first. The server keeps it from revision 0, so a
+  // reload or seat switch restores the whole log instead of starting empty. Resilient: a failed
+  // history fetch yields an empty log rather than failing the surrounding view load.
+  async function loadHistory(gameId: string, token: string): Promise<PlayerGameEvent[]> {
+    try {
+      const { events } = await fetchEvents(gameId, token, 0);
+      return events.reverse();
+    } catch {
+      return [];
+    }
+  }
+
   async function handleClaim(name: string) {
     if (!game) {
       return;
@@ -424,8 +437,8 @@ export function App() {
       setComposer(null);
       setArmedOrder(null);
       // The event log is per-seat (each seat's view redacts the opponent's hidden actions), so
-      // clear it on a view-as switch rather than showing the previous seat's tail.
-      setEvents([]);
+      // reload the new seat's own history rather than showing the previous seat's tail.
+      setEvents(await loadHistory(game.gameId, token));
     } catch (caught) {
       setError(apiErrorMessage(caught));
     } finally {
@@ -637,7 +650,7 @@ export function App() {
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
       }
-      setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
+      setEvents((previous) => [...[...(response.events ?? [])].reverse(), ...previous]);
       setComposer(null);
       setArmedOrder(null);
       setSelectedAreaId(null);
@@ -661,7 +674,7 @@ export function App() {
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
       }
-      setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
+      setEvents((previous) => [...[...(response.events ?? [])].reverse(), ...previous]);
     } catch (caught) {
       setError(apiErrorMessage(caught));
     } finally {
@@ -693,7 +706,7 @@ export function App() {
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
       }
-      setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
+      setEvents((previous) => [...[...(response.events ?? [])].reverse(), ...previous]);
     } catch (caught) {
       setError(apiErrorMessage(caught));
     } finally {
@@ -719,7 +732,7 @@ export function App() {
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
       }
-      setEvents((previous) => [...(response.events ?? []), ...previous].slice(0, 8));
+      setEvents((previous) => [...[...(response.events ?? [])].reverse(), ...previous]);
     } catch (caught) {
       setError(apiErrorMessage(caught));
     } finally {
@@ -785,6 +798,15 @@ export function App() {
   }
 
   const isViewerActive = game.view.activeSeat === game.view.viewerSeat;
+
+  // Resolvers for the event log: seat -> player name, tile id -> human area label.
+  const eventLookup: EventLookup = {
+    seatName: (seat) => seatDisplayName(seat, game.seatInfo),
+    areaName: (tileId) => {
+      const area = getMap(game.view.mapId).areas[tileId];
+      return area ? describeArea(area) : "an area";
+    }
+  };
 
   // The engine always sets `winner` alongside `status: "complete"` (see engine resolve.ts /
   // scoring.ts evaluateGameEnd), so the "" fallback here — and the unguarded winnerName in the
@@ -1010,7 +1032,7 @@ export function App() {
             ) : (
               <ol className="event-log">
                 {events.map((event, index) => (
-                  <li key={`${event.type}-${index}`}>{eventLabel(event)}</li>
+                  <li key={`${event.type}-${index}`}>{describeEvent(event, eventLookup)}</li>
                 ))}
               </ol>
             )}
@@ -1134,30 +1156,4 @@ function InitiativeBadge({ side }: { side: SeatId }) {
       <span className="visually-hidden">{label}</span>
     </span>
   );
-}
-
-function eventLabel(event: PlayerGameEvent): string {
-  switch (event.type) {
-    case "diceRolled":
-      return `${event.seat} rolled [${event.rolls.join(", ")}] = ${event.total} (${event.purpose})`;
-    case "unitsRemoved":
-      return `${event.seat} lost ${event.count} ${event.unit}${event.count === 1 ? "" : "s"}`;
-    case "unitsMoved":
-      return `${event.seat} moved ${event.count} ${event.unit}${event.count === 1 ? "" : "s"}`;
-    case "unitsPlaced":
-      return `${event.seat} placed ${event.count} ${event.unit}${event.count === 1 ? "" : "s"}`;
-    case "areaCaptured":
-      return `${event.seat} captured an area`;
-    case "cardsDrawn":
-      return `${event.seat} drew ${event.count} ${event.count === 1 ? "card" : "cards"}`;
-    case "cardDiscarded":
-      return `${event.seat} discarded a card to reroll`;
-    case "cardPlayed":
-      return `${event.seat} played ${cardLabel(event.card)}`;
-    default:
-      if ("seat" in event && typeof event.seat === "string") {
-        return `${event.seat}: ${event.type}`;
-      }
-      return event.type;
-  }
 }

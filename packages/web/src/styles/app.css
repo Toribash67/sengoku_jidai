@@ -435,6 +435,9 @@ button:disabled {
   padding-left: 20px;
   font-size: 0.85rem;
   color: var(--sumi-soft);
+  /* Full history can run long; keep the panel bounded and scroll the log itself. */
+  max-height: 260px;
+  overflow-y: auto;
 }
 
 .muted {
