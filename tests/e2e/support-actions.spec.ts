@@ -49,7 +49,5 @@ test("plans from the action bar and resolves it", async ({ page }) => {
 
   // The initiative Plan space emits both commanderDeployed and initiativeSeized; the log now
   // renders these in human phrasing (player names + area labels) rather than raw event types.
-  await expect(
-    page.getByText(/deployed a commander|seized the initiative/).first()
-  ).toBeVisible();
+  await expect(page.getByText(/deployed a commander|seized the initiative/).first()).toBeVisible();
 });
