@@ -16,6 +16,9 @@ export interface MapBoardProps {
   legalTargetIds?: ReadonlySet<string>;
   sourceIds?: ReadonlySet<string>;
   onSourceClick?: (areaId: string) => void;
+  /** Tiles the opponent changed on their last turn (from the poll's event delta); pulsed
+   *  briefly so the viewer can see what moved. App clears the set after the pulse. */
+  flashAreaIds?: ReadonlySet<string>;
   /** Units staged from each area for the active move/placement; drawn as on-tile badges. */
   stagedCounts?: ReadonlyMap<string, number>;
   /** The source whose count the action-bar stepper adjusts; gets a solid (vs dashed) ring. */
@@ -374,6 +377,7 @@ interface DecorateInput {
   legalTargetIds?: ReadonlySet<string>;
   sourceIds?: ReadonlySet<string>;
   onSourceClick?: (areaId: string) => void;
+  flashAreaIds?: ReadonlySet<string>;
   stagedCounts?: ReadonlyMap<string, number>;
   activeSourceId?: string | null;
   pendingAttack?: { area: string; seat: SeatId; unit: "troop" | "ship"; count: number } | null;
@@ -391,6 +395,7 @@ function decorate(
     legalTargetIds,
     sourceIds,
     onSourceClick,
+    flashAreaIds,
     stagedCounts,
     activeSourceId,
     pendingAttack,
@@ -546,6 +551,21 @@ function decorate(
     }
   }
 
+  // Flash rings on tiles the opponent just changed, painted above the tints/stacks/rings so
+  // the pulse reads clearly. Transient: App supplies the set for ~1.5s then clears it.
+  if (flashAreaIds) {
+    for (const id of flashAreaIds) {
+      const tile = svg.querySelector<SVGGraphicsElement>(`#${CSS.escape(id)}`);
+      if (!tile) {
+        continue;
+      }
+      const ring = makeOutline(svg, tile, "tile-flash-outline");
+      if (ring) {
+        overlay.appendChild(ring);
+      }
+    }
+  }
+
   // Selection outline is appended last so it paints above every other overlay element
   // (supply tints, glow rings, unit stacks, occupancy marks). Appending it mid-pass let
   // later tiles' units and the occupancy marks cover it for some selections.
@@ -566,6 +586,7 @@ export function MapBoard({
   legalTargetIds,
   sourceIds,
   onSourceClick,
+  flashAreaIds,
   stagedCounts,
   activeSourceId,
   pendingAttack,
@@ -602,6 +623,7 @@ export function MapBoard({
         legalTargetIds,
         sourceIds,
         onSourceClick,
+        flashAreaIds,
         stagedCounts,
         activeSourceId,
         pendingAttack,
@@ -616,6 +638,7 @@ export function MapBoard({
     legalTargetIds,
     sourceIds,
     onSourceClick,
+    flashAreaIds,
     stagedCounts,
     activeSourceId,
     pendingAttack,

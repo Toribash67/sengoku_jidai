@@ -59,6 +59,8 @@ import {
 } from "./state/localGame.js";
 import { gameUrl, inviteUrl, navigateTo, useRoute } from "./state/route.js";
 import { shouldPoll } from "./state/polling.js";
+import { useTurnAlert } from "./state/turnAlert.js";
+import { affectedTileIds } from "./components/board/eventTiles.js";
 import { CreateGameScreen } from "./components/CreateGameScreen.js";
 import { ClaimSeatPrompt } from "./components/ClaimSeatPrompt.js";
 import { EditorScreen } from "./components/editor/EditorScreen.js";
@@ -69,6 +71,8 @@ import { PlayersPanel } from "./components/PlayersPanel.js";
 const MIN_PANEL_WIDTH = 260;
 const MIN_MAP_WIDTH = 360;
 const DEFAULT_PANEL_WIDTH = 340;
+/** How long the opponent's changed tiles pulse before the highlight clears. */
+const FLASH_MS = 1500;
 
 interface LoadedGame {
   gameId: string;
@@ -92,6 +96,9 @@ export function App() {
   // and now picks a candidate tile on the map. Placement/Plan open their composer directly.
   const [armedOrder, setArmedOrder] = useState<ArmedOrder | null>(null);
   const [events, setEvents] = useState<PlayerGameEvent[]>([]);
+  // Tiles the opponent changed on their last turn, pulsed briefly on the board then cleared.
+  const [flashAreaIds, setFlashAreaIds] = useState<ReadonlySet<string>>(() => new Set());
+  const flashTimerRef = useRef<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The gameId whose game-over overlay has been dismissed (to view the final board). Keyed by
@@ -239,6 +246,18 @@ export function App() {
               : prev
           );
           if (newEvents.length > 0) {
+            // Pulse the tiles the opponent just changed (compute before the in-place reverse).
+            const touched = affectedTileIds(newEvents);
+            if (touched.length > 0) {
+              if (flashTimerRef.current !== null) {
+                window.clearTimeout(flashTimerRef.current);
+              }
+              setFlashAreaIds(new Set(touched));
+              flashTimerRef.current = window.setTimeout(() => {
+                setFlashAreaIds(new Set());
+                flashTimerRef.current = null;
+              }, FLASH_MS);
+            }
             setEvents((previous) => [...newEvents.reverse(), ...previous].slice(0, 8));
           }
         })
@@ -248,6 +267,21 @@ export function App() {
     }, 3000);
     return () => window.clearInterval(interval);
   }, [game, busy]);
+
+  // Drop any pending tile pulse when switching games (or leaving one).
+  useEffect(() => {
+    setFlashAreaIds(new Set());
+    if (flashTimerRef.current !== null) {
+      window.clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = null;
+    }
+  }, [game?.gameId]);
+
+  // Flash the tab title when it becomes the viewer's turn while the tab is backgrounded. Called
+  // unconditionally (above the early returns) so the hook order stays stable.
+  useTurnAlert(
+    game != null && game.view.status === "active" && game.view.activeSeat === game.view.viewerSeat
+  );
 
   const selectedArea = useMemo(
     () => game?.view.areas.find((area) => area.id === selectedAreaId) ?? null,
@@ -851,6 +885,7 @@ export function App() {
             legalTargetIds={legalTargetIds}
             sourceIds={sourceIds}
             onSourceClick={handleSourceClick}
+            flashAreaIds={flashAreaIds}
             stagedCounts={stagedCounts}
             activeSourceId={mapActiveSourceId}
             pendingAttack={pendingAttack}
