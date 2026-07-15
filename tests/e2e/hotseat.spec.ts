@@ -21,6 +21,12 @@ test("creates a hotseat game, renders the SVG board, and selects a tile", async 
   await expect(page.getByRole("heading", { name: "Red HQ" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Traits" })).toBeVisible();
 
+  // Desktop hover affordance (#8): hovering a clickable tile applies a brightness filter.
+  await page.locator("#tile9").hover();
+  await expect
+    .poll(() => page.locator("#tile9").evaluate((el) => getComputedStyle(el).filter))
+    .not.toBe("none");
+
   await page.reload();
   await expect(page.getByTestId("board")).toBeVisible();
   await expect(page.locator("#tile9")).toBeVisible();
