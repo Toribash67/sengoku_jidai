@@ -4,6 +4,7 @@ import { fetchMap } from "../../client/api.js";
 import { loadTerrainChoice, saveTerrainChoice } from "../../state/localGame.js";
 import {
   buildTerrainOptions,
+  builtinTerrains,
   FLAT_TERRAIN_KEY,
   resolveTerrainOption,
   terrainImage,
@@ -34,6 +35,7 @@ export async function fetchTerrains(
  *  persists on select. Terrain is purely client-side, so this is a per-viewer preference. */
 export function useTerrainPicker(mapId: string): TerrainPicker {
   const committed = terrainImage(mapId);
+  const builtins = useMemo(() => builtinTerrains(mapId), [mapId]);
   const [terrains, setTerrains] = useState<TerrainInfo[]>([]);
   const [selectedKey, setSelectedKey] = useState<string>(
     () => loadTerrainChoice(mapId) ?? FLAT_TERRAIN_KEY
@@ -57,8 +59,8 @@ export function useTerrainPicker(mapId: string): TerrainPicker {
   }, [mapId]);
 
   const options = useMemo(
-    () => buildTerrainOptions({ mapId, committed, terrains }),
-    [mapId, committed, terrains]
+    () => buildTerrainOptions({ mapId, committed, builtins, terrains }),
+    [mapId, committed, builtins, terrains]
   );
   const resolved = resolveTerrainOption(options, selectedKey);
 
