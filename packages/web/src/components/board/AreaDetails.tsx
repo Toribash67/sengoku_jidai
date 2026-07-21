@@ -1,4 +1,5 @@
 import type { MapArea, PlayerAreaView, PlayerGameView } from "@sengoku-jidai/engine/client";
+import { bonusLabel } from "./bonusLabel.js";
 
 interface AreaDetailsProps {
   area: PlayerAreaView;
@@ -41,7 +42,11 @@ export function AreaDetails({ area, mapArea, view }: AreaDetailsProps) {
         {mapArea.harbor ? <li>Harbour</li> : null}
         {mapArea.ports.length > 0 ? <li>Has piers</li> : null}
         {mapArea.shellable ? <li>Coastal (can be shelled)</li> : null}
-        {bonus ? <li>Bonus: {bonus}</li> : null}
+        {bonus ? (
+          <li>
+            Bonus: {bonusLabel(bonus).name} — {bonusLabel(bonus).effect}
+          </li>
+        ) : null}
       </ul>
     </>
   );
