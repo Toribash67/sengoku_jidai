@@ -111,11 +111,12 @@ describe("buildScene", () => {
     expect(scene.viewBox.y + scene.viewBox.height).toBeGreaterThanOrEqual(Math.max(...allY));
   });
 
-  it("places a bonus glyph on each bonus-slot tile, by slot order", () => {
-    const b = scene.tiles.find((t) => t.id === "B")!;
-    expect(b.bonusGlyph).toBe("glyph-bonus-sun");
+  it("marks each bonus-slot tile with the generic badge at its right corner", () => {
+    const b = byId("B");
+    expect(b.bonusGlyph).toBe("glyph-bonus-generic");
     expect(b.glyphAnchors.bonus).toBeDefined();
-    const a = scene.tiles.find((t) => t.id === "A")!;
-    expect(a.bonusGlyph).toBeUndefined();
+    // Anchored to the right of the tile centroid — the E-vertex corner.
+    expect(b.glyphAnchors.bonus!.x).toBeGreaterThan(b.centroid.x);
+    expect(byId("A").bonusGlyph).toBeUndefined();
   });
 });

@@ -63,6 +63,11 @@ describe("assembleBoardSvg", () => {
     expect(svg).toMatch(/class="hex-grid"[^>]*display:none/);
   });
 
+  it("bakes a generic bonus marker on each slot tile, tagged for runtime retargeting", () => {
+    expect(svg).toContain(`class="bonus-marker" data-area="B"`);
+    expect(svg).toContain(`href="#glyph-bonus-generic"`);
+  });
+
   it("matches the committed snapshot", () => {
     expect(svg).toMatchSnapshot();
   });

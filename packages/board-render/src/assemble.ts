@@ -16,6 +16,11 @@ import { el } from "./svg.js";
 const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
 
+/** Bonus badge diameter as a fraction of hex size (~1.47× the old apparent size, hex-relative).
+ *  Independent of the equal-valued anchor-offset factor in scene.ts (the match is coincidental —
+ *  badge size and corner-anchor position are free to diverge). */
+const BONUS_BADGE_FRACTION = 0.72;
+
 function ringPath(rings: Pixel[][]): string {
   return rings
     .map((ring) => {
@@ -88,7 +93,13 @@ function featureGlyphs(tile: SceneTile, hexSize: number): string {
     out.push(placeNative(art, tile.glyphAnchors.stars, hexSize));
   }
   if (tile.bonusGlyph && tile.glyphAnchors.bonus) {
-    out.push(ASSETS.place(tile.bonusGlyph, tile.glyphAnchors.bonus, 1.4));
+    const badgeScale = (hexSize * BONUS_BADGE_FRACTION) / 40;
+    out.push(
+      ASSETS.place(tile.bonusGlyph, tile.glyphAnchors.bonus, badgeScale, {
+        class: "bonus-marker",
+        "data-area": tile.id
+      })
+    );
   }
   for (const port of tile.ports) {
     out.push(placePier(port.from, port.toPoint, hexSize));

@@ -1,9 +1,9 @@
-import type { PlayerAreaView, SeatId } from "@sengoku-jidai/engine/client";
+import type { PlayerAreaView, SeatId, BonusType } from "@sengoku-jidai/engine/client";
 import { useEffect, useRef } from "react";
 import { boardSvgFor } from "../../client/maps.js";
 import { SEAT_SOLID, TILE_LAND_FILL, TILE_SEA_FILL, tileFill } from "./tileFill.js";
 import { slotIdForSpace } from "./slotMapping.js";
-import { terrainImageAttrs } from "@sengoku-jidai/board-render";
+import { terrainImageAttrs, bonusTypeGlyph } from "@sengoku-jidai/board-render";
 
 export interface MapBoardProps {
   /** The game's map id (`view.mapId`); the SVG comes from the map loader cache,
@@ -28,6 +28,9 @@ export interface MapBoardProps {
   pendingAttack?: { area: string; seat: SeatId; unit: "troop" | "ship"; count: number } | null;
   /** Committed terrain background for the active map, painted behind all tiles. Null = flat fills. */
   terrainUrl?: string | null;
+  /** The game's per-slot bonus assignment (`view.bonuses`); retargets each baked generic
+   *  bonus marker to its specific badge. Absent (editor/preview) leaves markers generic. */
+  bonuses?: Record<string, BonusType>;
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -382,6 +385,7 @@ interface DecorateInput {
   activeSourceId?: string | null;
   pendingAttack?: { area: string; seat: SeatId; unit: "troop" | "ship"; count: number } | null;
   hasTerrain?: boolean;
+  bonuses?: Record<string, BonusType>;
 }
 
 /** Apply per-tile fill, selection stroke, and click handler. */
@@ -399,7 +403,8 @@ function decorate(
     stagedCounts,
     activeSourceId,
     pendingAttack,
-    hasTerrain
+    hasTerrain,
+    bonuses
   }: DecorateInput
 ): void {
   const overlay = resetOverlay(svg);
@@ -575,6 +580,21 @@ function decorate(
       overlay.appendChild(outline);
     }
   }
+
+  // Bonus badges are baked generic; in a live game we know the assignment, so retarget each
+  // marker's <use> to the specific badge. Idempotent — safe under re-decoration + the 3s poll.
+  if (bonuses) {
+    for (const marker of svg.querySelectorAll<SVGUseElement>(".bonus-marker")) {
+      const areaId = marker.dataset.area;
+      const bonus = areaId ? bonuses[areaId] : undefined;
+      if (!bonus) {
+        continue;
+      }
+      const href = `#${bonusTypeGlyph(bonus)}`;
+      marker.setAttribute("href", href);
+      marker.setAttributeNS(XLINK_NS, "xlink:href", href);
+    }
+  }
 }
 
 export function MapBoard({
@@ -590,7 +610,8 @@ export function MapBoard({
   stagedCounts,
   activeSourceId,
   pendingAttack,
-  terrainUrl
+  terrainUrl,
+  bonuses
 }: MapBoardProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
@@ -627,7 +648,8 @@ export function MapBoard({
         stagedCounts,
         activeSourceId,
         pendingAttack,
-        hasTerrain: terrainUrl != null
+        hasTerrain: terrainUrl != null,
+        bonuses
       });
     }
   }, [
@@ -642,7 +664,8 @@ export function MapBoard({
     stagedCounts,
     activeSourceId,
     pendingAttack,
-    terrainUrl
+    terrainUrl,
+    bonuses
   ]);
 
   return (

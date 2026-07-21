@@ -1,4 +1,5 @@
 import type { MapArea, PlayerAreaView, PlayerGameView } from "@sengoku-jidai/engine/client";
+import { bonusLabel } from "./bonusLabel.js";
 
 interface AreaDetailsProps {
   area: PlayerAreaView;
@@ -10,6 +11,7 @@ interface AreaDetailsProps {
  *  bar, not here, so this panel carries no buttons and never shows raw tile ids. */
 export function AreaDetails({ area, mapArea, view }: AreaDetailsProps) {
   const bonus = view.bonuses[area.id] ?? null;
+  const bonusInfo = bonus ? bonusLabel(bonus) : null;
 
   return (
     <>
@@ -41,7 +43,11 @@ export function AreaDetails({ area, mapArea, view }: AreaDetailsProps) {
         {mapArea.harbor ? <li>Harbour</li> : null}
         {mapArea.ports.length > 0 ? <li>Has piers</li> : null}
         {mapArea.shellable ? <li>Coastal (can be shelled)</li> : null}
-        {bonus ? <li>Bonus: {bonus}</li> : null}
+        {bonusInfo ? (
+          <li>
+            Bonus: {bonusInfo.name} — {bonusInfo.effect}
+          </li>
+        ) : null}
       </ul>
     </>
   );
