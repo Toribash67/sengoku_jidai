@@ -912,6 +912,7 @@ export function App() {
             activeSourceId={mapActiveSourceId}
             pendingAttack={pendingAttack}
             terrainUrl={terrain.terrainUrl}
+            bonuses={game.view.bonuses}
           />
 
           {pendingCombat ? (
