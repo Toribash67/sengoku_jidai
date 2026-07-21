@@ -195,18 +195,19 @@ const HARBOR = symbol(
 );
 
 // ---------------------------------------------------------------------------
-// Bonus badge symbols — washi disc with a sumi letter. Final per-bonus art
-// replaces the inner content later; the id↔bonus mapping (bonusTypeGlyph) stays fixed.
+// Bonus badge symbols — a washi disc carrying a placeholder mark (a sumi letter per
+// bonus, or a dot for the generic slot marker). Final per-bonus art replaces the inner
+// content later; the id↔bonus mapping (bonusTypeGlyph) stays fixed.
 // ---------------------------------------------------------------------------
-// Placeholder bonus badge: a washi disc with a single sumi letter. Final per-bonus art
-// replaces the inner content later; the id↔bonus mapping (bonusTypeGlyph) stays fixed.
+const BADGE_DISC = `<circle r="17" fill="#f4ecd8" stroke="#20242b" stroke-width="2.5"/>`;
+
 function letterBadge(id: string, letter: string): string {
   return symbol(
     id,
     "-20 -20 40 40",
     40,
     40,
-    `<circle r="17" fill="#f4ecd8" stroke="#20242b" stroke-width="2.5"/>` +
+    BADGE_DISC +
       `<text x="0" y="1" text-anchor="middle" dominant-baseline="central" ` +
       `font-family="Georgia, 'Times New Roman', serif" font-size="22" font-weight="700" ` +
       `fill="#20242b">${letter}</text>`
@@ -227,8 +228,7 @@ const BONUS_GENERIC = symbol(
   "-20 -20 40 40",
   40,
   40,
-  `<circle r="17" fill="#f4ecd8" stroke="#20242b" stroke-width="2.5"/>` +
-    `<circle r="6" fill="#20242b"/>`
+  BADGE_DISC + `<circle r="6" fill="#20242b"/>`
 );
 
 // ---------------------------------------------------------------------------

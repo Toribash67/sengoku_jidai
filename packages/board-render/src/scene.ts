@@ -157,6 +157,9 @@ export function buildScene(compiled: CompiledMap): BoardScene {
         bonus:
           bonusSlot !== undefined
             ? (() => {
+                // Seat the badge just inside the tile's right (E) corner: the rightmost hex's
+                // E vertex, pulled in by 0.72× the centre→vertex distance. (The 0.72 equals
+                // assemble.ts's BONUS_BADGE_FRACTION by coincidence — they are independent.)
                 const hex = rightmostHex(hexes, layout);
                 return { x: hex.x + 0.72 * layout.size, y: hex.y };
               })()

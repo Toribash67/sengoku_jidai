@@ -16,7 +16,9 @@ import { el } from "./svg.js";
 const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
 
-/** Bonus badge diameter as a fraction of hex size (2× the old apparent size, hex-relative). */
+/** Bonus badge diameter as a fraction of hex size (~1.47× the old apparent size, hex-relative).
+ *  Independent of the equal-valued anchor-offset factor in scene.ts (the match is coincidental —
+ *  badge size and corner-anchor position are free to diverge). */
 const BONUS_BADGE_FRACTION = 0.72;
 
 function ringPath(rings: Pixel[][]): string {
