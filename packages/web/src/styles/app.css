@@ -576,6 +576,30 @@ button:disabled {
   }
 }
 
+/* Desktop-only hover affordance for tiles (#8). Every tile is clickable — it opens the area
+   panel and can act as an order source — but carried cursor:pointer with no visual. Lift
+   brightness (the reliable signal on flat, coloured tiles) plus a faint warm glow so terrain
+   mode, where unowned tiles are transparent, still gets feedback off the black hex grid. Warm
+   white keeps it distinct from the cyan change-flash, amber target, and green source rings.
+   filter is used — not stroke/fill — because those are set inline in decorate() and would win
+   over a class rule; being pure CSS it also survives the 3s poll's decorate() redraw. Gated to
+   fine pointers so touch devices never get stuck in :hover after a tap. */
+.tile {
+  transition: filter 0.12s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tile:hover {
+    filter: brightness(1.12) drop-shadow(0 0 3px rgba(255, 250, 240, 0.55));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile {
+    transition: none;
+  }
+}
+
 /* Bottom action bar: contextual + support actions when idle, compose controls when an
    order is being built. Sits under the map in the board column. */
 .board-column {
