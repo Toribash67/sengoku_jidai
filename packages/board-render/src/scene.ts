@@ -1,7 +1,7 @@
 import { axialToPixel } from "@sengoku-jidai/engine";
 import type { Axial, CompiledMap, HexLayout, MapArea, Pixel, SeatId } from "@sengoku-jidai/engine";
 import { fuseTile, hexEdges, type Edge } from "./outline.js";
-import { bonusGlyph, NATIVE_HEX_SIZE, ORDER_TOKEN_RADIUS, type GlyphId } from "./assets.js";
+import { NATIVE_HEX_SIZE, ORDER_TOKEN_RADIUS, type GlyphId } from "./assets.js";
 
 // Duplicated from web tileFill.ts (board-render cannot import the web package).
 const TILE_LAND_FILL = "#d5d3c4";
@@ -69,6 +69,13 @@ function bottommostHex(hexes: Axial[], layout: HexLayout): Pixel {
   return hexes
     .map((h) => axialToPixel(h, layout))
     .reduce((a, b) => (b.y > a.y + 0.01 || (Math.abs(b.y - a.y) <= 0.01 && b.x > a.x) ? b : a));
+}
+
+/** Rightmost hex centre of a tile; topmost on ties (for the E-corner bonus badge). */
+function rightmostHex(hexes: Axial[], layout: HexLayout): Pixel {
+  return hexes
+    .map((h) => axialToPixel(h, layout))
+    .reduce((a, b) => (b.x > a.x + 0.01 || (Math.abs(b.x - a.x) <= 0.01 && b.y < a.y) ? b : a));
 }
 
 /** Order-slot ids for a tile, matching web slotIdForSpace: land→move, sea→sail+bombard,
@@ -149,10 +156,13 @@ export function buildScene(compiled: CompiledMap): BoardScene {
         harbor: area.harbor ? { x: centroid.x, y: centroid.y + layout.size * 0.4 } : undefined,
         bonus:
           bonusSlot !== undefined
-            ? { x: centroid.x - layout.size * 0.45, y: centroid.y + layout.size * 0.25 }
+            ? (() => {
+                const hex = rightmostHex(hexes, layout);
+                return { x: hex.x + 0.72 * layout.size, y: hex.y };
+              })()
             : undefined
       },
-      bonusGlyph: bonusSlot !== undefined ? bonusGlyph(bonusSlot) : undefined,
+      bonusGlyph: bonusSlot !== undefined ? ("glyph-bonus-generic" as GlyphId) : undefined,
       slots: slotsFor(area, hexes, layout, centroid),
       ports: []
     });
