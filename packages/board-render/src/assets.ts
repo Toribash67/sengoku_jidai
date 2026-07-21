@@ -1,4 +1,4 @@
-import type { Pixel, SeatId } from "@sengoku-jidai/engine";
+import type { Pixel, SeatId, BonusType } from "@sengoku-jidai/engine";
 import { el } from "./svg.js";
 
 export type GlyphId =
@@ -10,9 +10,13 @@ export type GlyphId =
   | "glyph-hq-black"
   | "glyph-star"
   | "glyph-harbor"
-  | "glyph-bonus-sun"
-  | "glyph-bonus-moon"
-  | "glyph-bonus-star";
+  | "glyph-bonus-barracks"
+  | "glyph-bonus-warroom"
+  | "glyph-bonus-pirate"
+  | "glyph-bonus-shipyard"
+  | "glyph-bonus-hidden"
+  | "glyph-bonus-armoury"
+  | "glyph-bonus-generic";
 
 const SEAT_FILL: Record<SeatId, string> = { red: "#c0392b", black: "#2f343c" };
 
@@ -191,58 +195,40 @@ const HARBOR = symbol(
 );
 
 // ---------------------------------------------------------------------------
-// Bonus-slot glyphs — g73 (sun), g74 (moon), g75 (star) from board.svg.
-// Each group consists of a black pointer-triangle (path73-*) plus an icon overlay.
-// Bounding box for all three: width ≈36.051, height ≈124.886 (triangle dominates).
-// Centres: g73=(1458.119,-462.144), g74=(1548.556,-469.113), g75=(1599.500,-484.679).
-// Scale 40/124.886 ≈ 0.3203 maps to a 40-unit-tall symbol; overflow:visible shows full art.
-// Transform order: scale(s) translate(-cx -cy) — same as STAR/HARBOR.
+// Bonus badge symbols — washi disc with a sumi letter. Final per-bonus art
+// replaces the inner content later; the id↔bonus mapping (bonusTypeGlyph) stays fixed.
 // ---------------------------------------------------------------------------
+// Placeholder bonus badge: a washi disc with a single sumi letter. Final per-bonus art
+// replaces the inner content later; the id↔bonus mapping (bonusTypeGlyph) stays fixed.
+function letterBadge(id: string, letter: string): string {
+  return symbol(
+    id,
+    "-20 -20 40 40",
+    40,
+    40,
+    `<circle r="17" fill="#f4ecd8" stroke="#20242b" stroke-width="2.5"/>` +
+      `<text x="0" y="1" text-anchor="middle" dominant-baseline="central" ` +
+      `font-family="Georgia, 'Times New Roman', serif" font-size="22" font-weight="700" ` +
+      `fill="#20242b">${letter}</text>`
+  );
+}
 
-// g73 = SUN: black triangle + sunburst crosshair (g70 with matrix transform)
-const BONUS_SUN = symbol(
-  "glyph-bonus-sun",
+const BONUS_BARRACKS = letterBadge("glyph-bonus-barracks", "B");
+const BONUS_WARROOM = letterBadge("glyph-bonus-warroom", "W");
+const BONUS_PIRATE = letterBadge("glyph-bonus-pirate", "P");
+const BONUS_SHIPYARD = letterBadge("glyph-bonus-shipyard", "S");
+const BONUS_HIDDEN = letterBadge("glyph-bonus-hidden", "H");
+const BONUS_ARMOURY = letterBadge("glyph-bonus-armoury", "A");
+
+// Generic "a bonus sits here" marker for contexts with no assigned bonus (map editor,
+// static previews): the same washi disc with a small filled sumi dot.
+const BONUS_GENERIC = symbol(
+  "glyph-bonus-generic",
   "-20 -20 40 40",
   40,
   40,
-  `<g transform="scale(0.3203) translate(-1458.119 462.144)">` +
-    `<path style="display:inline;fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5.061;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" d="m 1440.0936,-399.70138 v -124.88597 l 36.0514,62.44298 z" id="path73-7" />` +
-    `<g id="g70" transform="matrix(0.55253622,0,0,0.55253622,627.34293,-42.737156)" style="display:inline;fill:#ffffff;fill-opacity:1">` +
-    `<circle style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:3.36476;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" id="path68" cx="1500.6144" cy="-759.05829" r="18.427582" />` +
-    `<rect style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" id="rect70" width="60.964928" height="7.3106251" x="1470.132" y="-762.71362" />` +
-    `<rect style="display:inline;fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" id="rect70-5" width="60.964928" height="7.3106251" x="493.87686" y="-1601.4852" transform="rotate(45)" />` +
-    `<rect style="display:inline;fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" id="rect70-6" width="60.964928" height="7.3106251" x="-789.54077" y="-1504.2698" transform="rotate(90)" />` +
-    `<rect style="display:inline;fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" id="rect70-3" width="60.964928" height="7.3106251" x="-1628.3124" y="-528.01465" transform="rotate(135)" />` +
-    `</g>` +
-    `</g>`
-);
-
-// g74 = MOON: black triangle + crescent (g71)
-const BONUS_MOON = symbol(
-  "glyph-bonus-moon",
-  "-20 -20 40 40",
-  40,
-  40,
-  `<g transform="scale(0.3203) translate(-1548.556 469.113)">` +
-    `<path style="display:inline;fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5.061;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" d="m 1530.5305,-406.67006 v -124.88597 l 36.0514,62.44298 z" id="path73-8" />` +
-    `<g id="g71" style="display:inline">` +
-    `<path d="m 1545.6847,-484.26723 a 15.154405,15.154405 0 0 0 -15.1542,15.15419 15.154405,15.154405 0 0 0 15.1542,15.15419 15.154405,15.154405 0 0 0 12.4695,-6.54079 11.043303,11.043303 0 0 1 -6.9109,2.43067 11.043303,11.043303 0 0 1 -11.0442,-11.04407 11.043303,11.043303 0 0 1 11.0442,-11.04273 11.043303,11.043303 0 0 1 6.9109,2.42933 15.154405,15.154405 0 0 0 -12.4695,-6.54079 z" style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke-width:2.7671;stroke-dashoffset:0.1" id="path70" />` +
-    `</g>` +
-    `</g>`
-);
-
-// g75 = STAR: black triangle + 5-pointed star (g72 with translate + inner matrix)
-const BONUS_STAR = symbol(
-  "glyph-bonus-star",
-  "-20 -20 40 40",
-  40,
-  40,
-  `<g transform="scale(0.3203) translate(-1599.500 484.679)">` +
-    `<path style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5.061;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" d="m 1581.4742,-422.23606 v -124.88597 l 36.0514,62.44298 z" id="path73" />` +
-    `<g id="g72" transform="translate(173.04385,126.55382)" style="display:inline;fill:#ffffff;fill-opacity:1">` +
-    `<path style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.1;stroke-opacity:1;paint-order:normal" id="path67" d="m 1500.6144,-676.3158 4.815,13.85223 14.6622,0.2988 -11.6863,8.85994 4.2467,14.0369 -12.0376,-8.37649 -12.0376,8.37649 4.2467,-14.0369 -11.6863,-8.85994 14.6621,-0.2988 z" transform="matrix(0.82636572,0,0,0.82636572,184.3431,-69.959397)" />` +
-    `</g>` +
-    `</g>`
+  `<circle r="17" fill="#f4ecd8" stroke="#20242b" stroke-width="2.5"/>` +
+    `<circle r="6" fill="#20242b"/>`
 );
 
 // ---------------------------------------------------------------------------
@@ -325,20 +311,24 @@ const SYMBOLS = [
   HQ_RED,
   STAR,
   HARBOR,
-  BONUS_SUN,
-  BONUS_MOON,
-  BONUS_STAR
+  BONUS_BARRACKS,
+  BONUS_WARROOM,
+  BONUS_PIRATE,
+  BONUS_SHIPYARD,
+  BONUS_HIDDEN,
+  BONUS_ARMOURY,
+  BONUS_GENERIC
 ].join("\n");
 
 export const ASSETS = {
   defs: `${SYMBOLS}\n${ORDER_DEFS}\n${STRIPE_PATTERNS}`,
-  place(glyph: GlyphId, at: Pixel, scale = 1): string {
+  place(glyph: GlyphId, at: Pixel, scale = 1, attrs: Record<string, string> = {}): string {
     // Each glyph symbol is a 40×40 viewport (viewBox "-20 -20 40 40") whose art is
     // centred at content (0,0) → viewport centre (20,20). The trailing translate(-20 -20)
     // moves that centre onto `at`, so the glyph is centred on its anchor instead of
     // offset down-right by half the (scaled) viewport.
     const transform = `translate(${at.x} ${at.y}) scale(${scale}) translate(-20 -20)`;
-    return el("use", { href: `#${glyph}`, "xlink:href": `#${glyph}`, transform });
+    return el("use", { href: `#${glyph}`, "xlink:href": `#${glyph}`, transform, ...attrs });
   }
 };
 
@@ -354,12 +344,18 @@ export function hqGlyph(seat: SeatId): GlyphId {
   return seat === "red" ? "glyph-hq-red" : "glyph-hq-black";
 }
 
-const BONUS_GLYPHS: GlyphId[] = ["glyph-bonus-sun", "glyph-bonus-moon", "glyph-bonus-star"];
+const BONUS_TYPE_GLYPHS: Record<BonusType, GlyphId> = {
+  barracks: "glyph-bonus-barracks",
+  warRoom: "glyph-bonus-warroom",
+  pirateHaven: "glyph-bonus-pirate",
+  shipyard: "glyph-bonus-shipyard",
+  hiddenBase: "glyph-bonus-hidden",
+  armoury: "glyph-bonus-armoury"
+};
 
-/** Cosmetic bonus marker for the Nth bonus slot (cycles for maps with >3 slots).
- *  The real bonus is drawn randomly at setup; the icon is flavour only. */
-export function bonusGlyph(index: number): GlyphId {
-  return BONUS_GLYPHS[index % BONUS_GLYPHS.length]!;
+/** The badge glyph for a specific assigned bonus. */
+export function bonusTypeGlyph(bonus: BonusType): GlyphId {
+  return BONUS_TYPE_GLYPHS[bonus];
 }
 
 // ===========================================================================
