@@ -53,24 +53,6 @@ export function validateHexMap(source: HexMapSource): void {
     hqBySeat.set(hq, t.id);
   }
 
-  for (const t of tiles) {
-    if (!t.ports || t.ports.length === 0) {
-      continue;
-    }
-    if (!t.features.harbor) {
-      throw new Error(`tile ${t.id} has ports but is not a harbor`);
-    }
-    for (const id of t.ports) {
-      const target = tiles.find((x) => x.id === id);
-      if (!target) {
-        throw new Error(`tile ${t.id} port references unknown tile ${id}`);
-      }
-      if (target.kind !== "sea") {
-        throw new Error(`tile ${t.id} port ${id} is not sea`);
-      }
-    }
-  }
-
   for (const id of source.bonusSlots) {
     if (!ids.has(id)) {
       throw new Error(`bonus slot references unknown tile ${id}`);

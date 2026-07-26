@@ -21,8 +21,6 @@ export interface HexTileSource {
     /** Coastal land targetable by Shell. */
     shellable?: boolean;
   };
-  /** Sea tile ids reachable from this harbor via a pier. Not movement edges. */
-  ports?: string[];
 }
 
 /** The hex authoring format. Compiled to a runtime `MapDefinition` by `compileHexMap`. */

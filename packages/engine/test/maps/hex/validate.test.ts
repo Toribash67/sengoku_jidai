@@ -55,22 +55,6 @@ describe("validateHexMap", () => {
     expect(() => validateHexMap(m)).toThrow(/more than one hq/);
   });
 
-  it("rejects a port pointing at a non-sea tile", () => {
-    const m = clone();
-    const harbor = m.tiles.find((t) => t.features.harbor)!;
-    const land = m.tiles.find((t) => t.kind === "land")!;
-    harbor.ports = [land.id];
-    expect(() => validateHexMap(m)).toThrow(/not sea/);
-  });
-
-  it("rejects ports on a non-harbor tile", () => {
-    const m = clone();
-    const plainLand = m.tiles.find((t) => t.kind === "land" && !t.features.harbor)!;
-    const sea = m.tiles.find((t) => t.kind === "sea")!;
-    plainLand.ports = [sea.id];
-    expect(() => validateHexMap(m)).toThrow(/not a harbor/);
-  });
-
   it("rejects a bonus slot referencing an unknown tile", () => {
     const m = clone();
     m.bonusSlots = ["nope"];

@@ -5,7 +5,7 @@ import type { HexMapSource } from "./source.js";
  *   A  land, red HQ            hexes (0,0)
  *   B  land, 1 star, shellable hexes (1,0),(1,-1)   (a 2-hex tile)
  *   C  sea, 1 star             hexes (0,1)
- *   D  land, harbor -> port C  hexes (-1,1)
+ *   D  land, harbor (borders sea C) hexes (-1,1)
  *   E  land, black HQ          hexes (2,-1)
  *
  * Hand-verified edge adjacency (axial neighbors only):
@@ -35,8 +35,7 @@ export const FIXTURE_HEX_MAP: HexMapSource = {
       id: "D",
       kind: "land",
       hexes: [{ q: -1, r: 1 }],
-      features: { harbor: true },
-      ports: ["C"]
+      features: { harbor: true }
     },
     { id: "E", kind: "land", hexes: [{ q: 2, r: -1 }], features: { hq: "black" } }
   ],
