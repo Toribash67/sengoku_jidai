@@ -37,21 +37,11 @@ describe("painting", () => {
 
   it("re-kinds a hex into a fresh tile and drops the old tile's references", () => {
     let state = run([{ type: "paintHex", kind: "sea", hex: { q: 0, r: 0 } }]);
-    // reference the sea tile from a fake harbor's ports and bonusSlots/deployment
+    // reference the sea tile from bonusSlots/deployment
     state = {
       ...state,
       doc: {
         ...state.doc,
-        tiles: [
-          ...state.doc.tiles,
-          {
-            id: "t9",
-            kind: "land",
-            hexes: [{ q: 5, r: 5 }],
-            features: { harbor: true },
-            ports: ["t1"]
-          }
-        ],
         startingDeployment: { t1: { seat: "red", ship: 1 } },
         bonusSlots: ["t1"]
       }
@@ -60,7 +50,6 @@ describe("painting", () => {
     const ids = next.doc.tiles.map((t) => t.id);
     expect(ids).not.toContain("t1");
     expect(tileAt(next.doc, { q: 0, r: 0 })!.kind).toBe("land");
-    expect(next.doc.tiles.find((t) => t.id === "t9")!.ports).toBeUndefined();
     expect(next.doc.startingDeployment).toEqual({});
     expect(next.doc.bonusSlots).toEqual([]);
   });

@@ -9,8 +9,6 @@ export interface EditorState {
   tool: Tool;
   /** Selected tile ids; [0] is the primary (inspector subject, merge survivor). */
   selection: string[];
-  /** True while "Add port" waits for a sea-tile click (applies to selection[0]). */
-  portArming: boolean;
   /** Sticky multi-select mode: taps add/remove tiles like shift-click (Select tool only). */
   multiSelect: boolean;
   /** Bumps on every tile-selecting tap — even re-selecting the same tile — so the mobile
@@ -35,9 +33,7 @@ export type EditorAction =
   | { type: "mergeSelection" }
   | { type: "unmergeTile"; tileId: string }
   | { type: "setFeature"; tileId: string; patch: FeaturePatch }
-  | { type: "armPort"; arming: boolean }
   | { type: "setMultiSelect"; enabled: boolean }
-  | { type: "removePort"; harborId: string; seaId: string }
   | { type: "setDeployment"; tileId: string; units: StartingUnits | null }
   | { type: "toggleBonusSlot"; tileId: string }
   | { type: "setName"; name: string }
@@ -52,7 +48,6 @@ export function initialEditorState(doc: EditorDoc): EditorState {
     doc,
     tool: "land",
     selection: [],
-    portArming: false,
     multiSelect: false,
     selectEpoch: 0,
     past: [],
@@ -94,24 +89,10 @@ export function connectedComponents(hexes: Axial[]): Axial[][] {
   return components;
 }
 
-/** Drop tiles and scrub every reference to them (ports, deployment, bonus slots). */
+/** Drop tiles and scrub every reference to them (deployment, bonus slots). */
 function dropTiles(doc: EditorDoc, ids: string[]): EditorDoc {
   const removed = new Set(ids);
-  const tiles = doc.tiles
-    .filter((t) => !removed.has(t.id))
-    .map((t) => {
-      if (!t.ports || !t.ports.some((p) => removed.has(p))) {
-        return t;
-      }
-      const ports = t.ports.filter((p) => !removed.has(p));
-      const next: HexTileSource = { ...t };
-      if (ports.length > 0) {
-        next.ports = ports;
-      } else {
-        delete next.ports;
-      }
-      return next;
-    });
+  const tiles = doc.tiles.filter((t) => !removed.has(t.id));
   const startingDeployment = Object.fromEntries(
     Object.entries(doc.startingDeployment).filter(([id]) => !removed.has(id))
   );
@@ -120,7 +101,7 @@ function dropTiles(doc: EditorDoc, ids: string[]): EditorDoc {
 }
 
 /** Remove one hex from a tile: delete a 1-hex tile, else split the remainder into
- *  connected components — the largest (ties: discovery order) keeps id/features/ports. */
+ *  connected components — the largest (ties: discovery order) keeps id/features. */
 function removeHex(doc: EditorDoc, tileId: string, hex: Axial): EditorDoc {
   const tile = doc.tiles.find((t) => t.id === tileId)!;
   if (tile.hexes.length === 1) {
@@ -167,16 +148,14 @@ function eraseHex(doc: EditorDoc, hex: Axial): EditorDoc {
   return owner ? removeHex(doc, owner.id, hex) : doc;
 }
 
-/** Keep selection/portArming meaningful after any doc change. */
+/** Keep the selection meaningful after any doc change. */
 function normalize(state: EditorState): EditorState {
   const ids = new Set(state.doc.tiles.map((t) => t.id));
   const selection = state.selection.filter((id) => ids.has(id));
-  const primary = state.doc.tiles.find((t) => t.id === selection[0]);
-  const portArming = state.portArming && primary?.features.harbor === true;
-  if (selection.length === state.selection.length && portArming === state.portArming) {
+  if (selection.length === state.selection.length) {
     return state;
   }
-  return { ...state, selection, portArming };
+  return { ...state, selection };
 }
 
 /** Record history and swap in a new doc (no-op when the doc is unchanged). */
@@ -236,13 +215,7 @@ function mergeSelection(doc: EditorDoc, selection: string[]): EditorDoc {
 
   const tiles = doc.tiles
     .filter((t) => !absorbed.has(t.id))
-    .map((t) => {
-      const base = t.id === survivorId ? { ...t, hexes: mergedHexes } : t;
-      if (!base.ports || !base.ports.some((p) => absorbed.has(p))) {
-        return base;
-      }
-      return { ...base, ports: dedupe(base.ports.map((p) => (absorbed.has(p) ? survivorId! : p))) };
-    });
+    .map((t) => (t.id === survivorId ? { ...t, hexes: mergedHexes } : t));
 
   return { ...doc, tiles, startingDeployment, bonusSlots };
 }
@@ -285,40 +258,7 @@ function setFeature(doc: EditorDoc, tileId: string, patch: FeaturePatch): Editor
         delete features.shellable;
       }
     }
-    const next: HexTileSource = { ...t, features };
-    if (patch.harbor === false) {
-      delete next.ports;
-    }
-    return next;
-  });
-  return { ...doc, tiles };
-}
-
-function addPort(doc: EditorDoc, harborId: string, seaId: string): EditorDoc {
-  const harbor = doc.tiles.find((t) => t.id === harborId);
-  const target = doc.tiles.find((t) => t.id === seaId);
-  if (!harbor?.features.harbor || target?.kind !== "sea" || harbor.ports?.includes(seaId)) {
-    return doc;
-  }
-  const tiles = doc.tiles.map((t) =>
-    t.id === harborId ? { ...t, ports: [...(t.ports ?? []), seaId] } : t
-  );
-  return { ...doc, tiles };
-}
-
-function removePort(doc: EditorDoc, harborId: string, seaId: string): EditorDoc {
-  const tiles = doc.tiles.map((t) => {
-    if (t.id !== harborId || !t.ports) {
-      return t;
-    }
-    const ports = t.ports.filter((p) => p !== seaId);
-    const next: HexTileSource = { ...t };
-    if (ports.length > 0) {
-      next.ports = ports;
-    } else {
-      delete next.ports;
-    }
-    return next;
+    return { ...t, features };
   });
   return { ...doc, tiles };
 }
@@ -372,7 +312,7 @@ function unmergeTile(doc: EditorDoc, tileId: string): EditorDoc {
 export function editorReducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
     case "setTool":
-      return { ...state, tool: action.tool, portArming: false };
+      return { ...state, tool: action.tool };
     case "loadDoc":
       return initialEditorState(action.doc);
     case "paintHex":
@@ -381,16 +321,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return withDoc(state, eraseHex(state.doc, action.hex));
     case "selectTile": {
       if (action.tileId === null) {
-        return { ...state, selection: [], portArming: false };
-      }
-      if (state.portArming && state.selection[0]) {
-        const target = state.doc.tiles.find((t) => t.id === action.tileId);
-        if (target?.kind === "sea") {
-          return withDoc(state, addPort(state.doc, state.selection[0], action.tileId), {
-            portArming: false
-          });
-        }
-        return { ...state, portArming: false };
+        return { ...state, selection: [] };
       }
       const selection = action.additive
         ? state.selection.includes(action.tileId)
@@ -430,12 +361,8 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     }
     case "unmergeTile":
       return withDoc(state, unmergeTile(state.doc, action.tileId));
-    case "armPort":
-      return { ...state, portArming: action.arming };
     case "setMultiSelect":
       return { ...state, multiSelect: action.enabled };
-    case "removePort":
-      return withDoc(state, removePort(state.doc, action.harborId, action.seaId));
     case "setFeature":
       return withDoc(state, setFeature(state.doc, action.tileId, action.patch));
     case "setDeployment":

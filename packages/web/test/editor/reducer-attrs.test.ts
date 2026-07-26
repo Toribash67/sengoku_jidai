@@ -25,16 +25,9 @@ describe("tile attributes", () => {
     expect(state.doc.tiles.find((t) => t.id === "t2")!.features.hq).toBeUndefined();
   });
 
-  it("keeps features normalized: false/0 disappear, harbor off drops ports", () => {
+  it("keeps features normalized: false/0 disappear", () => {
     let state = board();
     state = editorReducer(state, { type: "setFeature", tileId: "t1", patch: { harbor: true } });
-    state = editorReducer(state, { type: "selectTile", tileId: "t1" });
-    state = editorReducer(state, { type: "armPort", arming: true });
-    state = editorReducer(state, { type: "selectTile", tileId: "s1" });
-    expect(state.doc.tiles.find((t) => t.id === "t1")!.ports).toEqual(["s1"]);
-    expect(state.portArming).toBe(false);
-    expect(state.selection).toEqual(["t1"]); // armed click keeps the harbor selected
-
     state = editorReducer(state, {
       type: "setFeature",
       tileId: "t1",
@@ -47,27 +40,6 @@ describe("tile attributes", () => {
     });
     const t1 = state.doc.tiles.find((t) => t.id === "t1")!;
     expect(t1.features).toEqual({});
-    expect(t1.ports).toBeUndefined();
-  });
-
-  it("armed port click on a non-sea tile just disarms", () => {
-    let state = board();
-    state = editorReducer(state, { type: "setFeature", tileId: "t1", patch: { harbor: true } });
-    state = editorReducer(state, { type: "selectTile", tileId: "t1" });
-    state = editorReducer(state, { type: "armPort", arming: true });
-    state = editorReducer(state, { type: "selectTile", tileId: "t2" });
-    expect(state.portArming).toBe(false);
-    expect(state.doc.tiles.find((t) => t.id === "t1")!.ports).toBeUndefined();
-  });
-
-  it("removePort deletes the key when the list empties", () => {
-    let state = board();
-    state = editorReducer(state, { type: "setFeature", tileId: "t1", patch: { harbor: true } });
-    state = editorReducer(state, { type: "selectTile", tileId: "t1" });
-    state = editorReducer(state, { type: "armPort", arming: true });
-    state = editorReducer(state, { type: "selectTile", tileId: "s1" });
-    state = editorReducer(state, { type: "removePort", harborId: "t1", seaId: "s1" });
-    expect(state.doc.tiles.find((t) => t.id === "t1")!.ports).toBeUndefined();
   });
 
   it("deployment sets, normalizes zeros away, and clears", () => {
