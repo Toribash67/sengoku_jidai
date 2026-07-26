@@ -11,9 +11,15 @@ describe("setCommandersPerRound", () => {
   });
 
   it("clamps to 1..8 and floors to an integer", () => {
-    expect(editorReducer(start(), { type: "setCommandersPerRound", value: 0 }).doc.commandersPerRound).toBe(1);
-    expect(editorReducer(start(), { type: "setCommandersPerRound", value: 99 }).doc.commandersPerRound).toBe(8);
-    expect(editorReducer(start(), { type: "setCommandersPerRound", value: 4.7 }).doc.commandersPerRound).toBe(4);
+    expect(
+      editorReducer(start(), { type: "setCommandersPerRound", value: 0 }).doc.commandersPerRound
+    ).toBe(1);
+    expect(
+      editorReducer(start(), { type: "setCommandersPerRound", value: 99 }).doc.commandersPerRound
+    ).toBe(8);
+    expect(
+      editorReducer(start(), { type: "setCommandersPerRound", value: 4.7 }).doc.commandersPerRound
+    ).toBe(4);
   });
 
   it("round-trips through docToSource", () => {
