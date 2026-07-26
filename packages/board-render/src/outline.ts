@@ -119,3 +119,52 @@ export function fuseTile(hexes: Axial[], layout: HexLayout): Pixel[][] {
   }
   return traceRings(boundary);
 }
+
+/** Offset each ring of a fused tile outline outward (away from that ring's own centroid)
+ *  by `distance` world units. Edges are shifted along their outward normal and re-intersected
+ *  at the corners. Used to draw a parallel line hugging a tile edge (the harbor dash). Rings
+ *  with fewer than 3 points are returned unchanged. Concave corners at a small `distance`
+ *  behave well; this is not a general-purpose robust polygon offset. */
+export function offsetRingsOutward(rings: Pixel[][], distance: number): Pixel[][] {
+  return rings.map((ring) => offsetRing(ring, distance));
+}
+
+function offsetRing(ring: Pixel[], d: number): Pixel[] {
+  const n = ring.length;
+  if (n < 3) return ring;
+  let cx = 0;
+  let cy = 0;
+  for (const p of ring) {
+    cx += p.x;
+    cy += p.y;
+  }
+  cx /= n;
+  cy /= n;
+  // Each edge shifted outward along its normal, kept as an anchor point + direction vector.
+  const lines = ring.map((a, i) => {
+    const b = ring[(i + 1) % n]!;
+    let nx = -(b.y - a.y);
+    let ny = b.x - a.x;
+    const len = Math.hypot(nx, ny) || 1;
+    nx /= len;
+    ny /= len;
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    const away = (mx + nx - cx) ** 2 + (my + ny - cy) ** 2 > (mx - cx) ** 2 + (my - cy) ** 2;
+    const sign = away ? 1 : -1;
+    return { px: a.x + nx * d * sign, py: a.y + ny * d * sign, dx: b.x - a.x, dy: b.y - a.y };
+  });
+  const out: Pixel[] = [];
+  for (let i = 0; i < n; i++) {
+    const l1 = lines[(i - 1 + n) % n]!;
+    const l2 = lines[i]!;
+    const den = l1.dx * l2.dy - l1.dy * l2.dx;
+    if (Math.abs(den) < 1e-9) {
+      out.push({ x: l2.px, y: l2.py });
+      continue;
+    }
+    const t = ((l2.px - l1.px) * l2.dy - (l2.py - l1.py) * l2.dx) / den;
+    out.push({ x: l1.px + l1.dx * t, y: l1.py + l1.dy * t });
+  }
+  return out;
+}
