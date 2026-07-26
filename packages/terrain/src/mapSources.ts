@@ -1,12 +1,42 @@
 import { fileURLToPath } from "node:url";
+import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
+import type { HexMapSource } from "@sengoku-jidai/engine";
+import { compileHexMap, riversSource } from "@sengoku-jidai/engine";
 
 /** Repo root, relative to packages/terrain/src/. */
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 
 /**
- * Board SVG path per map id (relative to repo root). Keep these keys in sync with the
- * engine's map registry (`getMap`): a map known to the engine but missing here makes the
- * CLI fail at `mapSvgPath`. Future maps add an entry here.
+ * Hex source per built-in map id. The terrain structure image is derived from board-render
+ * (`mapStructureSvg`) off these, exactly as the server does for custom maps — so a built-in
+ * map's generated background always shares the geometry the web actually draws. Keep these
+ * keys in sync with the engine's map registry (`getMap`). Future built-in maps add an entry.
+ */
+const SOURCE_BY_MAP: Record<string, HexMapSource> = {
+  rivers: riversSource
+};
+
+/**
+ * The board SVG the terrain pipeline builds its control image from, rendered from live
+ * board-render geometry — identical to `boardSvgFor(mapId)` in the web client and to the
+ * server's custom-map terrain path. This is the single source of truth for tile placement:
+ * a committed `assets/maps/<id>/board.svg` can (and did) drift from the rendered board, which
+ * stretched the generated background; deriving it here keeps the two in lockstep. Throws on an
+ * unknown map id.
+ */
+export function mapStructureSvg(mapId: string): string {
+  const source = SOURCE_BY_MAP[mapId];
+  if (!source) {
+    throw new Error(`Unknown map "${mapId}" — add its source to SOURCE_BY_MAP in mapSources.ts`);
+  }
+  return assembleBoardSvg(buildScene(compileHexMap(source)));
+}
+
+/**
+ * Board SVG path per map id (relative to repo root). This committed art file is still the
+ * source for feature-glyph proportions (HQ/harbour marks in board-render's `assemble.ts`) and
+ * for tests; it is NO LONGER the terrain structure source — use `mapStructureSvg` for that.
+ * Keep these keys in sync with the engine's map registry (`getMap`).
  */
 const SVG_BY_MAP: Record<string, string> = {
   rivers: "assets/maps/rivers/board.svg"

@@ -1,10 +1,10 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getMap } from "@sengoku-jidai/engine";
 import { renderControl } from "./composite.js";
 import { renderLandMask } from "./masks.js";
-import { mapSvgPath } from "./mapSources.js";
+import { mapStructureSvg } from "./mapSources.js";
 import { loadMapProfile } from "./mapProfile.js";
 import { outputHeightForViewBox } from "./mapPipeline.js";
 import { parseMapControlArgs } from "./mapControlArgs.js";
@@ -18,7 +18,7 @@ async function main(): Promise<void> {
   const { mapId, amplitude } = parseMapControlArgs(process.argv.slice(2));
   const profile = loadMapProfile(fileURLToPath(new URL("../profiles/map.json", import.meta.url)));
   const { base } = profile;
-  const svgMarkup = readFileSync(mapSvgPath(mapId), "utf8");
+  const svgMarkup = mapStructureSvg(mapId); // live board-render geometry, matches the web board
   const width = base.outputSize.width;
   const height = outputHeightForViewBox(svgMarkup, width);
 

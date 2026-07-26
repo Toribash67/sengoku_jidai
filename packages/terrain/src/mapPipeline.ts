@@ -6,7 +6,7 @@ import type { MapDefinition } from "@sengoku-jidai/engine";
 import { getMap } from "@sengoku-jidai/engine";
 import { renderControl } from "./composite.js";
 import { editMapPass, type EditDeps } from "./editPass.js";
-import { mapSvgPath } from "./mapSources.js";
+import { mapStructureSvg } from "./mapSources.js";
 import { renderLandMask } from "./masks.js";
 import type { MapProfile } from "./mapProfile.js";
 import { toWebp } from "./postprocess.js";
@@ -96,7 +96,7 @@ export async function runMapPipeline(
 ): Promise<{ outDir: string; webpPath: string }> {
   const { mapId, profile, outDir } = args;
   const map = getMap(mapId); // throws on unknown map id
-  const svgMarkup = readFileSync(mapSvgPath(mapId), "utf8");
+  const svgMarkup = mapStructureSvg(mapId); // live board-render geometry, matches the web board
   mkdirSync(outDir, { recursive: true });
   const webp = await generateTerrainWebp(deps, { svgMarkup, map, profile });
   const webpPath = join(outDir, "background.webp");

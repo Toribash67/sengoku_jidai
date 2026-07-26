@@ -17,6 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@sengoku-jidai/board-render": "workspace:*",
     "@sengoku-jidai/engine": "workspace:*",
     "@fal-ai/client": "^1.10.1",
     "jsdom": "^25.0.1",
@@ -24,7 +25,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@sengoku-jidai/board-render": "workspace:*",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.10.5",
     "tsx": "^4.19.2",

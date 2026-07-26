@@ -10,11 +10,12 @@ import { fileURLToPath } from "node:url";
 describe("runMapPipeline", () => {
   it("renders via the edit model (control + style ref), writing background.webp", async () => {
     const profile = loadMapProfile(fileURLToPath(new URL("../profiles/map.json", import.meta.url)));
-    // Shrink for a fast test; the height (36) is derived from the rivers board viewBox.
+    // Shrink for a fast test; the height (44) is derived from the rivers board viewBox
+    // (live board-render geometry: 992 × 1363 → round(32 × 1363 / 992) = 44).
     profile.base.outputSize = { width: 32 };
 
     const editedPng = await sharp({
-      create: { width: 32, height: 36, channels: 3, background: { r: 120, g: 90, b: 40 } }
+      create: { width: 32, height: 44, channels: 3, background: { r: 120, g: 90, b: 40 } }
     })
       .png()
       .toBuffer();
@@ -46,6 +47,6 @@ describe("runMapPipeline", () => {
     expect(res.webpPath).toBe(join(outDir, "background.webp"));
     const meta = await sharp(readFileSync(res.webpPath)).metadata();
     expect(meta.width).toBe(32);
-    expect(meta.height).toBe(36);
+    expect(meta.height).toBe(44);
   });
 });
