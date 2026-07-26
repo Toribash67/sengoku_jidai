@@ -121,9 +121,11 @@ describe("buildScene", () => {
         }
       },
       definition: {
+        // Piers are derived from hex adjacency (harbor flag + sea neighbours), not from any
+        // authored port list — so the areas carry no `ports`; only `harbor: true` drives it.
         areas: {
-          H: { id: "H", kind: "land", hq: null, valueStars: 0, harbor: true, ports: ["S"] },
-          S: { id: "S", kind: "sea", hq: null, valueStars: 0, harbor: false, ports: [] }
+          H: { id: "H", kind: "land", hq: null, valueStars: 0, harbor: true },
+          S: { id: "S", kind: "sea", hq: null, valueStars: 0, harbor: false }
         },
         bonusSlots: []
       }
@@ -131,7 +133,13 @@ describe("buildScene", () => {
     const tile = buildScene(compiled).tiles.find((t) => t.id === "H")!;
     expect(tile.ports).toHaveLength(2);
     expect(tile.ports.every((p) => p.to === "S")).toBe(true);
-    // Two distinct edges: their midpoints sit on opposite sides of the harbour hex in y.
+    // Each pier carries a unit outward direction driving placePier's rotation.
+    for (const p of tile.ports) {
+      expect(Math.hypot(p.dir.x, p.dir.y)).toBeCloseTo(1, 5);
+    }
+    // The two piers point along distinct edges — different outward directions and their
+    // midpoints sit on opposite sides of the harbour hex in y.
+    expect(tile.ports[0]!.dir.y).not.toBeCloseTo(tile.ports[1]!.dir.y, 5);
     const ys = tile.ports.map((p) => p.edge.y).sort((a, b) => a - b);
     expect(ys[0]!).toBeLessThan(0);
     expect(ys[1]!).toBeGreaterThan(0);
