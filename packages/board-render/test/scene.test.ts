@@ -102,6 +102,49 @@ describe("buildScene", () => {
     expect(ports[0]!.to).toBe("C");
   });
 
+  it("emits one pier per sea-facing hex edge — several to the same sea area", () => {
+    // Harbour H is a single hex whose neighbours (1,0) and (1,-1) both belong to one sea
+    // tile S, so H gets two piers, both pointing at S from two different edges.
+    const size = 114;
+    const compiled = {
+      layout: {
+        size,
+        origin: { x: 0, y: 0 },
+        tiles: {
+          H: { hexes: [{ q: 0, r: 0 }] },
+          S: {
+            hexes: [
+              { q: 1, r: 0 },
+              { q: 1, r: -1 }
+            ]
+          }
+        }
+      },
+      definition: {
+        // Piers are derived from hex adjacency (harbor flag + sea neighbours), not from any
+        // authored port list — so the areas carry no `ports`; only `harbor: true` drives it.
+        areas: {
+          H: { id: "H", kind: "land", hq: null, valueStars: 0, harbor: true },
+          S: { id: "S", kind: "sea", hq: null, valueStars: 0, harbor: false }
+        },
+        bonusSlots: []
+      }
+    } as unknown as CompiledMap;
+    const tile = buildScene(compiled).tiles.find((t) => t.id === "H")!;
+    expect(tile.ports).toHaveLength(2);
+    expect(tile.ports.every((p) => p.to === "S")).toBe(true);
+    // Each pier carries a unit outward direction driving placePier's rotation.
+    for (const p of tile.ports) {
+      expect(Math.hypot(p.dir.x, p.dir.y)).toBeCloseTo(1, 5);
+    }
+    // The two piers point along distinct edges — different outward directions and their
+    // midpoints sit on opposite sides of the harbour hex in y.
+    expect(tile.ports[0]!.dir.y).not.toBeCloseTo(tile.ports[1]!.dir.y, 5);
+    const ys = tile.ports.map((p) => p.edge.y).sort((a, b) => a - b);
+    expect(ys[0]!).toBeLessThan(0);
+    expect(ys[1]!).toBeGreaterThan(0);
+  });
+
   it("produces a viewBox enclosing every ring point", () => {
     const allX = scene.tiles.flatMap((t) => t.rings.flat().map((p) => p.x));
     const allY = scene.tiles.flatMap((t) => t.rings.flat().map((p) => p.y));

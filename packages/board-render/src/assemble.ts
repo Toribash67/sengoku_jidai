@@ -53,22 +53,18 @@ function placeNative(art: string, centroid: Pixel, hexSize: number): string {
   );
 }
 
-/** Place a pier stub on the edge between a harbour tile and one of its sea neighbours,
- *  rotated to point from land into the water. `from` is the tile centroid, `to` the sea's. */
-function placePier(from: Pixel, to: Pixel, hexSize: number): string {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const len = Math.hypot(dx, dy) || 1;
-  const ux = dx / len;
-  const uy = dy / len;
+/** Place a pier stub on one sea-facing hex edge of a harbour tile. `edge` is the edge
+ *  midpoint, `dir` the outward (land→sea) unit vector; the stub starts at the edge and
+ *  extends into the water. */
+function placePier(edge: Pixel, dir: Pixel, hexSize: number): string {
   const s = hexSize / NATIVE_HEX_SIZE;
-  // Start the pier at the tile edge (one apothem out) and let it extend into the water, rather
-  // than straddling the edge — so shift the stub's centre out by half its (scaled) length.
-  const apothem = (hexSize * Math.sqrt(3)) / 2 + (PIER_ART_LENGTH * s) / 2;
-  const mx = from.x + ux * apothem;
-  const my = from.y + uy * apothem;
-  // The art is drawn vertical (90°); rotate so its long axis aligns with the land→sea direction.
-  const angle = (Math.atan2(dy, dx) * 180) / Math.PI - 90;
+  // Shift the origin-centred art out by half its (scaled) length so it starts at the edge
+  // and extends into the water rather than straddling the edge.
+  const half = (PIER_ART_LENGTH * s) / 2;
+  const mx = edge.x + dir.x * half;
+  const my = edge.y + dir.y * half;
+  // The art is drawn vertical (90°); rotate so its long axis aligns with the outward dir.
+  const angle = (Math.atan2(dir.y, dir.x) * 180) / Math.PI - 90;
   return el(
     "g",
     {
@@ -102,7 +98,7 @@ function featureGlyphs(tile: SceneTile, hexSize: number): string {
     );
   }
   for (const port of tile.ports) {
-    out.push(placePier(port.from, port.toPoint, hexSize));
+    out.push(placePier(port.edge, port.dir, hexSize));
   }
   return out.join("");
 }

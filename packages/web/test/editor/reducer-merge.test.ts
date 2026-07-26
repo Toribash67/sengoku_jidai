@@ -56,27 +56,6 @@ describe("merge", () => {
     expect(next).toBe(state);
   });
 
-  it("remaps inbound ports from an absorbed sea tile", () => {
-    let state = initialEditorState({
-      ...emptyDoc(),
-      tiles: [
-        { id: "s1", kind: "sea", hexes: [{ q: 0, r: 0 }], features: {} },
-        { id: "s2", kind: "sea", hexes: [{ q: 1, r: 0 }], features: {} },
-        {
-          id: "h1",
-          kind: "land",
-          hexes: [{ q: 0, r: 1 }],
-          features: { harbor: true },
-          ports: ["s1", "s2"]
-        }
-      ],
-      nextTileNumber: 1
-    });
-    state = { ...state, selection: ["s1", "s2"] };
-    const next = editorReducer(state, { type: "mergeSelection" });
-    expect(next.doc.tiles.find((t) => t.id === "h1")!.ports).toEqual(["s1"]);
-  });
-
   it("unmerge explodes back to single-hex tiles; centroid hex keeps the identity", () => {
     let state = fourTiles();
     state = { ...state, selection: ["t1", "t2"] };

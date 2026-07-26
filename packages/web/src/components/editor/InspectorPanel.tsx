@@ -182,31 +182,6 @@ function TileBody({
         <span>Harbor</span>
       </label>
 
-      {primary.features.harbor ? (
-        <div className="editor-ports-list">
-          <h3>Ports</h3>
-          {(primary.ports ?? []).map((seaId) => (
-            <div key={seaId} className="editor-port-row">
-              <span>{seaId}</span>
-              <button
-                type="button"
-                onClick={() => dispatch({ type: "removePort", harborId: tileId, seaId })}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            aria-pressed={state.portArming}
-            onClick={() => dispatch({ type: "armPort", arming: !state.portArming })}
-          >
-            Add port
-          </button>
-          {state.portArming ? <p className="muted">Click a sea tile on the map…</p> : null}
-        </div>
-      ) : null}
-
       <label className="check">
         <input
           type="checkbox"

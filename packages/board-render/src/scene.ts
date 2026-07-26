@@ -1,4 +1,4 @@
-import { axialToPixel } from "@sengoku-jidai/engine";
+import { axialKey, axialToPixel, neighbors } from "@sengoku-jidai/engine";
 import type { Axial, CompiledMap, HexLayout, MapArea, Pixel, SeatId } from "@sengoku-jidai/engine";
 import { fuseTile, hexEdges, type Edge } from "./outline.js";
 import { NATIVE_HEX_SIZE, ORDER_TOKEN_RADIUS, type GlyphId } from "./assets.js";
@@ -25,7 +25,10 @@ export interface SceneTile {
   glyphAnchors: { hq?: Pixel; stars?: Pixel; harbor?: Pixel; bonus?: Pixel };
   bonusGlyph?: GlyphId;
   slots: Record<string, Pixel>;
-  ports: { to: string; from: Pixel; toPoint: Pixel }[];
+  /** One entry per sea-facing hex edge of a harbour tile: `edge` is the edge midpoint,
+   *  `dir` the outward (land→sea) unit vector. Several may share `to` when a sea area
+   *  touches this tile across multiple edges. */
+  ports: { to: string; edge: Pixel; dir: Pixel }[];
 }
 
 const MARGIN = 40;
@@ -122,7 +125,7 @@ export function buildScene(compiled: CompiledMap): BoardScene {
   const bonusIndex = new Map<string, number>();
   compiled.definition.bonusSlots.forEach((id, i) => bonusIndex.set(id, i));
 
-  // First pass: geometry + centroids (needed before ports can reference sea centroids).
+  // First pass: geometry + centroids.
   for (const area of Object.values(compiled.definition.areas)) {
     const hexes = compiled.layout.tiles[area.id]!.hexes;
     const centroid = centroidOf(hexes, layout);
@@ -171,14 +174,39 @@ export function buildScene(compiled: CompiledMap): BoardScene {
     });
   }
 
-  // Second pass: ports (need both endpoints' centroids).
+  // Second pass: piers — one per hex edge of a harbour tile that faces a sea tile. A sea
+  // area touching the same harbour hex across two edges therefore gets two piers.
+  const hexOwner = new Map<string, { id: string; kind: "land" | "sea" }>();
+  for (const area of Object.values(compiled.definition.areas)) {
+    for (const h of compiled.layout.tiles[area.id]!.hexes) {
+      hexOwner.set(axialKey(h), { id: area.id, kind: area.kind });
+    }
+  }
   for (const tile of tiles) {
     const area = compiled.definition.areas[tile.id]!;
-    tile.ports = area.ports.map((seaId) => ({
-      to: seaId,
-      from: centroids.get(tile.id)!,
-      toPoint: centroids.get(seaId)!
-    }));
+    if (!area.harbor) {
+      continue;
+    }
+    const ports: { to: string; edge: Pixel; dir: Pixel }[] = [];
+    for (const h of compiled.layout.tiles[tile.id]!.hexes) {
+      const from = axialToPixel(h, layout);
+      for (const n of neighbors(h)) {
+        const owner = hexOwner.get(axialKey(n));
+        if (!owner || owner.kind !== "sea") {
+          continue;
+        }
+        const to = axialToPixel(n, layout);
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const len = Math.hypot(dx, dy) || 1;
+        ports.push({
+          to: owner.id,
+          edge: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
+          dir: { x: dx / len, y: dy / len }
+        });
+      }
+    }
+    tile.ports = ports;
   }
 
   // viewBox from the union of all ring points + margin.

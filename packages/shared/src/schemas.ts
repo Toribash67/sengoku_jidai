@@ -112,8 +112,7 @@ export const hexTileSourceSchema = z.object({
   id: z.string().min(1),
   kind: z.enum(["land", "sea"]),
   hexes: z.array(axialSchema).min(1),
-  features: hexTileFeaturesSchema,
-  ports: z.array(z.string().min(1)).optional()
+  features: hexTileFeaturesSchema
 });
 
 export const startingUnitsSchema = z.object({

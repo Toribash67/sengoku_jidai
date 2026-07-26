@@ -189,7 +189,6 @@ export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanv
 
   const gridCells = axialsInRect(view, doc.layout);
   const boundaries = tileBoundarySegments(doc.tiles, doc.layout);
-  const primary = doc.tiles.find((t) => t.id === selection[0]);
 
   return (
     <svg
@@ -229,19 +228,6 @@ export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanv
           <line key={i} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} />
         ))}
       </g>
-      {primary?.features.harbor && primary.ports ? (
-        <g className="editor-ports">
-          {primary.ports.map((seaId) => {
-            const sea = doc.tiles.find((t) => t.id === seaId);
-            if (!sea) {
-              return null;
-            }
-            const from = tileCentroid(primary.hexes, doc.layout);
-            const to = tileCentroid(sea.hexes, doc.layout);
-            return <line key={seaId} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />;
-          })}
-        </g>
-      ) : null}
       <g className="editor-badges">
         {doc.tiles.map((tile) => (
           <TileBadge key={tile.id} tile={tile} state={state} />

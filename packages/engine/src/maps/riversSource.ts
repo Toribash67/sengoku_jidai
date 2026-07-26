@@ -43,23 +43,20 @@ export const riversSource: HexMapSource = {
       id: "tile6",
       kind: "land",
       hexes: [{ q: 3, r: 4 }],
-      features: { valueStars: 1, harbor: true },
-      ports: ["tile3", "tile7"]
+      features: { valueStars: 1, harbor: true }
     },
     { id: "tile7", kind: "sea", hexes: [{ q: 2, r: 4 }], features: { valueStars: 1 } },
     {
       id: "tile8",
       kind: "land",
       hexes: [{ q: 1, r: 5 }],
-      features: { valueStars: 1, harbor: true },
-      ports: ["tile3", "tile7"]
+      features: { valueStars: 1, harbor: true }
     },
     {
       id: "tile9",
       kind: "land",
       hexes: [{ q: 4, r: 2 }],
-      features: { hq: "red", harbor: true },
-      ports: ["tile14", "tile15"]
+      features: { hq: "red", harbor: true }
     },
     { id: "tile10", kind: "land", hexes: [{ q: 3, r: 3 }], features: { shellable: true } },
     { id: "tile11", kind: "sea", hexes: [{ q: 2, r: 3 }], features: { valueStars: 1 } },
@@ -68,8 +65,7 @@ export const riversSource: HexMapSource = {
       id: "tile13",
       kind: "land",
       hexes: [{ q: 0, r: 4 }],
-      features: { hq: "black", harbor: true },
-      ports: ["tile17", "tile18"]
+      features: { hq: "black", harbor: true }
     },
     {
       id: "tile14",
@@ -85,8 +81,7 @@ export const riversSource: HexMapSource = {
       id: "tile16",
       kind: "land",
       hexes: [{ q: 2, r: 2 }],
-      features: { valueStars: 2, harbor: true },
-      ports: ["tile11", "tile15", "tile17"]
+      features: { valueStars: 2, harbor: true }
     },
     { id: "tile17", kind: "sea", hexes: [{ q: 1, r: 3 }], features: { valueStars: 1 } },
     {

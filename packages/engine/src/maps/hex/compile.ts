@@ -22,6 +22,7 @@ export function compileHexMap(source: HexMapSource): CompiledMap {
   validateHexMap(source);
 
   const adjacency = deriveAdjacency(source);
+  const kindById = new Map(source.tiles.map((t) => [t.id, t.kind] as const));
   const areas: Record<string, MapArea> = {};
   for (const t of source.tiles) {
     areas[t.id] = {
@@ -32,7 +33,10 @@ export function compileHexMap(source: HexMapSource): CompiledMap {
       harbor: t.features.harbor ?? false,
       shellable: t.features.shellable ?? false,
       adjacent: [...(adjacency.get(t.id) ?? [])].sort(),
-      ports: [...(t.ports ?? [])].sort()
+      // Piers are derived, not authored: a harbor ports to every edge-adjacent sea tile.
+      ports: t.features.harbor
+        ? [...(adjacency.get(t.id) ?? [])].filter((id) => kindById.get(id) === "sea").sort()
+        : []
     };
   }
 
