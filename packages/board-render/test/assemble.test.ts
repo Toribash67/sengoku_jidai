@@ -26,13 +26,50 @@ describe("assembleBoardSvg", () => {
     expect(svg).toContain(`id="stripe-red"`);
   });
 
-  it("places HQ / star / harbor markers for the featured tiles", () => {
-    // HQ base + harbor are the artist's tile-sized hex outlines drawn verbatim at native scale.
-    expect(svg).toContain(`class="hq-base"`); // tiles A (red) + E (black)
-    expect(svg).toContain(`stroke:#e02d2d`); // red HQ base (tile A), colour in the path style
-    expect(svg).toContain(`class="harbor"`); // tile D (concentric solid + dashed hexes)
+  it("traces HQ + harbor markers as outlines of the tile shape", () => {
+    expect(svg).toContain(`class="hq-outline"`); // tiles A (red) + E (black)
+    expect(svg).toContain(`class="harbor-outline"`); // tile D solid outline
+    expect(svg).toContain(`class="harbor-outline-dash"`); // tile D dashed hug
     expect(svg).toContain(`class="star"`); // tiles B, C (native star badges)
     expect(svg).toContain(`fill:#ce3485`); // the pink star fill from board.svg
+    // The old centered-glyph markers are gone.
+    expect(svg).not.toContain(`class="hq-base"`);
+    expect(svg).not.toContain(`class="harbor"`);
+  });
+
+  it("draws feature outlines that trace an arbitrary (multi-hex) tile shape", () => {
+    // An 8-vertex ring proves the marker follows tile.rings, not a fixed 6-vertex hexagon.
+    const octagon = [
+      { x: -20, y: -10 },
+      { x: 0, y: -20 },
+      { x: 20, y: -10 },
+      { x: 20, y: 10 },
+      { x: 0, y: 20 },
+      { x: -20, y: 10 },
+      { x: -20, y: 0 },
+      { x: -20, y: -5 }
+    ];
+    const tile = {
+      id: "HQ",
+      kind: "land" as const,
+      rings: [octagon],
+      centroid: { x: 0, y: 0 },
+      authoredFill: "#d5d3c4",
+      features: { hq: "red" as const, valueStars: 0 as const, harbor: false },
+      glyphAnchors: {},
+      slots: {},
+      ports: []
+    };
+    const scene = {
+      viewBox: { x: -50, y: -50, width: 100, height: 100 },
+      tiles: [tile],
+      hexGrid: [],
+      hexSize: 114
+    };
+    const out = assembleBoardSvg(scene);
+    const d = /<path d="([^"]+)" class="hq-outline"/.exec(out)?.[1] ?? "";
+    const vertexCount = (d.match(/[ML]/g) ?? []).length;
+    expect(vertexCount).toBe(octagon.length); // 8, not 6 — it traces the real shape
   });
 
   it("emits invisible order-slot anchors at the slotIdForSpace ids", () => {

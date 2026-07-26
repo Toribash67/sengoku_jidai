@@ -2,8 +2,6 @@ import {
   ASSETS,
   NATIVE_HEX_SIZE,
   PIER_ART_LENGTH,
-  harborArt,
-  hqBaseArt,
   pierArt,
   star1Art,
   star2Art,
@@ -11,6 +9,7 @@ import {
 } from "./assets.js";
 import type { BoardScene, SceneTile } from "./scene.js";
 import type { Pixel } from "@sengoku-jidai/engine";
+import { offsetRingsOutward } from "./outline.js";
 import { el } from "./svg.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -20,6 +19,15 @@ const XLINK_NS = "http://www.w3.org/1999/xlink";
  *  Independent of the equal-valued anchor-offset factor in scene.ts (the match is coincidental —
  *  badge size and corner-anchor position are free to diverge). */
 const BONUS_BADGE_FRACTION = 0.72;
+
+// Feature-outline stroke widths, in native (board.svg) units — scaled by hexSize/NATIVE_HEX_SIZE
+// at draw time. HQ mirrors board.svg path9-5-0-3 (width 8); harbor mirrors g46 (solid 5 outer +
+// dashed 8.09 inner). The dash rides ~0.72× its own width outside the solid line, hugging it.
+const HQ_STROKE_W = 8;
+const HARBOR_SOLID_W = 5;
+const HARBOR_DASH_W = 8.09188;
+const HARBOR_DASH_ARRAY = [4.04592, 1.61836];
+const HARBOR_DASH_OFFSET = HARBOR_DASH_W * 0.72;
 
 function ringPath(rings: Pixel[][]): string {
   return rings
@@ -76,13 +84,34 @@ function placePier(edge: Pixel, dir: Pixel, hexSize: number): string {
 
 function featureGlyphs(tile: SceneTile, hexSize: number): string {
   const out: string[] = [];
-  // HQ base + harbour are the artist's tile-sized hex outlines (board.svg path9-5-0-3/-6 + g46),
-  // drawn verbatim at native scale so they line up with the tile edge (both appear on tile9/tile13).
+  const s = hexSize / NATIVE_HEX_SIZE;
+  // HQ + harbour markers are strokes of the tile's real fused outline (tile.rings) so they fit
+  // single- and multi-hex tiles alike. Drawn in the non-interactive #features group.
   if (tile.features.hq) {
-    out.push(placeNative(hqBaseArt(tile.features.hq), tile.centroid, hexSize));
+    const stroke = tile.features.hq === "red" ? "#e02d2d" : "#000000";
+    out.push(
+      el("path", {
+        d: ringPath(tile.rings),
+        class: "hq-outline",
+        style: `fill:none;stroke:${stroke};stroke-width:${(HQ_STROKE_W * s).toFixed(2)};stroke-linejoin:round`
+      })
+    );
   }
   if (tile.features.harbor) {
-    out.push(placeNative(harborArt(), tile.centroid, hexSize));
+    const dashRings = offsetRingsOutward(tile.rings, HARBOR_DASH_OFFSET * s);
+    const dashArray = HARBOR_DASH_ARRAY.map((v) => (v * s).toFixed(3)).join(",");
+    out.push(
+      el("path", {
+        d: ringPath(tile.rings),
+        class: "harbor-outline",
+        style: `fill:none;stroke:#000000;stroke-width:${(HARBOR_SOLID_W * s).toFixed(2)};stroke-linejoin:round`
+      }),
+      el("path", {
+        d: ringPath(dashRings),
+        class: "harbor-outline-dash",
+        style: `fill:none;stroke:#000000;stroke-width:${(HARBOR_DASH_W * s).toFixed(2)};stroke-linejoin:round;stroke-dasharray:${dashArray}`
+      })
+    );
   }
   if (tile.features.valueStars > 0 && tile.glyphAnchors.stars) {
     const art = tile.features.valueStars === 2 ? star2Art() : star1Art();

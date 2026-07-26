@@ -37,6 +37,7 @@ export type EditorAction =
   | { type: "setDeployment"; tileId: string; units: StartingUnits | null }
   | { type: "toggleBonusSlot"; tileId: string }
   | { type: "setName"; name: string }
+  | { type: "setCommandersPerRound"; value: number }
   | { type: "undo" }
   | { type: "redo" }
   | { type: "loadDoc"; doc: EditorDoc };
@@ -372,6 +373,13 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         ? state.doc.bonusSlots.filter((id) => id !== action.tileId)
         : [...state.doc.bonusSlots, action.tileId];
       return withDoc(state, { ...state.doc, bonusSlots });
+    }
+    case "setCommandersPerRound": {
+      if (!Number.isFinite(action.value)) {
+        return state;
+      }
+      const value = Math.max(1, Math.min(8, Math.floor(action.value)));
+      return withDoc(state, { ...state.doc, commandersPerRound: value });
     }
     case "setName":
       return withDoc(state, { ...state.doc, name: action.name });

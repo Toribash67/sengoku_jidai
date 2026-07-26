@@ -68,6 +68,8 @@ export interface MapDefinition {
    * `setupGame` uses it instead of the hardcoded Rivers fallback.
    */
   startingDeployment?: Record<string, StartingUnits>;
+  /** Commanders each player deploys per round; overrides the ruleset default when set. */
+  commandersPerRound?: number;
 }
 
 export const riversMapId = "rivers";

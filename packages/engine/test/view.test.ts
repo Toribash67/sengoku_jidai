@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState, legalCommandsForState, playerView } from "../src/index.js";
+import { available } from "../src/legality.js";
 
 describe("playerView (v2)", () => {
   const state = createInitialState({ gameId: "g1", seed: "fixed" });
@@ -217,5 +218,18 @@ describe("playerView (v2)", () => {
     const other = state.activeSeat === "red" ? "black" : "red";
     const scenario = { ...state, players: { ...state.players } };
     expect(legalCommandsForState(scenario, other).cardPlays).toEqual([]);
+  });
+});
+
+describe("playerView commander counts", () => {
+  it("exposes per-seat remaining and total commanders", () => {
+    const state = createInitialState({ gameId: "g", seed: "s" });
+    const view = playerView(state, "red");
+    expect(view.commandersTotal.red).toBe(state.players.red.commanders.total);
+    expect(view.commandersTotal.black).toBe(state.players.black.commanders.total);
+    expect(view.commandersRemaining.red).toBe(available(state, "red"));
+    expect(view.commandersRemaining.black).toBe(available(state, "black"));
+    // At game start nothing is placed, so remaining equals total.
+    expect(view.commandersRemaining.red).toBe(view.commandersTotal.red);
   });
 });

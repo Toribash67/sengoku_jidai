@@ -132,7 +132,8 @@ export const hexMapSourceSchema = z.object({
   layout: hexLayoutSchema,
   tiles: z.array(hexTileSourceSchema).min(1),
   startingDeployment: z.record(startingUnitsSchema),
-  bonusSlots: z.array(z.string().min(1))
+  bonusSlots: z.array(z.string().min(1)),
+  commandersPerRound: z.number().int().min(1).max(8).optional()
 });
 
 export const mapParamsSchema = z.object({

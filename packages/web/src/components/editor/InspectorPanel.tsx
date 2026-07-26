@@ -56,7 +56,7 @@ export function InspectorPanel({
         ) : primary ? (
           <TileBody primary={primary} state={state} dispatch={dispatch} />
         ) : (
-          <SummaryBody state={state} />
+          <SummaryBody state={state} dispatch={dispatch} />
         )}
       </div>
     </aside>
@@ -86,7 +86,13 @@ function MultiBody({
   );
 }
 
-function SummaryBody({ state }: { state: EditorState }): ReactNode {
+function SummaryBody({
+  state,
+  dispatch
+}: {
+  state: EditorState;
+  dispatch: Dispatch<EditorAction>;
+}): ReactNode {
   const { doc } = state;
   const hqSeats = doc.tiles.filter((t) => t.features.hq).map((t) => t.features.hq);
   return (
@@ -99,6 +105,19 @@ function SummaryBody({ state }: { state: EditorState }): ReactNode {
           Bonus slots: {doc.bonusSlots.length} of {riversRuleset.bonusSet.length}
         </li>
       </ul>
+      <label className="editor-field">
+        <span>Commanders per round</span>
+        <input
+          type="number"
+          min={1}
+          max={8}
+          step={1}
+          value={doc.commandersPerRound ?? riversRuleset.commandersPerPlayer}
+          onChange={(e) =>
+            dispatch({ type: "setCommandersPerRound", value: e.target.valueAsNumber })
+          }
+        />
+      </label>
       <p className="muted">Tap a tile to edit it; use Multi to select several.</p>
     </>
   );
