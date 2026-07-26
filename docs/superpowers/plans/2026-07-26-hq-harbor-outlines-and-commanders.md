@@ -718,29 +718,23 @@ Note: `riversRuleset` is already imported at the top of the file (line 3); `Disp
 
 - [ ] **Step 6: Extend the doc round-trip test**
 
-In `packages/web/test/editor/doc.test.ts`, add:
+In `packages/web/test/editor/doc.test.ts`, add a new `describe` block. The file already imports `riversSource` from `@sengoku-jidai/engine/client` and `docFromSource, docToSource` from `../../src/editor/doc.js` — reuse those imports (web must import the engine only via `/client`; the eslint rule forbids `@sengoku-jidai/engine`):
 
 ```ts
-import { describe, it, expect } from "vitest";
-import { docFromSource, docToSource } from "../../src/editor/doc.js";
-import { FIXTURE_HEX_MAP } from "@sengoku-jidai/engine";
-
 describe("commandersPerRound round-trip", () => {
   it("preserves the field through source→doc→source", () => {
-    const source = { ...FIXTURE_HEX_MAP, commandersPerRound: 6 };
+    const source = { ...riversSource, commandersPerRound: 6 };
     const doc = docFromSource(source, { asCopy: false });
     expect(doc.commandersPerRound).toBe(6);
     expect(docToSource(doc).commandersPerRound).toBe(6);
   });
 
   it("leaves it undefined when the source omits it", () => {
-    const doc = docFromSource(FIXTURE_HEX_MAP, { asCopy: false });
+    const doc = docFromSource(riversSource, { asCopy: false });
     expect(doc.commandersPerRound).toBeUndefined();
   });
 });
 ```
-
-(If `doc.test.ts` already imports `FIXTURE_HEX_MAP` or the helpers, reuse the existing imports rather than duplicating them.)
 
 - [ ] **Step 7: Run the web editor tests**
 
@@ -783,61 +777,72 @@ git commit -m "feat(web): commanders-per-round setting in the map editor"
 Render a per-seat pip row in the scoreboard: filled pips = still to place, dim pips = used, with a small "N left" count.
 
 **Files:**
-- Create: `packages/web/src/components/CommanderPips.tsx`
+- Create: `packages/web/src/components/CommanderPips.tsx` (pure helper + component)
 - Modify: `packages/web/src/App.tsx` (scoreboard blocks + import)
 - Modify: `packages/web/src/styles/app.css` (pip styles)
-- Test: `packages/web/test/commanderPips.test.tsx` (create)
+- Test: `packages/web/test/commanderPips.test.ts` (create)
+
+**Note on testing:** the web package has **no** DOM test environment or React Testing Library (every existing web test is a pure-logic `.test.ts`, e.g. the editor reducer/doc tests). Do **not** add `@testing-library/react`/`jsdom`. Instead, extract the pip layout as a pure exported helper (`commanderPipFills`) and unit-test that; the component is a thin wrapper around it.
 
 **Interfaces:**
 - Consumes: `PlayerGameView.commandersRemaining`, `PlayerGameView.commandersTotal` (Task 4).
-- Produces: `<CommanderPips total={number} remaining={number} />` — renders `total` pip elements (`.commander-pip`), the last `total - remaining` of them marked `.is-used`, plus a `.commander-left` label. Color is inherited from the enclosing `.score-red` / `.score-black`.
+- Produces:
+  - `export function commanderPipFills(total: number, remaining: number): boolean[]` — array of length `max(0, total)`; element `i` is `true` (filled = still to place) when `i < remaining`, else `false` (used/dim).
+  - `<CommanderPips total={number} remaining={number} />` — renders one `.commander-pip` per helper entry (the `false` ones marked `.is-used`) plus a `.commander-left` label. Color is inherited from the enclosing `.score-red` / `.score-black`.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `packages/web/test/commanderPips.test.tsx`:
+Create `packages/web/test/commanderPips.test.ts`:
 
-```tsx
+```ts
 import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
-import { CommanderPips } from "../src/components/CommanderPips.js";
+import { commanderPipFills } from "../src/components/CommanderPips.js";
 
-describe("CommanderPips", () => {
-  it("renders one pip per commander, dimming the used ones", () => {
-    const { container } = render(<CommanderPips total={5} remaining={3} />);
-    expect(container.querySelectorAll(".commander-pip")).toHaveLength(5);
-    expect(container.querySelectorAll(".commander-pip.is-used")).toHaveLength(2);
-    expect(container.querySelector(".commander-left")?.textContent).toBe("3 left");
+describe("commanderPipFills", () => {
+  it("fills the first `remaining` of `total` pips", () => {
+    expect(commanderPipFills(5, 3)).toEqual([true, true, true, false, false]);
   });
 
   it("handles all-remaining and none-remaining", () => {
-    const full = render(<CommanderPips total={4} remaining={4} />);
-    expect(full.container.querySelectorAll(".commander-pip.is-used")).toHaveLength(0);
-    const none = render(<CommanderPips total={4} remaining={0} />);
-    expect(none.container.querySelectorAll(".commander-pip.is-used")).toHaveLength(4);
+    expect(commanderPipFills(4, 4)).toEqual([true, true, true, true]);
+    expect(commanderPipFills(4, 0)).toEqual([false, false, false, false]);
+  });
+
+  it("returns an empty array for a zero total", () => {
+    expect(commanderPipFills(0, 0)).toEqual([]);
   });
 });
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `corepack pnpm --filter @sengoku-jidai/web exec vitest run test/commanderPips.test.tsx`
-Expected: FAIL — module `CommanderPips` not found.
+Run: `corepack pnpm --filter @sengoku-jidai/web exec vitest run test/commanderPips.test.ts`
+Expected: FAIL — module `CommanderPips` / export `commanderPipFills` not found.
 
-- [ ] **Step 3: Create the component**
+- [ ] **Step 3: Create the helper + component**
 
 Create `packages/web/src/components/CommanderPips.tsx`:
 
 ```tsx
-/** Per-seat commander tracker for the HUD: `total` pips, the last `total - remaining`
- *  dimmed to show they are placed/passed. Color is inherited from the enclosing seat block. */
+/** Pip layout for the commander tracker: one entry per commander, `true` for the first
+ *  `remaining` (still to place / filled), `false` for the rest (placed or passed / dim). */
+export function commanderPipFills(total: number, remaining: number): boolean[] {
+  return Array.from({ length: Math.max(0, total) }, (_, i) => i < remaining);
+}
+
+/** Per-seat commander tracker for the HUD. Color is inherited from the enclosing seat block. */
 export function CommanderPips({ total, remaining }: { total: number; remaining: number }) {
   return (
     <span
       className="commander-pips"
       aria-label={`${remaining} of ${total} commanders left to place`}
     >
-      {Array.from({ length: total }, (_, i) => (
-        <span key={i} className={`commander-pip${i < remaining ? "" : " is-used"}`} aria-hidden="true" />
+      {commanderPipFills(total, remaining).map((filled, i) => (
+        <span
+          key={i}
+          className={`commander-pip${filled ? "" : " is-used"}`}
+          aria-hidden="true"
+        />
       ))}
       <span className="commander-left">{remaining} left</span>
     </span>
@@ -847,8 +852,8 @@ export function CommanderPips({ total, remaining }: { total: number; remaining: 
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `corepack pnpm --filter @sengoku-jidai/web exec vitest run test/commanderPips.test.tsx`
-Expected: PASS.
+Run: `corepack pnpm --filter @sengoku-jidai/web exec vitest run test/commanderPips.test.ts`
+Expected: PASS (3 tests).
 
 - [ ] **Step 5: Render it in the scoreboard**
 
@@ -926,7 +931,7 @@ Expected: no errors (confirms the view fields exist on the built engine type and
 
 ```bash
 git add packages/web/src/components/CommanderPips.tsx packages/web/src/App.tsx \
-  packages/web/src/styles/app.css packages/web/test/commanderPips.test.tsx
+  packages/web/src/styles/app.css packages/web/test/commanderPips.test.ts
 git commit -m "feat(web): commanders-remaining pips in the HUD"
 ```
 
