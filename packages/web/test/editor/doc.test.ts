@@ -51,3 +51,17 @@ describe("editor doc", () => {
     expect(doc.nextTileNumber).toBe(8);
   });
 });
+
+describe("commandersPerRound round-trip", () => {
+  it("preserves the field through source→doc→source", () => {
+    const source = { ...riversSource, commandersPerRound: 6 };
+    const doc = docFromSource(source, { asCopy: false });
+    expect(doc.commandersPerRound).toBe(6);
+    expect(docToSource(doc).commandersPerRound).toBe(6);
+  });
+
+  it("leaves it undefined when the source omits it", () => {
+    const doc = docFromSource(riversSource, { asCopy: false });
+    expect(doc.commandersPerRound).toBeUndefined();
+  });
+});

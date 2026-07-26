@@ -16,6 +16,8 @@ export interface EditorDoc {
   tiles: HexTileSource[];
   startingDeployment: Record<string, StartingUnits>;
   bonusSlots: string[];
+  /** Commanders each player deploys per round; undefined means "use the ruleset default (5)". */
+  commandersPerRound?: number;
   /** Monotonic counter behind generated tile ids (t1, t2, …). */
   nextTileNumber: number;
 }
@@ -47,6 +49,7 @@ export function docFromSource(source: HexMapSource, options: { asCopy: boolean }
     tiles: structuredClone(source.tiles),
     startingDeployment: structuredClone(source.startingDeployment),
     bonusSlots: [...source.bonusSlots],
+    commandersPerRound: source.commandersPerRound,
     nextTileNumber: max + 1
   };
 }
@@ -58,6 +61,7 @@ export function docToSource(doc: EditorDoc, id?: string): HexMapSource {
     layout: doc.layout,
     tiles: doc.tiles,
     startingDeployment: doc.startingDeployment,
-    bonusSlots: doc.bonusSlots
+    bonusSlots: doc.bonusSlots,
+    commandersPerRound: doc.commandersPerRound
   };
 }

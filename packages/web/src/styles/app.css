@@ -1554,6 +1554,17 @@ button:disabled {
   flex-direction: column;
   gap: 4px;
 }
+.editor-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 0.85rem;
+}
+.editor-field input {
+  width: 4rem;
+}
 .check {
   display: flex;
   gap: 8px;
