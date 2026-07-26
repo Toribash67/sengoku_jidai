@@ -167,6 +167,10 @@ export interface PlayerGameView {
   bonuses: Record<string, BonusType>;
   actionSpaces: Record<string, SeatId | null>;
   victoryPoints: Record<SeatId, number>;
+  /** Commanders each seat can still deploy this round (from `available`). */
+  commandersRemaining: Record<SeatId, number>;
+  /** Total commanders each seat deploys per round (pip count). */
+  commandersTotal: Record<SeatId, number>;
   pendingDecision: PendingDecision | null;
   /** A combat awaiting its roll, if any. Public to both seats (the matchup is not hidden);
    *  `responsibleSeat` says who rolls. Null when no combat is pending. */
@@ -227,6 +231,14 @@ export function playerView(state: GameState, viewerSeat: SeatId): PlayerGameView
     victoryPoints: {
       red: victoryPoints(map, board, "red"),
       black: victoryPoints(map, board, "black")
+    },
+    commandersRemaining: {
+      red: available(state, "red"),
+      black: available(state, "black")
+    },
+    commandersTotal: {
+      red: state.players.red.commanders.total,
+      black: state.players.black.commanders.total
     },
     pendingDecision:
       state.pendingDecision && state.pendingDecision.seat === viewerSeat
