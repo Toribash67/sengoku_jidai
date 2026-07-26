@@ -102,6 +102,41 @@ describe("buildScene", () => {
     expect(ports[0]!.to).toBe("C");
   });
 
+  it("emits one pier per sea-facing hex edge — several to the same sea area", () => {
+    // Harbour H is a single hex whose neighbours (1,0) and (1,-1) both belong to one sea
+    // tile S, so H gets two piers, both pointing at S from two different edges.
+    const size = 114;
+    const compiled = {
+      layout: {
+        size,
+        origin: { x: 0, y: 0 },
+        tiles: {
+          H: { hexes: [{ q: 0, r: 0 }] },
+          S: {
+            hexes: [
+              { q: 1, r: 0 },
+              { q: 1, r: -1 }
+            ]
+          }
+        }
+      },
+      definition: {
+        areas: {
+          H: { id: "H", kind: "land", hq: null, valueStars: 0, harbor: true, ports: ["S"] },
+          S: { id: "S", kind: "sea", hq: null, valueStars: 0, harbor: false, ports: [] }
+        },
+        bonusSlots: []
+      }
+    } as unknown as CompiledMap;
+    const tile = buildScene(compiled).tiles.find((t) => t.id === "H")!;
+    expect(tile.ports).toHaveLength(2);
+    expect(tile.ports.every((p) => p.to === "S")).toBe(true);
+    // Two distinct edges: their midpoints sit on opposite sides of the harbour hex in y.
+    const ys = tile.ports.map((p) => p.edge.y).sort((a, b) => a - b);
+    expect(ys[0]!).toBeLessThan(0);
+    expect(ys[1]!).toBeGreaterThan(0);
+  });
+
   it("produces a viewBox enclosing every ring point", () => {
     const allX = scene.tiles.flatMap((t) => t.rings.flat().map((p) => p.x));
     const allY = scene.tiles.flatMap((t) => t.rings.flat().map((p) => p.y));
