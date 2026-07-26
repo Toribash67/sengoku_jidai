@@ -861,38 +861,50 @@ export function App() {
           <p className="command-prompt">{game.view.prompt}</p>
         </div>
         <div className="scoreboard" aria-label="Game status">
-          <span className={`score score-red${game.view.activeSeat === "red" ? " is-active" : ""}`}>
-            {game.view.initiative === "red" ? <InitiativeBadge side="red" /> : null}
-            <span className="score-side">Red</span>
-            <span className="score-marker" aria-hidden="true" />
-            <span className="score-vp">{game.view.victoryPoints.red}</span>
-            <CommanderPips
-              total={game.view.commandersTotal.red}
-              remaining={game.view.commandersRemaining.red}
-            />
-          </span>
-          <span className="score-dash" aria-hidden="true">
-            —
-          </span>
-          <span
-            className={`score score-black${game.view.activeSeat === "black" ? " is-active" : ""}`}
-          >
-            <CommanderPips
-              total={game.view.commandersTotal.black}
-              remaining={game.view.commandersRemaining.black}
-            />
-            <span className="score-vp">{game.view.victoryPoints.black}</span>
-            <span className="score-marker" aria-hidden="true" />
-            <span className="score-side">Black</span>
-            {game.view.initiative === "black" ? <InitiativeBadge side="black" /> : null}
-          </span>
-          <span className="round-meta">
-            <span className="round-line">
-              <span className="round-no">Round {game.view.round}</span>
-              <span className="round-total">/ {game.view.maxRounds}</span>
+          <div className="scoreboard-main">
+            <span
+              className={`score score-red${game.view.activeSeat === "red" ? " is-active" : ""}`}
+            >
+              {game.view.initiative === "red" ? <InitiativeBadge side="red" /> : null}
+              <span className="score-side">Red</span>
+              <span className="score-marker" aria-hidden="true" />
+              <span className="score-vp">{game.view.victoryPoints.red}</span>
             </span>
-            <span className="phase-name">{phaseLabel(game.view.phase)}</span>
-          </span>
+            <span className="score-dash" aria-hidden="true">
+              —
+            </span>
+            <span
+              className={`score score-black${game.view.activeSeat === "black" ? " is-active" : ""}`}
+            >
+              <span className="score-vp">{game.view.victoryPoints.black}</span>
+              <span className="score-marker" aria-hidden="true" />
+              <span className="score-side">Black</span>
+              {game.view.initiative === "black" ? <InitiativeBadge side="black" /> : null}
+            </span>
+            <span className="round-meta">
+              <span className="round-line">
+                <span className="round-no">Round {game.view.round}</span>
+                <span className="round-total">/ {game.view.maxRounds}</span>
+              </span>
+              <span className="phase-name">{phaseLabel(game.view.phase)}</span>
+            </span>
+          </div>
+          {/* Commander-remaining pips on their own row so the info line above stays within a
+              phone-width top bar. Red aligns left, Black right, mirroring the score line. */}
+          <div className="scoreboard-pips">
+            <span className="score-red">
+              <CommanderPips
+                total={game.view.commandersTotal.red}
+                remaining={game.view.commandersRemaining.red}
+              />
+            </span>
+            <span className="score-black">
+              <CommanderPips
+                total={game.view.commandersTotal.black}
+                remaining={game.view.commandersRemaining.black}
+              />
+            </span>
+          </div>
         </div>
       </header>
 
