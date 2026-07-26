@@ -176,6 +176,37 @@ button:disabled {
   background: transparent;
 }
 
+.commander-pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.commander-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentcolor;
+}
+
+.commander-pip.is-used {
+  opacity: 0.25;
+}
+
+.commander-left {
+  margin-left: 4px;
+  font-size: 0.7rem;
+  color: var(--sumi-soft);
+}
+
+.score-red .commander-pips {
+  color: #c0392b;
+}
+
+.score-black .commander-pips {
+  color: #2f343c;
+}
+
 .score-red {
   color: var(--shu);
 }

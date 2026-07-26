@@ -31,6 +31,7 @@ import { Hand } from "./components/board/Hand.js";
 import { describeArea } from "./components/board/areaLabel.js";
 import { describeEvent, type EventLookup } from "./components/board/eventLog.js";
 import { capitalizeSeat, seatDisplayName } from "./components/board/gameOver.js";
+import { CommanderPips } from "./components/CommanderPips.js";
 import { GameOverOverlay } from "./components/GameOverOverlay.js";
 import {
   type ComposerState,
@@ -865,6 +866,10 @@ export function App() {
             <span className="score-side">Red</span>
             <span className="score-marker" aria-hidden="true" />
             <span className="score-vp">{game.view.victoryPoints.red}</span>
+            <CommanderPips
+              total={game.view.commandersTotal.red}
+              remaining={game.view.commandersRemaining.red}
+            />
           </span>
           <span className="score-dash" aria-hidden="true">
             —
@@ -872,6 +877,10 @@ export function App() {
           <span
             className={`score score-black${game.view.activeSeat === "black" ? " is-active" : ""}`}
           >
+            <CommanderPips
+              total={game.view.commandersTotal.black}
+              remaining={game.view.commandersRemaining.black}
+            />
             <span className="score-vp">{game.view.victoryPoints.black}</span>
             <span className="score-marker" aria-hidden="true" />
             <span className="score-side">Black</span>
