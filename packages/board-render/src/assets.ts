@@ -362,12 +362,12 @@ export function bonusTypeGlyph(bonus: BonusType): GlyphId {
 // Native-scale feature art
 //
 // board.svg is authored on the same flat-top hex grid the procedural renderer
-// uses (hex radius NATIVE_HEX_SIZE = 114), so HQ bases, harbours and piers are
-// the artist's own paths rendered VERBATIM at native size — not the 40-unit
-// icon <symbol>s above (those stay as a general icon library). Each helper
-// returns art pre-translated so its geometric centre is (0,0); assemble.ts
-// places it with translate(centroid) scale(hexSize / NATIVE_HEX_SIZE), so on a
-// size-114 map (Rivers) the scale is 1 — the feature matches its tile exactly.
+// uses (hex radius NATIVE_HEX_SIZE = 114), so piers are the artist's own paths
+// rendered VERBATIM at native size — not the 40-unit icon <symbol>s above
+// (those stay as a general icon library). Each helper returns art pre-translated
+// so its geometric centre is (0,0); assemble.ts places it with
+// translate(centroid) scale(hexSize / NATIVE_HEX_SIZE), so on a size-114 map
+// (Rivers) the scale is 1 — the feature matches its tile exactly.
 // ===========================================================================
 
 /** The hex radius board.svg was authored at; native art is drawn 1:1 at this size. */

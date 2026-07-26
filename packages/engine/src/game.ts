@@ -58,6 +58,9 @@ export function createInitialState(options: GameSetupOptions): GameState {
   const mapId = options.mapId ?? riversMapId;
   const rules = options.rules ?? riversRuleset;
   const map = getMap(mapId);
+  // Effective per-round commander count: the map value overrides the ruleset default.
+  // `commanders.total` (set below) is the source of truth at runtime — `rules.commandersPerPlayer`
+  // is not re-read after setup.
   const commandersPerRound = map.commandersPerRound ?? rules.commandersPerPlayer;
 
   // One bonus is drawn per slot, so the ruleset must offer at least as many

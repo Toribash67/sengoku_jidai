@@ -375,6 +375,9 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return withDoc(state, { ...state.doc, bonusSlots });
     }
     case "setCommandersPerRound": {
+      if (!Number.isFinite(action.value)) {
+        return state;
+      }
       const value = Math.max(1, Math.min(8, Math.floor(action.value)));
       return withDoc(state, { ...state.doc, commandersPerRound: value });
     }

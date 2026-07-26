@@ -26,4 +26,16 @@ describe("setCommandersPerRound", () => {
     const s = editorReducer(start(), { type: "setCommandersPerRound", value: 5 });
     expect(docToSource(s.doc).commandersPerRound).toBe(5);
   });
+
+  it("ignores non-finite input (cleared field) and keeps the prior value", () => {
+    // From an empty doc, NaN leaves the field unset.
+    expect(
+      editorReducer(start(), { type: "setCommandersPerRound", value: NaN }).doc.commandersPerRound
+    ).toBeUndefined();
+    // From a set value, NaN leaves it unchanged.
+    const set = editorReducer(start(), { type: "setCommandersPerRound", value: 6 });
+    expect(
+      editorReducer(set, { type: "setCommandersPerRound", value: NaN }).doc.commandersPerRound
+    ).toBe(6);
+  });
 });
