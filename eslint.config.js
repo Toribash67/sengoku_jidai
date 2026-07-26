@@ -83,6 +83,29 @@ export default tseslint.config(
       message: "terrain's source may only depend on the engine (no other app/render packages)."
     }
   ]),
+  // mapSources resolves a map's structural board SVG from live board-render geometry — the same
+  // source of truth the web client (`boardSvgFor`) and the server terrain path already use — so
+  // this one module (and only it) may import board-render. A committed board.svg drifts from the
+  // rendered board and stretches the generated background; deriving it keeps the two in lockstep.
+  // A later flat-config entry replaces (not extends) the rule for its files, so restate the full
+  // set minus board-render. Everything else in terrain/src stays board-render-free (boundary above).
+  {
+    files: ["packages/terrain/src/mapSources.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@sengoku-jidai/*", "!@sengoku-jidai/engine", "!@sengoku-jidai/board-render"],
+              message:
+                "terrain's source may only depend on the engine; mapSources additionally may import board-render to assemble the structural board SVG."
+            }
+          ]
+        }
+      ]
+    }
+  },
   boundary("packages/server/src", [
     {
       group: ["@sengoku-jidai/web", "@sengoku-jidai/web/*"],
