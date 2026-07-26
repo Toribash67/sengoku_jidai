@@ -136,9 +136,25 @@ button:disabled {
 
 .scoreboard {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* The primary info line: RED n — n BLACK · Round/phase. Kept to one row within a phone width. */
+.scoreboard-main {
+  display: flex;
   align-items: center;
   gap: 16px;
-  margin-left: auto;
+}
+
+/* Commander pips on their own row: red flush-left, black flush-right, mirroring the score line. */
+.scoreboard-pips {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 /* RED ● n — n ○ BLACK : the active side's marker is lit in its faction colour. */
@@ -191,12 +207,6 @@ button:disabled {
 
 .commander-pip.is-used {
   opacity: 0.25;
-}
-
-.commander-left {
-  margin-left: 4px;
-  font-size: 0.7rem;
-  color: var(--sumi-soft);
 }
 
 .score-red .commander-pips {
@@ -526,6 +536,33 @@ button:disabled {
 
   .action-bar-support {
     margin-left: 0;
+  }
+}
+
+/* Phone widths: tighten the top bar so the info line fits within a vertical iPhone. Gaps,
+   VP size, and round-meta padding shrink; the info row may wrap (round-meta drops to its
+   own line) on the very narrowest screens rather than overflow the viewport. */
+@media (max-width: 430px) {
+  .top-bar {
+    gap: 10px 12px;
+    padding: 10px 12px;
+  }
+
+  .scoreboard-main {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .score {
+    gap: 5px;
+  }
+
+  .score-vp {
+    font-size: 1.2rem;
+  }
+
+  .round-meta {
+    padding-left: 10px;
   }
 }
 
