@@ -58,6 +58,7 @@ export function createInitialState(options: GameSetupOptions): GameState {
   const mapId = options.mapId ?? riversMapId;
   const rules = options.rules ?? riversRuleset;
   const map = getMap(mapId);
+  const commandersPerRound = map.commandersPerRound ?? rules.commandersPerPlayer;
 
   // One bonus is drawn per slot, so the ruleset must offer at least as many
   // bonuses as the map has slots (Rivers: 3 slots from a pool of 5).
@@ -129,7 +130,7 @@ export function createInitialState(options: GameSetupOptions): GameState {
         ship: RIVERS_UNIT_POOL.ship - placed.ship,
         siege: RIVERS_UNIT_POOL.siege - placed.siege
       },
-      commanders: { total: rules.commandersPerPlayer, standby: 0, counterattacks: 0 },
+      commanders: { total: commandersPerRound, standby: 0, counterattacks: 0 },
       hand: [],
       passed: false
     };

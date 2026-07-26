@@ -34,4 +34,6 @@ export interface HexMapSource {
   startingDeployment: Record<string, StartingUnits>;
   /** Tile ids that receive a random bonus at setup. */
   bonusSlots: string[];
+  /** Commanders each player deploys per round. Overrides the ruleset default (5) when set. */
+  commandersPerRound?: number;
 }
