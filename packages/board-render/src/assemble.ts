@@ -31,6 +31,10 @@ const HARBOR_DASH_OFFSET = HARBOR_DASH_W * 0.72;
 const FORT_STROKE_W = 6;
 /** Gap between adjacent concentric feature bands, in native units. */
 const FEATURE_BAND_GAP = 1.5;
+/** The regular tile border (the web-applied `.tile` stroke, MapBoard `strokeWidth = 5`) that owns
+ *  the tile edge. Feature bands nest inside it, so it stays the outermost outline. Native units;
+ *  on the size-114 Rivers board world = native (s = 1), matching the web's fixed 5-unit stroke. */
+const TILE_BORDER_W = 5;
 
 function ringPath(rings: Pixel[][]): string {
   return rings
@@ -88,24 +92,18 @@ function placePier(edge: Pixel, dir: Pixel, hexSize: number): string {
 function featureGlyphs(tile: SceneTile, hexSize: number): string {
   const out: string[] = [];
   const s = hexSize / NATIVE_HEX_SIZE;
-  // Concentric feature borders, outermost -> innermost: base (HQ), fort, harbor.
-  // The outermost PRESENT border is centered on the tile edge (offset 0), preserving the
-  // look of base-only and (very common) harbor-only tiles; each further-in border nests
-  // inside it. Offsets are inward, i.e. negative distances into offsetRingsOutward.
-  let cursorInner = 0; // inner boundary (native units) reached so far; 0 = tile edge
-  let firstBand = true;
+  // Concentric borders, outermost -> innermost: the regular tile border (web-applied `.tile`
+  // stroke, centered on the edge) then base (HQ), fort, harbor. The tile border owns the edge;
+  // every feature band nests inside it, so the tile outline always stays outermost. Bands walk
+  // inward from the tile border's inner edge; offsets are negative distances into
+  // offsetRingsOutward (inward from the tile edge).
+  let cursorInner = -TILE_BORDER_W / 2; // inner edge of the reserved tile-border band
   const bandCenter = (width: number): number => {
-    if (firstBand) {
-      firstBand = false;
-      cursorInner = -width / 2;
-      return 0; // straddles the tile edge, like today's base/harbor
-    }
     const center = cursorInner - FEATURE_BAND_GAP - width / 2;
     cursorInner = center - width / 2;
     return center;
   };
-  const bandRings = (center: number) =>
-    center === 0 ? tile.rings : offsetRingsOutward(tile.rings, center * s);
+  const bandRings = (center: number) => offsetRingsOutward(tile.rings, center * s);
 
   if (tile.features.hq) {
     const stroke = tile.features.hq === "red" ? "#e02d2d" : "#000000";
