@@ -11,6 +11,7 @@ function testMap(): MapDefinition {
     valueStars: stars,
     harbor: false,
     shellable: false,
+    fort: false,
     adjacent,
     ports: []
   });

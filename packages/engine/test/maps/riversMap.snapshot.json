@@ -6,6 +6,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile10", "tile2", "tile6", "tile9"],
     "ports": []
   },
@@ -16,6 +17,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile1", "tile3", "tile6"],
     "ports": []
   },
@@ -26,6 +28,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile2", "tile4", "tile6", "tile7", "tile8"],
     "ports": []
   },
@@ -36,6 +39,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile3", "tile5", "tile8"],
     "ports": []
   },
@@ -46,6 +50,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile12", "tile13", "tile4", "tile8"],
     "ports": []
   },
@@ -56,6 +61,7 @@
     "valueStars": 1,
     "harbor": true,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile1", "tile10", "tile2", "tile3", "tile7"],
     "ports": ["tile3", "tile7"]
   },
@@ -66,6 +72,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile10", "tile11", "tile12", "tile3", "tile6", "tile8"],
     "ports": []
   },
@@ -76,6 +83,7 @@
     "valueStars": 1,
     "harbor": true,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile12", "tile3", "tile4", "tile5", "tile7"],
     "ports": ["tile3", "tile7"]
   },
@@ -86,6 +94,7 @@
     "valueStars": 0,
     "harbor": true,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile1", "tile10", "tile14", "tile15"],
     "ports": ["tile14", "tile15"]
   },
@@ -96,6 +105,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": true,
+    "fort": false,
     "adjacent": ["tile1", "tile11", "tile15", "tile6", "tile7", "tile9"],
     "ports": []
   },
@@ -106,6 +116,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile10", "tile12", "tile15", "tile16", "tile17", "tile7"],
     "ports": []
   },
@@ -116,6 +127,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": true,
+    "fort": false,
     "adjacent": ["tile11", "tile13", "tile17", "tile5", "tile7", "tile8"],
     "ports": []
   },
@@ -126,6 +138,7 @@
     "valueStars": 0,
     "harbor": true,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile12", "tile17", "tile18", "tile5"],
     "ports": ["tile17", "tile18"]
   },
@@ -136,6 +149,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile15", "tile19", "tile22", "tile9"],
     "ports": []
   },
@@ -146,6 +160,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile10", "tile11", "tile14", "tile16", "tile19", "tile9"],
     "ports": []
   },
@@ -156,6 +171,7 @@
     "valueStars": 2,
     "harbor": true,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile11", "tile15", "tile17", "tile19", "tile20", "tile21"],
     "ports": ["tile11", "tile15", "tile17"]
   },
@@ -166,6 +182,7 @@
     "valueStars": 1,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile11", "tile12", "tile13", "tile16", "tile18", "tile21"],
     "ports": []
   },
@@ -176,6 +193,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile13", "tile17", "tile21", "tile22"],
     "ports": []
   },
@@ -186,6 +204,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": true,
+    "fort": false,
     "adjacent": ["tile14", "tile15", "tile16", "tile20", "tile22"],
     "ports": []
   },
@@ -196,6 +215,7 @@
     "valueStars": 2,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile16", "tile19", "tile21", "tile22"],
     "ports": []
   },
@@ -206,6 +226,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": true,
+    "fort": false,
     "adjacent": ["tile16", "tile17", "tile18", "tile20", "tile22"],
     "ports": []
   },
@@ -216,6 +237,7 @@
     "valueStars": 0,
     "harbor": false,
     "shellable": false,
+    "fort": false,
     "adjacent": ["tile14", "tile18", "tile19", "tile20", "tile21"],
     "ports": []
   }

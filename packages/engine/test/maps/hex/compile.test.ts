@@ -98,4 +98,22 @@ describe("compileHexMap", () => {
       /no tiles/
     );
   });
+
+  it("compiles the fort flag onto the area, defaulting to false", () => {
+    const source = {
+      id: "t",
+      name: "t",
+      layout: { size: 114, originX: 0, originY: 0 },
+      tiles: [
+        { id: "F", kind: "land" as const, hexes: [{ q: 0, r: 0 }], features: { fort: true } },
+        { id: "G", kind: "land" as const, hexes: [{ q: 1, r: 0 }], features: {} }
+      ],
+      bonusSlots: [],
+      startingDeployment: {},
+      commandersPerRound: 2
+    };
+    const { definition } = compileHexMap(source);
+    expect(definition.areas.F!.fort).toBe(true);
+    expect(definition.areas.G!.fort).toBe(false);
+  });
 });

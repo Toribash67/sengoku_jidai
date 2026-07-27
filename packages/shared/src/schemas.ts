@@ -105,7 +105,8 @@ export const hexTileFeaturesSchema = z.object({
   hq: seatIdSchema.optional(),
   valueStars: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
   harbor: z.boolean().optional(),
-  shellable: z.boolean().optional()
+  shellable: z.boolean().optional(),
+  fort: z.boolean().optional()
 });
 
 export const hexTileSourceSchema = z.object({
