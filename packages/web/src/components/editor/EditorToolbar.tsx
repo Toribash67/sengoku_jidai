@@ -11,19 +11,9 @@ const TOOLS: { tool: Tool; label: string; ariaLabel: string; glyph: string }[] =
 interface EditorToolbarProps {
   state: EditorState;
   dispatch: Dispatch<EditorAction>;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  /** Zoom acts on the edit canvas, which is hidden in Preview — disable it there. */
-  zoomDisabled?: boolean;
 }
 
-export function EditorToolbar({
-  state,
-  dispatch,
-  onZoomIn,
-  onZoomOut,
-  zoomDisabled = false
-}: EditorToolbarProps) {
+export function EditorToolbar({ state, dispatch }: EditorToolbarProps) {
   return (
     <div className="editor-dock" role="toolbar" aria-label="Editor tools">
       <div className="dock-group">
@@ -80,32 +70,6 @@ export function EditorToolbar({
             ↷
           </span>
           <span className="dock-label">Redo</span>
-        </button>
-      </div>
-      <div className="dock-group">
-        <button
-          type="button"
-          aria-label="Zoom out"
-          className="dock-button"
-          disabled={zoomDisabled}
-          onClick={onZoomOut}
-        >
-          <span className="dock-glyph" aria-hidden="true">
-            −
-          </span>
-          <span className="dock-label">Out</span>
-        </button>
-        <button
-          type="button"
-          aria-label="Zoom in"
-          className="dock-button"
-          disabled={zoomDisabled}
-          onClick={onZoomIn}
-        >
-          <span className="dock-glyph" aria-hidden="true">
-            +
-          </span>
-          <span className="dock-label">In</span>
         </button>
       </div>
     </div>

@@ -252,6 +252,9 @@ function TileBadge({ tile, state }: { tile: HexTileSource; state: EditorState })
   if (tile.features.harbor) {
     traits.push("⚓");
   }
+  if (tile.features.fort) {
+    traits.push("⛊");
+  }
   if (tile.features.shellable) {
     traits.push("◎");
   }

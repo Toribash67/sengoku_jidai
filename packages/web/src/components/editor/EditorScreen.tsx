@@ -9,7 +9,7 @@ import { clearDraft, loadDraft, saveDraft, type SavedDraft } from "../../editor/
 import { editorReducer, initialEditorState } from "../../editor/reducer.js";
 import { persistDoc } from "../../editor/save.js";
 import { validationMessage } from "../../editor/validation.js";
-import { INITIAL_VIEW, ZOOM_STEP, zoomViewCentered } from "../../editor/viewport.js";
+import { INITIAL_VIEW } from "../../editor/viewport.js";
 import { createUrl, editorUrl, mapsUrl, navigateTo } from "../../state/route.js";
 import { defaultSelection, previewTerrainUrl } from "../board/terrainImages.js";
 import { EditorCanvas } from "./EditorCanvas.js";
@@ -295,13 +295,7 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
         )}
         <InspectorPanel state={state} dispatch={dispatch} />
       </div>
-      <EditorToolbar
-        state={state}
-        dispatch={dispatch}
-        onZoomIn={() => setView((v) => zoomViewCentered(v, 1 / ZOOM_STEP))}
-        onZoomOut={() => setView((v) => zoomViewCentered(v, ZOOM_STEP))}
-        zoomDisabled={preview}
-      />
+      <EditorToolbar state={state} dispatch={dispatch} />
     </main>
   );
 }
