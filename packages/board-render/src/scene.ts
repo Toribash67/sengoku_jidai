@@ -21,7 +21,7 @@ export interface SceneTile {
   rings: Pixel[][];
   centroid: Pixel;
   authoredFill: string;
-  features: { hq?: SeatId; valueStars: 0 | 1 | 2; harbor: boolean };
+  features: { hq?: SeatId; valueStars: 0 | 1 | 2; harbor: boolean; fort: boolean };
   glyphAnchors: { hq?: Pixel; stars?: Pixel; harbor?: Pixel; bonus?: Pixel };
   bonusGlyph?: GlyphId;
   slots: Record<string, Pixel>;
@@ -138,7 +138,12 @@ export function buildScene(compiled: CompiledMap): BoardScene {
       rings: fuseTile(hexes, layout),
       centroid,
       authoredFill: area.kind === "sea" ? TILE_SEA_FILL : TILE_LAND_FILL,
-      features: { hq: area.hq ?? undefined, valueStars: area.valueStars, harbor: area.harbor },
+      features: {
+        hq: area.hq ?? undefined,
+        valueStars: area.valueStars,
+        harbor: area.harbor,
+        fort: area.fort
+      },
       glyphAnchors: {
         hq: area.hq ? centroid : undefined,
         // Value-star badge sits in the SE corner (as on board.svg, measured): along the

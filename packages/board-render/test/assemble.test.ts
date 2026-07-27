@@ -55,7 +55,7 @@ describe("assembleBoardSvg", () => {
       rings: [octagon],
       centroid: { x: 0, y: 0 },
       authoredFill: "#d5d3c4",
-      features: { hq: "red" as const, valueStars: 0 as const, harbor: false },
+      features: { hq: "red" as const, valueStars: 0 as const, harbor: false, fort: false },
       glyphAnchors: {},
       slots: {},
       ports: []
@@ -70,6 +70,40 @@ describe("assembleBoardSvg", () => {
     const d = /<path d="([^"]+)" class="hq-outline"/.exec(out)?.[1] ?? "";
     const vertexCount = (d.match(/[ML]/g) ?? []).length;
     expect(vertexCount).toBe(octagon.length); // 8, not 6 — it traces the real shape
+  });
+
+  it("draws a white fort border nested between the base and harbor, with the dash inside the solid", () => {
+    const hexRing = [
+      { x: -57, y: -33 },
+      { x: 0, y: -66 },
+      { x: 57, y: -33 },
+      { x: 57, y: 33 },
+      { x: 0, y: 66 },
+      { x: -57, y: 33 }
+    ];
+    const tile = {
+      id: "keep",
+      kind: "land" as const,
+      rings: [hexRing],
+      centroid: { x: 0, y: 0 },
+      authoredFill: "#d5d3c4",
+      features: { hq: "black" as const, valueStars: 0 as const, harbor: true, fort: true },
+      glyphAnchors: {},
+      slots: {},
+      ports: []
+    };
+    const scene = {
+      viewBox: { x: -120, y: -120, width: 240, height: 240 },
+      tiles: [tile],
+      hexGrid: [],
+      hexSize: 114
+    };
+    const out = assembleBoardSvg(scene);
+    expect(out).toContain(`class="fort-outline"`);
+    expect(out).toContain(`stroke:#ffffff`); // fort is white
+    expect(out).toContain(`class="hq-outline"`);
+    expect(out).toContain(`class="harbor-outline"`);
+    expect(out).toContain(`class="harbor-outline-dash"`);
   });
 
   it("emits invisible order-slot anchors at the slotIdForSpace ids", () => {
