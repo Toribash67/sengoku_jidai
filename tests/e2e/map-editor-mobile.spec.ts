@@ -82,14 +82,9 @@ test("author, merge, pan/zoom, and save a map by touch", async ({ page }) => {
 
   await expect(page.getByText("Map is valid")).toBeVisible();
 
-  // Zoom-in button shrinks the viewBox width.
+  // Two-finger drag pans without changing the zoom (zoom is gesture-only — no zoom buttons).
   const canvas = page.getByTestId("editor-canvas");
   const initial = viewBoxParts((await canvas.getAttribute("viewBox"))!);
-  await page.getByRole("button", { name: "Zoom in" }).tap();
-  const zoomed = viewBoxParts((await canvas.getAttribute("viewBox"))!);
-  expect(zoomed[2]!).toBeLessThan(initial[2]!);
-
-  // Two-finger drag pans without changing the zoom.
   const panned = viewBoxParts(
     await twoFingerGesture(
       canvas,
@@ -103,10 +98,10 @@ test("author, merge, pan/zoom, and save a map by touch", async ({ page }) => {
       ]
     )
   );
-  expect(panned[2]!).toBeCloseTo(zoomed[2]!);
-  expect(panned[0]!).not.toBeCloseTo(zoomed[0]!);
+  expect(panned[2]!).toBeCloseTo(initial[2]!);
+  expect(panned[0]!).not.toBeCloseTo(initial[0]!);
 
-  // Pinching outward zooms in further.
+  // Pinching outward zooms in.
   const pinched = viewBoxParts(
     await twoFingerGesture(
       canvas,
