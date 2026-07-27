@@ -432,7 +432,10 @@ export function rollPendingCombat(state: GameState, card?: OperationCard): GameE
   // (validated upstream). The defence removal is the sum of all dice (see applyPendingCombat).
   const ambush = card === "ambush";
   if (ambush) events.push(...playCard(state, pc.responsibleSeat, card!));
-  const count = (isDefence ? 1 : pc.dice!) + (ambush ? 2 : 0);
+  // Fort: the defender of a land Advance into a fort tile throws one extra die (terrain,
+  // automatic — no card played). Stacks with Ambush. Sea/bombard/shell are unaffected.
+  const fort = pc.kind === "advance" && getMap(state.mapId).areas[pc.area]?.fort === true;
+  const count = (isDefence ? 1 : pc.dice!) + (ambush ? 2 : 0) + (fort ? 1 : 0);
   const rolls: number[] = [];
   let total = 0;
   for (let i = 0; i < count; i++) {
