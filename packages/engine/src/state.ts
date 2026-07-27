@@ -11,9 +11,9 @@ export type Phase = "deploy" | "recall";
 /** Why the game ended (null while active). */
 export type EndReason = "hqEliminated" | "victoryPoints";
 
-/** An operation card, identified by its artwork id (= filename in `assets/maps/rivers/cards/`). Card
- *  abilities are not yet implemented; for now a card can only be discarded to reroll combat
- *  dice. The full deck lives in `cards.ts` (`RIVERS_CARDS`). */
+/** An operation card, identified by its artwork id (= filename in `assets/maps/rivers/cards/`). Each
+ *  kind has its own ability; additionally, any card can be discarded to reroll combat dice. The
+ *  full deck lives in `cards.ts` (`RIVERS_CARDS`). */
 export type OperationCard =
   | "ambush"
   | "commandeer"
