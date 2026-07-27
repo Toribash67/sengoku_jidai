@@ -434,7 +434,7 @@ export function rollPendingCombat(state: GameState, card?: OperationCard): GameE
   if (ambush) events.push(...playCard(state, pc.responsibleSeat, card!));
   // Fort: the defender of a land Advance into a fort tile throws one extra die (terrain,
   // automatic — no card played). Stacks with Ambush. Sea/bombard/shell are unaffected.
-  const fort = pc.kind === "advance" && getMap(state.mapId).areas[pc.area]?.fort === true;
+  const fort = fortFires(state);
   const count = (isDefence ? 1 : pc.dice!) + (ambush ? 2 : 0) + (fort ? 1 : 0);
   const rolls: number[] = [];
   let total = 0;
@@ -464,6 +464,14 @@ function combatPurpose(state: GameState): string {
   return pc.kind === "advance" || pc.kind === "sail" ? "defence" : pc.kind;
 }
 
+/** Whether the paused combat is a land Advance into a fort tile — the defender's automatic +1
+ *  terrain die. Consulted by both the initial roll and any reroll so the "+fort" note stays
+ *  consistent across re-throws. */
+function fortFires(state: GameState): boolean {
+  const pc = state.pendingCombat!;
+  return pc.kind === "advance" && getMap(state.mapId).areas[pc.area]?.fort === true;
+}
+
 /**
  * Discard `card` from the roller's hand and re-throw the same number of dice (the result is
  * shown again before casualties). Validated upstream: combat is in the `rolled` phase, the
@@ -486,7 +494,7 @@ export function rerollPendingCombat(state: GameState, card: OperationCard): Game
   pc.rolls = rolls;
   pc.total = total;
   // Same fort check as the initial roll, so a reroll's dice keep their "+fort" explanation.
-  const fort = pc.kind === "advance" && getMap(state.mapId).areas[pc.area]?.fort === true;
+  const fort = fortFires(state);
   return [
     { type: "cardDiscarded", seat: pc.responsibleSeat },
     {
