@@ -10,6 +10,7 @@ function area(overrides: Partial<MapArea>): MapArea {
     valueStars: 0,
     harbor: false,
     shellable: false,
+    fort: false,
     adjacent: [],
     ports: [],
     ...overrides

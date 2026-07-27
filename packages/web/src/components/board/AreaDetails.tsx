@@ -41,6 +41,7 @@ export function AreaDetails({ area, mapArea, view }: AreaDetailsProps) {
         <li>Terrain: {mapArea.kind}</li>
         {mapArea.hq ? <li>{mapArea.hq} HQ</li> : null}
         {mapArea.harbor ? <li>Harbour</li> : null}
+        {mapArea.fort ? <li>Fort</li> : null}
         {mapArea.ports.length > 0 ? <li>Has piers</li> : null}
         {mapArea.shellable ? <li>Coastal (can be shelled)</li> : null}
         {bonusInfo ? (
