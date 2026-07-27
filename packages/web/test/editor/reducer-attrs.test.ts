@@ -42,6 +42,14 @@ describe("tile attributes", () => {
     expect(t1.features).toEqual({});
   });
 
+  it("fort sets and clears like the other boolean features", () => {
+    let state = board();
+    state = editorReducer(state, { type: "setFeature", tileId: "t1", patch: { fort: true } });
+    expect(state.doc.tiles.find((t) => t.id === "t1")!.features.fort).toBe(true);
+    state = editorReducer(state, { type: "setFeature", tileId: "t1", patch: { fort: false } });
+    expect(state.doc.tiles.find((t) => t.id === "t1")!.features).toEqual({});
+  });
+
   it("deployment sets, normalizes zeros away, and clears", () => {
     let state = board();
     state = editorReducer(state, {

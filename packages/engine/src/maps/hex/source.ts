@@ -20,6 +20,8 @@ export interface HexTileSource {
     harbor?: boolean;
     /** Coastal land targetable by Shell. */
     shellable?: boolean;
+    /** Land-only fort: +1 defender die on a land Advance into this tile. */
+    fort?: boolean;
   };
 }
 

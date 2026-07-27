@@ -47,6 +47,8 @@ export interface MapArea {
   harbor: boolean;
   /** Coastal land area that can be targeted by a Shell action from the sea. */
   shellable: boolean;
+  /** Land-only fort: grants the defender +1 die on a land Advance into this area. */
+  fort: boolean;
   /** General adjacency: every area sharing a border (land, sea, or mixed). Derived from board.svg; symmetry + no-dangling enforced by riversMap.test.ts. */
   adjacent: string[];
   /** For harbours: water areas reachable via a pier (Embark placement + navy building). */

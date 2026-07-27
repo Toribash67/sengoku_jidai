@@ -38,19 +38,22 @@ export function validateHexMap(source: HexMapSource): void {
   const hqBySeat = new Map<SeatId, string>();
   for (const t of tiles) {
     const hq = t.features.hq;
-    if (hq === undefined) {
-      continue;
+    if (hq !== undefined) {
+      if (!SEATS.includes(hq)) {
+        throw new Error(`tile ${t.id} has unknown hq seat: ${String(hq)}`);
+      }
+      if (t.kind !== "land") {
+        throw new Error(`hq tile ${t.id} must be land`);
+      }
+      if (hqBySeat.has(hq)) {
+        throw new Error(`seat ${hq} has more than one hq`);
+      }
+      hqBySeat.set(hq, t.id);
     }
-    if (!SEATS.includes(hq)) {
-      throw new Error(`tile ${t.id} has unknown hq seat: ${String(hq)}`);
+
+    if (t.features.fort && t.kind !== "land") {
+      throw new Error(`fort tile ${t.id} must be land`);
     }
-    if (t.kind !== "land") {
-      throw new Error(`hq tile ${t.id} must be land`);
-    }
-    if (hqBySeat.has(hq)) {
-      throw new Error(`seat ${hq} has more than one hq`);
-    }
-    hqBySeat.set(hq, t.id);
   }
 
   for (const id of source.bonusSlots) {

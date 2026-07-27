@@ -22,12 +22,15 @@ const BONUS_BADGE_FRACTION = 0.72;
 
 // Feature-outline stroke widths, in native (board.svg) units — scaled by hexSize/NATIVE_HEX_SIZE
 // at draw time. HQ mirrors board.svg path9-5-0-3 (width 8); harbor mirrors g46 (solid 5 outer +
-// dashed 8.09 inner). The dash rides ~0.72× its own width outside the solid line, hugging it.
+// dashed 8.09 inner). The dash rides ~0.72× its own width just inside the solid line, hugging it.
 const HQ_STROKE_W = 8;
 const HARBOR_SOLID_W = 5;
 const HARBOR_DASH_W = 8.09188;
 const HARBOR_DASH_ARRAY = [4.04592, 1.61836];
 const HARBOR_DASH_OFFSET = HARBOR_DASH_W * 0.72;
+const FORT_STROKE_W = 6;
+/** Gap between adjacent concentric feature bands, in native units. */
+const FEATURE_BAND_GAP = 1.5;
 
 function ringPath(rings: Pixel[][]): string {
   return rings
@@ -85,29 +88,56 @@ function placePier(edge: Pixel, dir: Pixel, hexSize: number): string {
 function featureGlyphs(tile: SceneTile, hexSize: number): string {
   const out: string[] = [];
   const s = hexSize / NATIVE_HEX_SIZE;
-  // HQ + harbour markers are strokes of the tile's real fused outline (tile.rings) so they fit
-  // single- and multi-hex tiles alike. Drawn in the non-interactive #features group.
+  // Concentric feature borders, outermost -> innermost: base (HQ), fort, harbor.
+  // The outermost PRESENT border is centered on the tile edge (offset 0), preserving the
+  // look of base-only and (very common) harbor-only tiles; each further-in border nests
+  // inside it. Offsets are inward, i.e. negative distances into offsetRingsOutward.
+  let cursorInner = 0; // inner boundary (native units) reached so far; 0 = tile edge
+  let firstBand = true;
+  const bandCenter = (width: number): number => {
+    if (firstBand) {
+      firstBand = false;
+      cursorInner = -width / 2;
+      return 0; // straddles the tile edge, like today's base/harbor
+    }
+    const center = cursorInner - FEATURE_BAND_GAP - width / 2;
+    cursorInner = center - width / 2;
+    return center;
+  };
+  const bandRings = (center: number) =>
+    center === 0 ? tile.rings : offsetRingsOutward(tile.rings, center * s);
+
   if (tile.features.hq) {
     const stroke = tile.features.hq === "red" ? "#e02d2d" : "#000000";
     out.push(
       el("path", {
-        d: ringPath(tile.rings),
+        d: ringPath(bandRings(bandCenter(HQ_STROKE_W))),
         class: "hq-outline",
         style: `fill:none;stroke:${stroke};stroke-width:${(HQ_STROKE_W * s).toFixed(2)};stroke-linejoin:round`
       })
     );
   }
+  if (tile.features.fort) {
+    out.push(
+      el("path", {
+        d: ringPath(bandRings(bandCenter(FORT_STROKE_W))),
+        class: "fort-outline",
+        style: `fill:none;stroke:#ffffff;stroke-width:${(FORT_STROKE_W * s).toFixed(2)};stroke-linejoin:round`
+      })
+    );
+  }
   if (tile.features.harbor) {
-    const dashRings = offsetRingsOutward(tile.rings, HARBOR_DASH_OFFSET * s);
+    const solidCenter = bandCenter(HARBOR_SOLID_W);
+    const dashCenter = solidCenter - HARBOR_DASH_OFFSET; // dash now hugs INSIDE the solid line
     const dashArray = HARBOR_DASH_ARRAY.map((v) => (v * s).toFixed(3)).join(",");
     out.push(
       el("path", {
-        d: ringPath(tile.rings),
+        d: ringPath(bandRings(solidCenter)),
         class: "harbor-outline",
         style: `fill:none;stroke:#000000;stroke-width:${(HARBOR_SOLID_W * s).toFixed(2)};stroke-linejoin:round`
       }),
       el("path", {
-        d: ringPath(dashRings),
+        d: ringPath(offsetRingsOutward(tile.rings, dashCenter * s)),
         class: "harbor-outline-dash",
         style: `fill:none;stroke:#000000;stroke-width:${(HARBOR_DASH_W * s).toFixed(2)};stroke-linejoin:round;stroke-dasharray:${dashArray}`
       })

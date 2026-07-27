@@ -23,6 +23,7 @@ export type FeaturePatch = {
   valueStars?: 0 | 1 | 2;
   harbor?: boolean;
   shellable?: boolean;
+  fort?: boolean;
 };
 
 export type EditorAction =
@@ -257,6 +258,13 @@ function setFeature(doc: EditorDoc, tileId: string, patch: FeaturePatch): Editor
         features.shellable = true;
       } else {
         delete features.shellable;
+      }
+    }
+    if (patch.fort !== undefined) {
+      if (patch.fort) {
+        features.fort = true;
+      } else {
+        delete features.fort;
       }
     }
     return { ...t, features };

@@ -3,6 +3,9 @@ import { createInitialState } from "../src/game.js";
 import type { GameState } from "../src/state.js";
 import { resolveCommand } from "../src/resolve.js";
 import { playerView } from "../src/view.js";
+import { registerMap } from "../src/maps/registry.js";
+import { compileHexMap } from "../src/maps/hex/compile.js";
+import type { HexMapSource } from "../src/maps/hex/source.js";
 
 /** Red-to-act base state with bonuses cleared and a fixed (all-1s) defence die. */
 function game(): GameState {
@@ -89,6 +92,11 @@ describe("pending combat lifecycle", () => {
     expect(rolled.nextState.pendingCombat!.rolls).toEqual([1]);
     expect(rolled.nextState.areas["tile1"]!.owner).toBe("black"); // no casualties yet
     expect(rolled.nextState.activeSeat).toBe("red"); // turn still not advanced
+
+    // No fort on this tile, so the diceRolled event should not claim one fired.
+    const diceEvent = rolled.events.find((e) => e.type === "diceRolled");
+    expect(diceEvent).toBeDefined();
+    if (diceEvent?.type === "diceRolled") expect(diceEvent.fort).toBeUndefined();
 
     // You cannot roll twice; you must continue (resolve).
     const reroll = resolveCommand(
@@ -434,6 +442,101 @@ describe("pending combat lifecycle", () => {
       expect(again.nextState.pendingCombat!.area).toBe("tile7"); // second shell targets the chosen sea
       expect(again.nextState.players.red.hand).toEqual([]); // card spent
       expect(again.nextState.discard).toContain("ship_strike");
+    });
+  });
+
+  describe("fort", () => {
+    /**
+     * A self-contained 2-tile map: black's HQ "keep" is a fort, adjacent to red's HQ
+     * "field". Registered under its own map id so it doesn't disturb the Rivers-based
+     * tests above (Rivers has no forts).
+     */
+    function fortMapState(): GameState {
+      const source: HexMapSource = {
+        id: "forttest",
+        name: "Fort Test",
+        layout: { size: 114, originX: 0, originY: 0 },
+        tiles: [
+          {
+            id: "keep",
+            kind: "land",
+            hexes: [{ q: 0, r: 0 }],
+            features: { hq: "black", fort: true }
+          },
+          {
+            id: "field",
+            kind: "land",
+            hexes: [{ q: 1, r: 0 }],
+            features: { hq: "red" }
+          }
+        ],
+        bonusSlots: [],
+        startingDeployment: {
+          keep: { seat: "black", troop: 3 },
+          field: { seat: "red", troop: 3 }
+        },
+        commandersPerRound: 2
+      };
+      registerMap(compileHexMap(source).definition);
+      const s = createInitialState({ gameId: "g-fort", seed: "seed-fort", mapId: "forttest" });
+      // Deterministic: initiative/active seat fixed to red, all dice faces 1.
+      s.initiative = "red";
+      s.activeSeat = "red";
+      s.bonuses = {};
+      s.rules = { ...s.rules, diceFaces: [1, 1, 1, 1, 1, 1] };
+      return s;
+    }
+
+    /** Advance red from "field" into black's fort tile "keep", leaving a paused combat. */
+    function advanceIntoFort() {
+      const s = fortMapState();
+      const r = resolveCommand(
+        s,
+        { seat: "red" },
+        {
+          type: "advance",
+          spaceId: "advance-keep",
+          moves: [{ from: "field", count: 2 }]
+        }
+      );
+      if (r.status !== "accepted") throw new Error("advance rejected");
+      return r.nextState;
+    }
+
+    it("a fort tile gives the land-Advance defender one extra die", () => {
+      const paused = advanceIntoFort();
+      expect(paused.pendingCombat).not.toBeNull();
+      expect(paused.pendingCombat!.kind).toBe("advance");
+      expect(paused.pendingCombat!.area).toBe("keep");
+      const pendingId = paused.pendingCombat!.id;
+      // With diceFaces all-1, a plain defence rolls 1 die (total 1); a fort makes it 2 dice
+      // (total 2).
+      const rolled = resolveCommand(paused, { seat: "black" }, { type: "combatRoll", pendingId });
+      expect(rolled.status).toBe("accepted");
+      if (rolled.status !== "accepted") return;
+      expect(rolled.nextState.pendingCombat!.rolls!.length).toBe(2); // 1 base + 1 fort
+      expect(rolled.nextState.pendingCombat!.total).toBe(2);
+
+      // The diceRolled event should explain the extra die so the log can surface it.
+      const diceEvent = rolled.events.find((e) => e.type === "diceRolled");
+      expect(diceEvent).toBeDefined();
+      if (diceEvent?.type === "diceRolled") expect(diceEvent.fort).toBe(true);
+    });
+
+    it("stacks with ambush: fort + ambush gives the defender four dice", () => {
+      const paused = advanceIntoFort();
+      paused.players.black.hand = ["ambush"];
+      const pendingId = paused.pendingCombat!.id;
+      const rolled = resolveCommand(
+        paused,
+        { seat: "black" },
+        { type: "combatRoll", pendingId, card: "ambush" }
+      );
+      expect(rolled.status).toBe("accepted");
+      if (rolled.status !== "accepted") return;
+      // 1 base + 2 ambush + 1 fort = 4.
+      expect(rolled.nextState.pendingCombat!.rolls!.length).toBe(4);
+      expect(rolled.nextState.pendingCombat!.total).toBe(4);
     });
   });
 

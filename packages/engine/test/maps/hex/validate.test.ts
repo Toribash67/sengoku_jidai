@@ -66,4 +66,17 @@ describe("validateHexMap", () => {
     m.startingDeployment = { nope: { seat: "red", troop: 1 } };
     expect(() => validateHexMap(m)).toThrow(/unknown tile/);
   });
+
+  it("rejects a fort on a sea tile", () => {
+    const source = {
+      id: "t",
+      name: "t",
+      layout: { size: 114, originX: 0, originY: 0 },
+      tiles: [{ id: "S", kind: "sea" as const, hexes: [{ q: 0, r: 0 }], features: { fort: true } }],
+      bonusSlots: [],
+      startingDeployment: {},
+      commandersPerRound: 2
+    };
+    expect(() => validateHexMap(source)).toThrow(/fort/i);
+  });
 });

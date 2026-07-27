@@ -432,7 +432,10 @@ export function rollPendingCombat(state: GameState, card?: OperationCard): GameE
   // (validated upstream). The defence removal is the sum of all dice (see applyPendingCombat).
   const ambush = card === "ambush";
   if (ambush) events.push(...playCard(state, pc.responsibleSeat, card!));
-  const count = (isDefence ? 1 : pc.dice!) + (ambush ? 2 : 0);
+  // Fort: the defender of a land Advance into a fort tile throws one extra die (terrain,
+  // automatic — no card played). Stacks with Ambush. Sea/bombard/shell are unaffected.
+  const fort = fortFires(state);
+  const count = (isDefence ? 1 : pc.dice!) + (ambush ? 2 : 0) + (fort ? 1 : 0);
   const rolls: number[] = [];
   let total = 0;
   for (let i = 0; i < count; i++) {
@@ -449,7 +452,8 @@ export function rollPendingCombat(state: GameState, card?: OperationCard): GameE
     seat: pc.responsibleSeat,
     purpose: combatPurpose(state),
     rolls,
-    total
+    total,
+    ...(fort ? { fort: true } : {})
   });
   return events;
 }
@@ -458,6 +462,14 @@ export function rollPendingCombat(state: GameState, card?: OperationCard): GameE
 function combatPurpose(state: GameState): string {
   const pc = state.pendingCombat!;
   return pc.kind === "advance" || pc.kind === "sail" ? "defence" : pc.kind;
+}
+
+/** Whether the paused combat is a land Advance into a fort tile — the defender's automatic +1
+ *  terrain die. Consulted by both the initial roll and any reroll so the "+fort" note stays
+ *  consistent across re-throws. */
+function fortFires(state: GameState): boolean {
+  const pc = state.pendingCombat!;
+  return pc.kind === "advance" && getMap(state.mapId).areas[pc.area]?.fort === true;
 }
 
 /**
@@ -481,9 +493,18 @@ export function rerollPendingCombat(state: GameState, card: OperationCard): Game
   }
   pc.rolls = rolls;
   pc.total = total;
+  // Same fort check as the initial roll, so a reroll's dice keep their "+fort" explanation.
+  const fort = fortFires(state);
   return [
     { type: "cardDiscarded", seat: pc.responsibleSeat },
-    { type: "diceRolled", seat: pc.responsibleSeat, purpose: combatPurpose(state), rolls, total }
+    {
+      type: "diceRolled",
+      seat: pc.responsibleSeat,
+      purpose: combatPurpose(state),
+      rolls,
+      total,
+      ...(fort ? { fort: true } : {})
+    }
   ];
 }
 

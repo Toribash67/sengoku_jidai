@@ -101,6 +101,29 @@ describe("describeEvent", () => {
     expect(describeEvent(event, lookup)).toBe("Nobunaga rolled [3, 5] = 8 (advance)");
   });
 
+  it("notes a fort die on a dice roll when fort is set", () => {
+    const event: PlayerGameEvent = {
+      type: "diceRolled",
+      seat: "black",
+      purpose: "defence",
+      rolls: [3, 5],
+      total: 8,
+      fort: true
+    };
+    expect(describeEvent(event, lookup)).toBe("Ieyasu rolled [3, 5] = 8 (defence +fort)");
+  });
+
+  it("omits the fort marker when fort is not set", () => {
+    const event: PlayerGameEvent = {
+      type: "diceRolled",
+      seat: "black",
+      purpose: "defence",
+      rolls: [3, 5],
+      total: 8
+    };
+    expect(describeEvent(event, lookup)).toBe("Ieyasu rolled [3, 5] = 8 (defence)");
+  });
+
   it("uses player names for a played card", () => {
     const event: PlayerGameEvent = {
       type: "cardPlayed",

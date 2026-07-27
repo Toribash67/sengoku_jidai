@@ -187,6 +187,16 @@ function TileBody({
             />
             <span>Shellable</span>
           </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={primary.features.fort === true}
+              onChange={(event) =>
+                dispatch({ type: "setFeature", tileId, patch: { fort: event.target.checked } })
+              }
+            />
+            <span>Fort</span>
+          </label>
         </>
       ) : null}
 

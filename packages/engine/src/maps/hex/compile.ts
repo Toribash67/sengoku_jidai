@@ -32,6 +32,7 @@ export function compileHexMap(source: HexMapSource): CompiledMap {
       valueStars: t.features.valueStars ?? 0,
       harbor: t.features.harbor ?? false,
       shellable: t.features.shellable ?? false,
+      fort: t.features.fort ?? false,
       adjacent: [...(adjacency.get(t.id) ?? [])].sort(),
       // Piers are derived, not authored: a harbor ports to every edge-adjacent sea tile.
       ports: t.features.harbor
