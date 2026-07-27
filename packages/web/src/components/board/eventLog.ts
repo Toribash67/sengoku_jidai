@@ -37,7 +37,7 @@ export function describeEvent(event: PlayerGameEvent, { seatName, areaName }: Ev
     case "diceRolled":
       return `${seatName(event.seat)} rolled [${event.rolls.join(", ")}] = ${event.total} (${
         event.purpose
-      })`;
+      }${event.fort ? " +fort" : ""})`;
     case "cardsDrawn":
       return `${seatName(event.seat)} drew ${plural(event.count, "card")}`;
     case "cardDiscarded":

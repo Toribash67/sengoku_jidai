@@ -93,6 +93,11 @@ describe("pending combat lifecycle", () => {
     expect(rolled.nextState.areas["tile1"]!.owner).toBe("black"); // no casualties yet
     expect(rolled.nextState.activeSeat).toBe("red"); // turn still not advanced
 
+    // No fort on this tile, so the diceRolled event should not claim one fired.
+    const diceEvent = rolled.events.find((e) => e.type === "diceRolled");
+    expect(diceEvent).toBeDefined();
+    if (diceEvent?.type === "diceRolled") expect(diceEvent.fort).toBeUndefined();
+
     // You cannot roll twice; you must continue (resolve).
     const reroll = resolveCommand(
       rolled.nextState,
@@ -511,6 +516,11 @@ describe("pending combat lifecycle", () => {
       if (rolled.status !== "accepted") return;
       expect(rolled.nextState.pendingCombat!.rolls!.length).toBe(2); // 1 base + 1 fort
       expect(rolled.nextState.pendingCombat!.total).toBe(2);
+
+      // The diceRolled event should explain the extra die so the log can surface it.
+      const diceEvent = rolled.events.find((e) => e.type === "diceRolled");
+      expect(diceEvent).toBeDefined();
+      if (diceEvent?.type === "diceRolled") expect(diceEvent.fort).toBe(true);
     });
 
     it("stacks with ambush: fort + ambush gives the defender four dice", () => {

@@ -452,7 +452,8 @@ export function rollPendingCombat(state: GameState, card?: OperationCard): GameE
     seat: pc.responsibleSeat,
     purpose: combatPurpose(state),
     rolls,
-    total
+    total,
+    ...(fort ? { fort: true } : {})
   });
   return events;
 }
@@ -484,9 +485,18 @@ export function rerollPendingCombat(state: GameState, card: OperationCard): Game
   }
   pc.rolls = rolls;
   pc.total = total;
+  // Same fort check as the initial roll, so a reroll's dice keep their "+fort" explanation.
+  const fort = pc.kind === "advance" && getMap(state.mapId).areas[pc.area]?.fort === true;
   return [
     { type: "cardDiscarded", seat: pc.responsibleSeat },
-    { type: "diceRolled", seat: pc.responsibleSeat, purpose: combatPurpose(state), rolls, total }
+    {
+      type: "diceRolled",
+      seat: pc.responsibleSeat,
+      purpose: combatPurpose(state),
+      rolls,
+      total,
+      ...(fort ? { fort: true } : {})
+    }
   ];
 }
 
