@@ -53,7 +53,14 @@ export type GameEvent =
   | { type: "unitsMoved"; seat: SeatId; from: string; to: string; unit: UnitType; count: number }
   | { type: "unitsPlaced"; seat: SeatId; area: string; unit: UnitType; count: number }
   | { type: "bonusApplied"; seat: SeatId; bonus: BonusType; area: string }
-  | { type: "diceRolled"; seat: SeatId; purpose: string; rolls: number[]; total: number; fort?: boolean }
+  | {
+      type: "diceRolled";
+      seat: SeatId;
+      purpose: string;
+      rolls: number[];
+      total: number;
+      fort?: boolean;
+    }
   | { type: "cardsDrawn"; seat: SeatId; count: number }
   | { type: "cardDiscarded"; seat: SeatId }
   | { type: "cardPlayed"; seat: SeatId; card: OperationCard }
