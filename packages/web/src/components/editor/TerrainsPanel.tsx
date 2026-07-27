@@ -226,9 +226,9 @@ export function TerrainsPanel({
   const gen = canGenerate({ terrains, unavailable });
 
   return (
-    <div className="editor-terrains">
+    <details className="editor-terrains">
+      <summary className="terrains-summary">Terrains</summary>
       <div className="terrains-head">
-        <span className="terrains-title">Terrains</span>
         <select
           aria-label="Terrain style"
           value={style}
@@ -330,6 +330,6 @@ export function TerrainsPanel({
         })}
       </ul>
       {error ? <span className="muted">{error}</span> : null}
-    </div>
+    </details>
   );
 }
