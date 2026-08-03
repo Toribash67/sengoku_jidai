@@ -107,7 +107,8 @@ export function loadMapProfile(path: string): MapProfile {
  *  the terrain package owns which JSON each id loads. */
 const STYLE_PROFILE_FILES: Record<string, string> = {
   antique: "map.json",
-  ink: "ink.json"
+  ink: "ink.json",
+  fantasy: "fantasy.json"
 };
 
 /** Resolve a terrain style id to its committed, validated profile. Paths resolve via
