@@ -43,6 +43,21 @@ const MapProfileSchema = z.object({
     inputFidelity: z.enum(["low", "high"]).default("high"),
     prompt: z.string().min(1)
   }),
+  /** Second edit pass that draws a fort (Sengoku-era Japanese castle) at each fort tile. A
+   *  bright signal-colour marker is overlaid at each fort's centroid on the finished terrain,
+   *  then the edit model draws a castle at each marker and removes the marker. Skipped entirely
+   *  for maps with no forts. Whole block defaults when omitted. */
+  fortPass: z
+    .object({
+      prompt: z
+        .string()
+        .default(
+          "Each bright magenta circle in this image marks the location of a fortress. At the exact centre of every magenta circle, draw one small Sengoku-era Japanese castle (a tenshukaku keep with white plaster walls and stacked tiered blue-grey tiled roofs) rendered in the SAME hand-drawn style, linework and colour palette as the rest of this map, sized to sit inside the circle without overflowing it. Then COMPLETELY REMOVE every magenta circle, blending its area back into the surrounding terrain. Leave every other part of the image — coastlines, land texture, sea, and colours — unchanged."
+        ),
+      markerRadiusFactor: z.number().positive().default(0.45),
+      markerColor: z.string().default("#ff00ff")
+    })
+    .default({}),
   webpQuality: z.number().int().min(1).max(100).default(82)
 });
 

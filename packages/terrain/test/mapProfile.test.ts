@@ -36,3 +36,12 @@ describe("loadStyleProfile", () => {
     expect(() => loadStyleProfile("watercolour")).toThrow(/unknown terrain style/i);
   });
 });
+
+describe("fortPass profile defaults", () => {
+  it("fills fortPass defaults when the profile omits the block", () => {
+    const profile = loadStyleProfile("antique"); // profiles/map.json has no fortPass block
+    expect(profile.fortPass.markerColor).toBe("#ff00ff");
+    expect(profile.fortPass.markerRadiusFactor).toBeCloseTo(0.45, 5);
+    expect(profile.fortPass.prompt.toLowerCase()).toContain("castle");
+  });
+});
