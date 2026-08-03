@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
 import { compileHexMap, riversSource } from "@sengoku-jidai/engine";
-import { mapStructureSvg, mapSvgPath } from "../src/mapSources.js";
+import { mapStructureScene, mapStructureSvg, mapSvgPath } from "../src/mapSources.js";
 
 function viewBoxAspect(svg: string): number {
   const vb = svg.match(/viewBox="([\d.\s-]+)"/i)?.[1];
@@ -47,5 +47,19 @@ describe("mapStructureSvg", () => {
 
   it("throws on an unknown map id", () => {
     expect(() => mapStructureSvg("nope")).toThrow(/unknown map/i);
+  });
+});
+
+describe("mapStructureScene", () => {
+  it("returns a scene whose viewBox matches the structure SVG for a built-in map", () => {
+    const { svgMarkup, scene } = mapStructureScene("rivers");
+    expect(svgMarkup).toBe(mapStructureSvg("rivers")); // same SVG as the legacy accessor
+    const vb = svgMarkup
+      .match(/viewBox="([\d.\s-]+)"/i)![1]!
+      .trim()
+      .split(/\s+/)
+      .map(Number);
+    expect(scene.viewBox.width).toBeCloseTo(vb[2]!, 3);
+    expect(scene.viewBox.height).toBeCloseTo(vb[3]!, 3);
   });
 });

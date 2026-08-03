@@ -6,23 +6,77 @@ import type { MapDefinition } from "@sengoku-jidai/engine";
 import { getMap } from "@sengoku-jidai/engine";
 import { renderControl } from "./composite.js";
 import { editMapPass, type EditDeps } from "./editPass.js";
-import { mapStructureSvg } from "./mapSources.js";
+import { fortMarkerOverlay } from "./fortMarkerOverlay.js";
+import { fortMarkers, type FortScene } from "./fortMarkers.js";
+import { mapStructureScene } from "./mapSources.js";
 import { renderLandMask } from "./masks.js";
 import type { MapProfile } from "./mapProfile.js";
 import { toWebp } from "./postprocess.js";
 import { planGptImageAspect } from "./gptImageAspect.js";
 
 /**
+ * Pad a width×height control PNG into the fixed gpt-image size, run one edit pass, and crop
+ * the padding back off, returning a content-sized (`plan.contentW`×`plan.contentH`) PNG —
+ * callers resize that to the final width×height (`fortMarkerOverlay` and `toWebp` both do this).
+ * Shared by the base terrain pass and the fort pass so both use identical letterbox/crop
+ * geometry. `styleImage` is the optional aesthetic reference (null for the fort pass, which
+ * restyles from the already-styled base image via the prompt).
+ */
+async function padEditCrop(
+  deps: EditDeps,
+  args: {
+    control: Buffer;
+    styleImage: Buffer | null;
+    width: number;
+    height: number;
+    prompt: string;
+    edit: MapProfile["edit"];
+    seaColor: string;
+  }
+): Promise<Buffer> {
+  const { control, styleImage, width, height, prompt, edit, seaColor } = args;
+  const plan = planGptImageAspect(width, height);
+  // Letterbox the control into the fixed gpt-image size; margins are sea (discarded after crop).
+  const paddedControl = await sharp(control)
+    .resize(plan.contentW, plan.contentH, { fit: "fill" })
+    .extend({
+      top: plan.padTop,
+      bottom: plan.padBottom,
+      left: plan.padLeft,
+      right: plan.padRight,
+      background: seaColor
+    })
+    .png()
+    .toBuffer();
+  const edited = await editMapPass(deps, {
+    controlImage: paddedControl,
+    styleImage,
+    model: edit.model,
+    prompt,
+    imageSize: plan.imageSize,
+    quality: edit.quality,
+    inputFidelity: edit.inputFidelity
+  });
+  // Crop the padding back off (model returns targetW×targetH), then size to the board.
+  return sharp(edited)
+    .resize(plan.targetW, plan.targetH, { fit: "fill" })
+    .extract({ left: plan.padLeft, top: plan.padTop, width: plan.contentW, height: plan.contentH })
+    .png()
+    .toBuffer();
+}
+
+/**
  * Filesystem-free pipeline core. Structure comes from `svgMarkup` (any board SVG with
  * `.tile` paths + a viewBox); a domain-warped land mask becomes a flat control, which a
  * multi-image edit model redraws in the style reference's hand-drawn look. Returns the
- * final webp bytes. The only file it reads is the packaged style reference.
+ * final webp bytes. The only file it reads is the packaged style reference. When `scene` is
+ * supplied and has at least one fort tile, a second edit pass draws a castle at each fort.
  */
 export async function generateTerrainWebp(
   deps: EditDeps,
-  args: { svgMarkup: string; map: MapDefinition; profile: MapProfile }
+  args: { svgMarkup: string; map: MapDefinition; profile: MapProfile; scene?: FortScene }
 ): Promise<Buffer> {
-  const { svgMarkup, map, profile } = args;
+  const { svgMarkup, map, profile, scene } = args;
   const { base } = profile;
   const width = base.outputSize.width;
   const height = outputHeightForViewBox(svgMarkup, width);
@@ -43,22 +97,10 @@ export async function generateTerrainWebp(
     width,
     height
   });
-  const plan = planGptImageAspect(width, height);
-  // Letterbox the control into the fixed gpt-image size; margins are sea (discarded after crop).
-  const paddedControl = await sharp(control)
-    .resize(plan.contentW, plan.contentH, { fit: "fill" })
-    .extend({
-      top: plan.padTop,
-      bottom: plan.padBottom,
-      left: plan.padLeft,
-      right: plan.padRight,
-      background: base.seaColor
-    })
-    .png()
-    .toBuffer();
 
   let styleImage: Buffer | null = null;
   if (profile.edit.styleRef) {
+    const plan = planGptImageAspect(width, height);
     styleImage = await sharp(
       readFileSync(fileURLToPath(new URL(`../${profile.edit.styleRef}`, import.meta.url)))
     )
@@ -67,23 +109,39 @@ export async function generateTerrainWebp(
       .toBuffer();
   }
 
-  const edited = await editMapPass(deps, {
-    controlImage: paddedControl,
+  let terrain = await padEditCrop(deps, {
+    control,
     styleImage,
-    model: profile.edit.model,
+    width,
+    height,
     prompt: profile.edit.prompt,
-    imageSize: plan.imageSize,
-    quality: profile.edit.quality,
-    inputFidelity: profile.edit.inputFidelity
+    edit: profile.edit,
+    seaColor: base.seaColor
   });
 
-  // Crop the padding back off (model returns targetW×targetH), then size to the board.
-  const cropped = await sharp(edited)
-    .resize(plan.targetW, plan.targetH, { fit: "fill" })
-    .extract({ left: plan.padLeft, top: plan.padTop, width: plan.contentW, height: plan.contentH })
-    .png()
-    .toBuffer();
-  return toWebp(cropped, { width, height, quality: profile.webpQuality });
+  // Fort pass: draw a castle at each fort tile. Only when the caller supplied the scene and it
+  // has at least one fort — otherwise this is byte-for-byte the pre-fort behaviour.
+  const markers = scene ? fortMarkers(scene, width, profile.fortPass.markerRadiusFactor) : [];
+  if (markers.length > 0) {
+    const overlaid = await fortMarkerOverlay({
+      base: terrain,
+      width,
+      height,
+      markers,
+      color: profile.fortPass.markerColor
+    });
+    terrain = await padEditCrop(deps, {
+      control: overlaid,
+      styleImage: null,
+      width,
+      height,
+      prompt: profile.fortPass.prompt,
+      edit: profile.edit,
+      seaColor: base.seaColor
+    });
+  }
+
+  return toWebp(terrain, { width, height, quality: profile.webpQuality });
 }
 
 /**
@@ -96,9 +154,9 @@ export async function runMapPipeline(
 ): Promise<{ outDir: string; webpPath: string }> {
   const { mapId, profile, outDir } = args;
   const map = getMap(mapId); // throws on unknown map id
-  const svgMarkup = mapStructureSvg(mapId); // live board-render geometry, matches the web board
+  const { svgMarkup, scene } = mapStructureScene(mapId); // live geometry + fort positions
   mkdirSync(outDir, { recursive: true });
-  const webp = await generateTerrainWebp(deps, { svgMarkup, map, profile });
+  const webp = await generateTerrainWebp(deps, { svgMarkup, map, profile, scene });
   const webpPath = join(outDir, "background.webp");
   writeFileSync(webpPath, webp);
   return { outDir, webpPath };

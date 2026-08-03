@@ -21,6 +21,19 @@ const SOURCE = {
   nextTileNumber: 3
 };
 
+const FORT_SOURCE = {
+  id: "mf",
+  name: "Fort Gen Test",
+  layout: { size: 100, originX: 0, originY: 0 },
+  tiles: [
+    { id: "t1", kind: "land", hexes: [{ q: 0, r: 0 }], features: { fort: true } },
+    { id: "t2", kind: "sea", hexes: [{ q: 1, r: 0 }], features: {} }
+  ],
+  startingDeployment: {},
+  bonusSlots: [],
+  nextTileNumber: 3
+};
+
 const PROFILE: MapProfile = {
   base: {
     landColor: "#2e7d32",
@@ -36,6 +49,11 @@ const PROFILE: MapProfile = {
     quality: "high",
     inputFidelity: "high",
     prompt: "draw a map"
+  },
+  fortPass: {
+    prompt: "draw a fort at each marker",
+    markerRadiusFactor: 0.45,
+    markerColor: "#ff00ff"
   },
   webpQuality: 80
 };
@@ -75,6 +93,37 @@ describe("generateTerrainWebp", () => {
     expect(out.subarray(8, 12).toString("ascii")).toBe("WEBP");
     // Uploaded exactly two images (control + style) and called the model once.
     expect(deps.fal.storage.upload).toHaveBeenCalledTimes(2);
+    expect(deps.fal.subscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs a second edit pass when the scene has a fort", async () => {
+    const compiled = compileHexMap(FORT_SOURCE as never);
+    const scene = buildScene(compiled);
+    const svgMarkup = assembleBoardSvg(scene);
+    const deps = fakeDeps();
+    const out = await generateTerrainWebp(deps, {
+      svgMarkup,
+      map: compiled.definition,
+      profile: PROFILE,
+      scene
+    });
+    expect(out.subarray(0, 4).toString("ascii")).toBe("RIFF");
+    // Pass 1 (control + style) + pass 2 (marker control only) = 2 model calls, 3 uploads.
+    expect(deps.fal.subscribe).toHaveBeenCalledTimes(2);
+    expect(deps.fal.storage.upload).toHaveBeenCalledTimes(3);
+  });
+
+  it("skips the second pass when the scene has no fort", async () => {
+    const compiled = compileHexMap(SOURCE as never);
+    const scene = buildScene(compiled);
+    const svgMarkup = assembleBoardSvg(scene);
+    const deps = fakeDeps();
+    await generateTerrainWebp(deps, {
+      svgMarkup,
+      map: compiled.definition,
+      profile: PROFILE,
+      scene
+    });
     expect(deps.fal.subscribe).toHaveBeenCalledTimes(1);
   });
 

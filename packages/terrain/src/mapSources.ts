@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { assembleBoardSvg, buildScene } from "@sengoku-jidai/board-render";
+import type { BoardScene } from "@sengoku-jidai/board-render";
 import type { HexMapSource } from "@sengoku-jidai/engine";
 import { compileHexMap, riversSource } from "@sengoku-jidai/engine";
 
@@ -17,6 +18,21 @@ const SOURCE_BY_MAP: Record<string, HexMapSource> = {
 };
 
 /**
+ * The board structure SVG *and* its scene, built once from live board-render geometry. The SVG
+ * conditions the terrain control image; the scene carries fort positions for the fort pass. Both
+ * derive from the same `buildScene(compileHexMap(source))` so they always agree. Throws on an
+ * unknown map id.
+ */
+export function mapStructureScene(mapId: string): { svgMarkup: string; scene: BoardScene } {
+  const source = SOURCE_BY_MAP[mapId];
+  if (!source) {
+    throw new Error(`Unknown map "${mapId}" — add its source to SOURCE_BY_MAP in mapSources.ts`);
+  }
+  const scene = buildScene(compileHexMap(source));
+  return { svgMarkup: assembleBoardSvg(scene), scene };
+}
+
+/**
  * The board SVG the terrain pipeline builds its control image from, rendered from live
  * board-render geometry — identical to `boardSvgFor(mapId)` in the web client and to the
  * server's custom-map terrain path. This is the single source of truth for tile placement:
@@ -25,11 +41,7 @@ const SOURCE_BY_MAP: Record<string, HexMapSource> = {
  * unknown map id.
  */
 export function mapStructureSvg(mapId: string): string {
-  const source = SOURCE_BY_MAP[mapId];
-  if (!source) {
-    throw new Error(`Unknown map "${mapId}" — add its source to SOURCE_BY_MAP in mapSources.ts`);
-  }
-  return assembleBoardSvg(buildScene(compileHexMap(source)));
+  return mapStructureScene(mapId).svgMarkup;
 }
 
 /**
