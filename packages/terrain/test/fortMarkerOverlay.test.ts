@@ -36,7 +36,13 @@ describe("fortMarkerOverlay", () => {
     const W = 16;
     const H = 16;
     const base = await whiteBase(W, H);
-    const out = await fortMarkerOverlay({ base, width: W, height: H, markers: [], color: "#ff00ff" });
+    const out = await fortMarkerOverlay({
+      base,
+      width: W,
+      height: H,
+      markers: [],
+      color: "#ff00ff"
+    });
     const a = await sharp(out).raw().toBuffer();
     const b = await sharp(base).resize(W, H, { fit: "fill" }).removeAlpha().raw().toBuffer();
     expect(Buffer.compare(a, b)).toBe(0);

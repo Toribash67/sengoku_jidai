@@ -54,7 +54,11 @@ describe("mapStructureScene", () => {
   it("returns a scene whose viewBox matches the structure SVG for a built-in map", () => {
     const { svgMarkup, scene } = mapStructureScene("rivers");
     expect(svgMarkup).toBe(mapStructureSvg("rivers")); // same SVG as the legacy accessor
-    const vb = svgMarkup.match(/viewBox="([\d.\s-]+)"/i)![1]!.trim().split(/\s+/).map(Number);
+    const vb = svgMarkup
+      .match(/viewBox="([\d.\s-]+)"/i)![1]!
+      .trim()
+      .split(/\s+/)
+      .map(Number);
     expect(scene.viewBox.width).toBeCloseTo(vb[2]!, 3);
     expect(scene.viewBox.height).toBeCloseTo(vb[3]!, 3);
   });
