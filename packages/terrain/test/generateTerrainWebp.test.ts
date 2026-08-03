@@ -51,6 +51,9 @@ const PROFILE: MapProfile = {
     prompt: "draw a map"
   },
   fortPass: {
+    method: "inpaint",
+    model: "fake/fill-model",
+    inpaintPrompt: "inpaint a fort",
     prompt: "draw a fort at each marker",
     markerRadiusFactor: 0.45,
     markerColor: "#ff00ff",
@@ -97,7 +100,7 @@ describe("generateTerrainWebp", () => {
     expect(deps.fal.subscribe).toHaveBeenCalledTimes(1);
   });
 
-  it("runs a second edit pass when the scene has a fort", async () => {
+  it("runs an inpaint fort pass (default method) when the scene has a fort", async () => {
     const compiled = compileHexMap(FORT_SOURCE as never);
     const scene = buildScene(compiled);
     const svgMarkup = assembleBoardSvg(scene);
@@ -105,11 +108,33 @@ describe("generateTerrainWebp", () => {
     const out = await generateTerrainWebp(deps, {
       svgMarkup,
       map: compiled.definition,
-      profile: PROFILE,
+      profile: PROFILE, // method "inpaint"
       scene
     });
     expect(out.subarray(0, 4).toString("ascii")).toBe("RIFF");
-    // Pass 1 (control + style) + pass 2 (marker control + mask, no style) = 2 model calls, 4 uploads.
+    // Base pass (control + style) + one inpaint pass for the single fort (image + mask) = 2 model
+    // calls, 4 uploads.
+    expect(deps.fal.subscribe).toHaveBeenCalledTimes(2);
+    expect(deps.fal.storage.upload).toHaveBeenCalledTimes(4);
+  });
+
+  it("runs the marker fort pass when method is 'marker'", async () => {
+    const compiled = compileHexMap(FORT_SOURCE as never);
+    const scene = buildScene(compiled);
+    const svgMarkup = assembleBoardSvg(scene);
+    const deps = fakeDeps();
+    const markerProfile: MapProfile = {
+      ...PROFILE,
+      fortPass: { ...PROFILE.fortPass, method: "marker" }
+    };
+    const out = await generateTerrainWebp(deps, {
+      svgMarkup,
+      map: compiled.definition,
+      profile: markerProfile,
+      scene
+    });
+    expect(out.subarray(0, 4).toString("ascii")).toBe("RIFF");
+    // Base pass (control + style) + marker pass (marker control + soft mask, no style) = 2 calls.
     expect(deps.fal.subscribe).toHaveBeenCalledTimes(2);
     expect(deps.fal.storage.upload).toHaveBeenCalledTimes(4);
   });

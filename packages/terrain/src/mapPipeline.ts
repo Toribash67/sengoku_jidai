@@ -227,10 +227,25 @@ export async function generateTerrainWebp(
   });
 
   // Fort pass: draw a castle at each fort tile. Only when the caller supplied the scene and it
-  // has at least one fort — otherwise this is byte-for-byte the pre-fort behaviour.
-  const markers = scene ? fortMarkers(scene, width, profile.fortPass.markerRadiusFactor) : [];
-  if (scene && markers.length > 0) {
-    terrain = await applyFortPass(deps, { base: terrain, width, height, profile, scene });
+  // has at least one fort — otherwise this is byte-for-byte the pre-fort behaviour. "inpaint"
+  // (default) uses a true hard-mask model that preserves every non-fort pixel; "marker" uses the
+  // base gpt-image model with a magenta marker overlay.
+  const hasForts = scene
+    ? fortMarkers(scene, width, profile.fortPass.markerRadiusFactor).length > 0
+    : false;
+  if (scene && hasForts) {
+    terrain =
+      profile.fortPass.method === "inpaint"
+        ? await applyInpaintFortPass(deps, {
+            base: terrain,
+            width,
+            height,
+            profile,
+            scene,
+            model: profile.fortPass.model,
+            prompt: profile.fortPass.inpaintPrompt
+          })
+        : await applyFortPass(deps, { base: terrain, width, height, profile, scene });
   }
 
   return toWebp(terrain, { width, height, quality: profile.webpQuality });
