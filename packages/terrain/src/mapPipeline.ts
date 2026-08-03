@@ -4,11 +4,10 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import type { MapDefinition } from "@sengoku-jidai/engine";
 import { getMap } from "@sengoku-jidai/engine";
-import type { BoardScene } from "@sengoku-jidai/board-render";
 import { renderControl } from "./composite.js";
 import { editMapPass, type EditDeps } from "./editPass.js";
 import { fortMarkerOverlay } from "./fortMarkerOverlay.js";
-import { fortMarkers } from "./fortMarkers.js";
+import { fortMarkers, type FortScene } from "./fortMarkers.js";
 import { mapStructureScene } from "./mapSources.js";
 import { renderLandMask } from "./masks.js";
 import type { MapProfile } from "./mapProfile.js";
@@ -75,7 +74,7 @@ async function padEditCrop(
  */
 export async function generateTerrainWebp(
   deps: EditDeps,
-  args: { svgMarkup: string; map: MapDefinition; profile: MapProfile; scene?: BoardScene }
+  args: { svgMarkup: string; map: MapDefinition; profile: MapProfile; scene?: FortScene }
 ): Promise<Buffer> {
   const { svgMarkup, map, profile, scene } = args;
   const { base } = profile;

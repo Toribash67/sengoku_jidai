@@ -1,4 +1,11 @@
-import type { BoardScene } from "@sengoku-jidai/board-render";
+/** The minimal slice of the board scene fort placement needs. Declared locally (not imported
+ *  from board-render) so terrain/src keeps its engine-only dependency boundary; a real
+ *  `BoardScene` is structurally assignable to it. */
+export interface FortScene {
+  viewBox: { x: number; y: number; width: number };
+  hexSize: number;
+  tiles: { centroid: { x: number; y: number }; features: { fort: boolean } }[];
+}
 
 /** A fort marker to overlay on the base terrain, in output-image pixel coordinates. */
 export interface FortMarker {
@@ -14,7 +21,7 @@ export interface FortMarker {
  * marker relative to the flat-top hex radius.
  */
 export function fortMarkers(
-  scene: BoardScene,
+  scene: FortScene,
   outputWidth: number,
   markerRadiusFactor: number
 ): FortMarker[] {
