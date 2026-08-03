@@ -84,6 +84,73 @@ describe("editMapPass", () => {
     expect((opts.input as { image_urls: string[] }).image_urls).toHaveLength(1);
   });
 
+  it("uploads the mask and passes mask_image_url only when maskImage is given", async () => {
+    const upload = vi
+      .fn<(blob: Blob) => Promise<string>>()
+      .mockResolvedValueOnce("https://up/control.png")
+      .mockResolvedValueOnce("https://up/mask.png");
+    const fal = {
+      storage: { upload },
+      subscribe: vi.fn(async (_model: string, _opts: { input: Record<string, unknown> }) => ({
+        data: { images: [{ url: "https://out/map.png" }] }
+      }))
+    };
+    const fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => new TextEncoder().encode("MAPBYTES").buffer
+    }));
+
+    await editMapPass(
+      { fal, fetch },
+      {
+        controlImage: Buffer.from("control"),
+        styleImage: null,
+        maskImage: Buffer.from("mask"),
+        model: "fal-ai/gpt-image-1.5/edit",
+        prompt: "draw a castle in the editable region",
+        imageSize: "1024x1024",
+        quality: "high",
+        inputFidelity: "high"
+      }
+    );
+
+    // control + mask uploaded (no style); mask_image_url points at the mask upload.
+    expect(upload).toHaveBeenCalledTimes(2);
+    const [, opts] = fal.subscribe.mock.calls[0]!;
+    const input = opts.input as { image_urls: string[]; mask_image_url?: string };
+    expect(input.image_urls).toHaveLength(1); // control only (style null)
+    expect(input.mask_image_url).toBe("https://up/mask.png");
+  });
+
+  it("omits mask_image_url when no maskImage is given", async () => {
+    const fal = {
+      storage: { upload: vi.fn(async () => "https://up/control.png") },
+      subscribe: vi.fn(async (_m: string, _o: { input: Record<string, unknown> }) => ({
+        data: { images: [{ url: "https://out/map.png" }] }
+      }))
+    };
+    const fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => new TextEncoder().encode("X").buffer
+    }));
+    await editMapPass(
+      { fal, fetch },
+      {
+        controlImage: Buffer.from("control"),
+        styleImage: null,
+        model: "m",
+        prompt: "p",
+        imageSize: "1024x1024",
+        quality: "high",
+        inputFidelity: "high"
+      }
+    );
+    const [, opts] = fal.subscribe.mock.calls[0]!;
+    expect(opts.input).not.toHaveProperty("mask_image_url");
+  });
+
   it("throws when the result fetch fails", async () => {
     const fal = {
       storage: { upload: vi.fn(async () => "https://up/x") },

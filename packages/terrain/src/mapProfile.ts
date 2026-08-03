@@ -43,19 +43,42 @@ const MapProfileSchema = z.object({
     inputFidelity: z.enum(["low", "high"]).default("high"),
     prompt: z.string().min(1)
   }),
-  /** Second edit pass that draws a fort (Sengoku-era Japanese castle) at each fort tile. A
-   *  bright signal-colour marker is overlaid at each fort's centroid on the finished terrain,
-   *  then the edit model draws a castle at each marker and removes the marker. Skipped entirely
-   *  for maps with no forts. Whole block defaults when omitted. */
+  /** Second pass that draws a fort (Sengoku-era Japanese castle) at each fort tile. Skipped
+   *  entirely for maps with no forts. Whole block defaults when omitted.
+   *
+   *  Two methods:
+   *  - "inpaint" (default): a true hard-mask inpainting model (`model`, e.g. FLUX Fill) redraws
+   *    ONLY each fort tile disc and preserves every other pixel exactly — no castle can leak onto
+   *    a non-fort tile. Each fort is inpainted in its own pass. Uses `inpaintPrompt`,
+   *    `maskRadiusFactor`.
+   *  - "marker": the base edit model (gpt-image) with a magenta marker overlay and an optional
+   *    soft mask. Localizes less reliably (the model recreates the whole frame) but reuses the
+   *    base model. Uses `prompt`, `markerRadiusFactor`, `markerColor`, `maskRadiusFactor`. */
   fortPass: z
     .object({
+      /** Which fort-drawing method to run (see block docs). */
+      method: z.enum(["inpaint", "marker"]).default("inpaint"),
+      /** Inpainting model id for method "inpaint" (single-image `image_url`+`mask_url` schema). */
+      model: z.string().default("fal-ai/flux-pro/v1/fill"),
+      /** Prompt for method "inpaint". No marker is drawn — the mask defines the region, so this
+       *  describes only the castle and its style. Per-style profiles override it (e.g. ink). The
+       *  default is tuned for the antique sepia look so it blends into the hand-drawn map. */
+      inpaintPrompt: z
+        .string()
+        .default(
+          "A tiny Sengoku-era Japanese castle keep with multiple tiered roofs, drawn ONLY as faded brown sepia-ink line-work on aged parchment, in the EXACT same muted antique hand-drawn cartography style as the surrounding mountains and forests: fine sepia hatching, thin brown ink lines, low contrast, weathered and monochrome sepia. Use the SAME faded brown ink colour as the rest of the map. NO bright white, NO blue, NO vivid or saturated colours, NO bold black cartoon outlines, no photo-realism, no shading blocks. A small flat top-down map symbol that blends seamlessly and unobtrusively into the old sepia map."
+        ),
+      /** Prompt for method "marker" (mentions the magenta marker the overlay draws). */
       prompt: z
         .string()
         .default(
           "Each bright magenta circle in this image marks the location of a fortress. At the exact centre of every magenta circle, draw one small Sengoku-era Japanese castle (a tenshukaku keep with white plaster walls and stacked tiered blue-grey tiled roofs) rendered in the SAME hand-drawn style, linework and colour palette as the rest of this map, sized to sit inside the circle without overflowing it. Then COMPLETELY REMOVE every magenta circle, blending its area back into the surrounding terrain. Leave every other part of the image — coastlines, land texture, sea, and colours — unchanged."
         ),
       markerRadiusFactor: z.number().positive().default(0.45),
-      markerColor: z.string().default("#ff00ff")
+      markerColor: z.string().default("#ff00ff"),
+      /** Radius (× hex size) of the mask disc around each fort — the inpaint/edit region. Larger
+       *  than the marker so the drawn castle has room inside it. */
+      maskRadiusFactor: z.number().positive().default(0.7)
     })
     .default({}),
   webpQuality: z.number().int().min(1).max(100).default(82)

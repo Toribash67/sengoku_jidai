@@ -42,6 +42,17 @@ describe("fortPass profile defaults", () => {
     const profile = loadStyleProfile("antique"); // profiles/map.json has no fortPass block
     expect(profile.fortPass.markerColor).toBe("#ff00ff");
     expect(profile.fortPass.markerRadiusFactor).toBeCloseTo(0.45, 5);
+    expect(profile.fortPass.maskRadiusFactor).toBeCloseTo(0.7, 5);
     expect(profile.fortPass.prompt.toLowerCase()).toContain("castle");
+    // Default fort method is true-mask inpainting via FLUX Fill.
+    expect(profile.fortPass.method).toBe("inpaint");
+    expect(profile.fortPass.model).toBe("fal-ai/flux-pro/v1/fill");
+    expect(profile.fortPass.inpaintPrompt.toLowerCase()).toContain("castle");
+  });
+
+  it("ink profile overrides the inpaint prompt for its pen-and-ink style", () => {
+    const profile = loadStyleProfile("ink");
+    expect(profile.fortPass.method).toBe("inpaint");
+    expect(profile.fortPass.inpaintPrompt.toLowerCase()).toContain("pen-and-ink");
   });
 });
