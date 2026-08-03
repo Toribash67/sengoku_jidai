@@ -24,10 +24,11 @@ describe("fortMarkers", () => {
     const markers = fortMarkers(scene, outputWidth, 0.5);
 
     expect(markers).toHaveLength(1);
+    const marker = markers[0]!;
     const fortTile = scene.tiles.find((t) => t.features.fort)!;
-    expect(markers[0].x).toBeCloseTo((fortTile.centroid.x - scene.viewBox.x) * 2, 5);
-    expect(markers[0].y).toBeCloseTo((fortTile.centroid.y - scene.viewBox.y) * 2, 5);
-    expect(markers[0].radius).toBeCloseTo(scene.hexSize * 0.5 * 2, 5);
+    expect(marker.x).toBeCloseTo((fortTile.centroid.x - scene.viewBox.x) * 2, 5);
+    expect(marker.y).toBeCloseTo((fortTile.centroid.y - scene.viewBox.y) * 2, 5);
+    expect(marker.radius).toBeCloseTo(scene.hexSize * 0.5 * 2, 5);
   });
 
   it("returns an empty array when no tile has a fort", () => {

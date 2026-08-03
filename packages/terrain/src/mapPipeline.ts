@@ -17,9 +17,11 @@ import { planGptImageAspect } from "./gptImageAspect.js";
 
 /**
  * Pad a width×height control PNG into the fixed gpt-image size, run one edit pass, and crop
- * back to a width×height PNG. Shared by the base terrain pass and the fort pass so both use
- * identical letterbox/crop geometry. `styleImage` is the optional aesthetic reference (null for
- * the fort pass, which restyles from the already-styled base image via the prompt).
+ * the padding back off, returning a content-sized (`plan.contentW`×`plan.contentH`) PNG —
+ * callers resize that to the final width×height (`fortMarkerOverlay` and `toWebp` both do this).
+ * Shared by the base terrain pass and the fort pass so both use identical letterbox/crop
+ * geometry. `styleImage` is the optional aesthetic reference (null for the fort pass, which
+ * restyles from the already-styled base image via the prompt).
  */
 async function padEditCrop(
   deps: EditDeps,
