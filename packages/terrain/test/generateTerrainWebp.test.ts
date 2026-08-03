@@ -53,7 +53,8 @@ const PROFILE: MapProfile = {
   fortPass: {
     prompt: "draw a fort at each marker",
     markerRadiusFactor: 0.45,
-    markerColor: "#ff00ff"
+    markerColor: "#ff00ff",
+    maskRadiusFactor: 0.7
   },
   webpQuality: 80
 };
@@ -108,9 +109,9 @@ describe("generateTerrainWebp", () => {
       scene
     });
     expect(out.subarray(0, 4).toString("ascii")).toBe("RIFF");
-    // Pass 1 (control + style) + pass 2 (marker control only) = 2 model calls, 3 uploads.
+    // Pass 1 (control + style) + pass 2 (marker control + mask, no style) = 2 model calls, 4 uploads.
     expect(deps.fal.subscribe).toHaveBeenCalledTimes(2);
-    expect(deps.fal.storage.upload).toHaveBeenCalledTimes(3);
+    expect(deps.fal.storage.upload).toHaveBeenCalledTimes(4);
   });
 
   it("skips the second pass when the scene has no fort", async () => {

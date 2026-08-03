@@ -8,6 +8,7 @@ import { renderControl } from "./composite.js";
 import { editMapPass, type EditDeps } from "./editPass.js";
 import { fortMarkerOverlay } from "./fortMarkerOverlay.js";
 import { fortMarkers, type FortScene } from "./fortMarkers.js";
+import { fortMaskImage } from "./fortMaskImage.js";
 import { mapStructureScene } from "./mapSources.js";
 import { renderLandMask } from "./masks.js";
 import type { MapProfile } from "./mapProfile.js";
@@ -27,6 +28,7 @@ async function padEditCrop(
   args: {
     control: Buffer;
     styleImage: Buffer | null;
+    mask?: Buffer | null;
     width: number;
     height: number;
     prompt: string;
@@ -34,7 +36,7 @@ async function padEditCrop(
     seaColor: string;
   }
 ): Promise<Buffer> {
-  const { control, styleImage, width, height, prompt, edit, seaColor } = args;
+  const { control, styleImage, mask, width, height, prompt, edit, seaColor } = args;
   const plan = planGptImageAspect(width, height);
   // Letterbox the control into the fixed gpt-image size; margins are sea (discarded after crop).
   const paddedControl = await sharp(control)
@@ -48,9 +50,25 @@ async function padEditCrop(
     })
     .png()
     .toBuffer();
+  // Letterbox the mask through the SAME geometry so it aligns with the padded control; the added
+  // margins are opaque (kept), so gpt-image never edits the letterbox border.
+  const paddedMask = mask
+    ? await sharp(mask)
+        .resize(plan.contentW, plan.contentH, { fit: "fill" })
+        .extend({
+          top: plan.padTop,
+          bottom: plan.padBottom,
+          left: plan.padLeft,
+          right: plan.padRight,
+          background: { r: 0, g: 0, b: 0, alpha: 1 }
+        })
+        .png()
+        .toBuffer()
+    : null;
   const edited = await editMapPass(deps, {
     controlImage: paddedControl,
     styleImage,
+    maskImage: paddedMask,
     model: edit.model,
     prompt,
     imageSize: plan.imageSize,
@@ -63,6 +81,57 @@ async function padEditCrop(
     .extract({ left: plan.padLeft, top: plan.padTop, width: plan.contentW, height: plan.contentH })
     .png()
     .toBuffer();
+}
+
+/**
+ * Draw a castle at each fort tile on an already-styled terrain image, using a masked edit pass.
+ * A bright marker is overlaid at each fort (where/what to draw) AND a mask restricts the edit to
+ * the fort tile regions (transparent discs = editable), so the rest of the terrain is protected.
+ * Returns a width×height PNG. If the scene has no fort tiles, the base is returned unchanged
+ * (resized to width×height). Exported so the base pipeline and the "add forts to an existing
+ * terrain" path share one implementation.
+ *
+ * `maskInvert` flips the mask polarity; it exists because fal's exact mask convention is verified
+ * empirically rather than from a published schema. Default `false` = the gpt-image convention
+ * (transparent pixels are the editable region).
+ */
+export async function applyFortPass(
+  deps: EditDeps,
+  args: {
+    base: Buffer;
+    width: number;
+    height: number;
+    profile: MapProfile;
+    scene: FortScene;
+    maskInvert?: boolean;
+  }
+): Promise<Buffer> {
+  const { base, width, height, profile, scene, maskInvert = false } = args;
+  const { fortPass, edit } = profile;
+  const markers = fortMarkers(scene, width, fortPass.markerRadiusFactor);
+  if (markers.length === 0) {
+    return sharp(base).resize(width, height, { fit: "fill" }).png().toBuffer();
+  }
+  const overlaid = await fortMarkerOverlay({
+    base,
+    width,
+    height,
+    markers,
+    color: fortPass.markerColor
+  });
+  const maskDiscs = fortMarkers(scene, width, fortPass.maskRadiusFactor);
+  const mask = await fortMaskImage({ width, height, discs: maskDiscs, invert: maskInvert });
+  const edited = await padEditCrop(deps, {
+    control: overlaid,
+    styleImage: null,
+    mask,
+    width,
+    height,
+    prompt: fortPass.prompt,
+    edit,
+    seaColor: profile.base.seaColor
+  });
+  return sharp(edited).resize(width, height, { fit: "fill" }).png().toBuffer();
 }
 
 /**
@@ -122,23 +191,8 @@ export async function generateTerrainWebp(
   // Fort pass: draw a castle at each fort tile. Only when the caller supplied the scene and it
   // has at least one fort — otherwise this is byte-for-byte the pre-fort behaviour.
   const markers = scene ? fortMarkers(scene, width, profile.fortPass.markerRadiusFactor) : [];
-  if (markers.length > 0) {
-    const overlaid = await fortMarkerOverlay({
-      base: terrain,
-      width,
-      height,
-      markers,
-      color: profile.fortPass.markerColor
-    });
-    terrain = await padEditCrop(deps, {
-      control: overlaid,
-      styleImage: null,
-      width,
-      height,
-      prompt: profile.fortPass.prompt,
-      edit: profile.edit,
-      seaColor: base.seaColor
-    });
+  if (scene && markers.length > 0) {
+    terrain = await applyFortPass(deps, { base: terrain, width, height, profile, scene });
   }
 
   return toWebp(terrain, { width, height, quality: profile.webpQuality });

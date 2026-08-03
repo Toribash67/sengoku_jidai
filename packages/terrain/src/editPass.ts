@@ -19,6 +19,9 @@ export async function editMapPass(
   args: {
     controlImage: Buffer;
     styleImage: Buffer | null;
+    /** Optional gpt-image edit mask (RGBA): transparent = editable, opaque = kept. When present,
+     *  uploaded and passed as `mask_image_url` to localize the edit (see fortMaskImage). */
+    maskImage?: Buffer | null;
     model: string;
     prompt: string;
     imageSize: string;
@@ -45,6 +48,11 @@ export async function editMapPass(
     input_fidelity: args.inputFidelity,
     output_format: "png"
   };
+  if (args.maskImage) {
+    input.mask_image_url = await deps.fal.storage.upload(
+      new Blob([new Uint8Array(args.maskImage)], { type: "image/png" })
+    );
+  }
   const result = await deps.fal.subscribe(args.model, { input });
   const url = firstImageUrl(result.data);
   const response = await deps.fetch(url);

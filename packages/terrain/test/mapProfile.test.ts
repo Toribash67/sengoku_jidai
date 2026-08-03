@@ -42,6 +42,7 @@ describe("fortPass profile defaults", () => {
     const profile = loadStyleProfile("antique"); // profiles/map.json has no fortPass block
     expect(profile.fortPass.markerColor).toBe("#ff00ff");
     expect(profile.fortPass.markerRadiusFactor).toBeCloseTo(0.45, 5);
+    expect(profile.fortPass.maskRadiusFactor).toBeCloseTo(0.7, 5);
     expect(profile.fortPass.prompt.toLowerCase()).toContain("castle");
   });
 });

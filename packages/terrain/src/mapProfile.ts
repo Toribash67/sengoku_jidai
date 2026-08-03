@@ -55,7 +55,10 @@ const MapProfileSchema = z.object({
           "Each bright magenta circle in this image marks the location of a fortress. At the exact centre of every magenta circle, draw one small Sengoku-era Japanese castle (a tenshukaku keep with white plaster walls and stacked tiered blue-grey tiled roofs) rendered in the SAME hand-drawn style, linework and colour palette as the rest of this map, sized to sit inside the circle without overflowing it. Then COMPLETELY REMOVE every magenta circle, blending its area back into the surrounding terrain. Leave every other part of the image — coastlines, land texture, sea, and colours — unchanged."
         ),
       markerRadiusFactor: z.number().positive().default(0.45),
-      markerColor: z.string().default("#ff00ff")
+      markerColor: z.string().default("#ff00ff"),
+      /** Radius (× hex size) of the editable mask disc around each fort. Larger than the marker so
+       *  the drawn castle has room to grow inside the mask-editable region. */
+      maskRadiusFactor: z.number().positive().default(0.7)
     })
     .default({}),
   webpQuality: z.number().int().min(1).max(100).default(82)
