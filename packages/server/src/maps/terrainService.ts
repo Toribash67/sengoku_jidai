@@ -79,14 +79,16 @@ export class TerrainService {
     this.store.markPendingById(terrainId);
     try {
       const compiled = compileHexMap(detail.source as HexMapSource);
-      const svgMarkup = assembleBoardSvg(buildScene(compiled));
+      const scene = buildScene(compiled);
+      const svgMarkup = assembleBoardSvg(scene);
       const deps = await this.resolveDeps();
       // gpt-image has no seed and varies naturally between runs, so regenerate-for-variety
       // still produces a different look without any reroll here.
       const webp = await generateTerrainWebp(deps, {
         svgMarkup,
         map: compiled.definition,
-        profile: loadStyleProfile(styleId)
+        profile: loadStyleProfile(styleId),
+        scene
       });
       this.store.markReadyById(terrainId, webp);
     } catch (err) {

@@ -9,7 +9,7 @@ import { renderControl } from "./composite.js";
 import { editMapPass, type EditDeps } from "./editPass.js";
 import { fortMarkerOverlay } from "./fortMarkerOverlay.js";
 import { fortMarkers } from "./fortMarkers.js";
-import { mapStructureSvg } from "./mapSources.js";
+import { mapStructureScene } from "./mapSources.js";
 import { renderLandMask } from "./masks.js";
 import type { MapProfile } from "./mapProfile.js";
 import { toWebp } from "./postprocess.js";
@@ -155,9 +155,9 @@ export async function runMapPipeline(
 ): Promise<{ outDir: string; webpPath: string }> {
   const { mapId, profile, outDir } = args;
   const map = getMap(mapId); // throws on unknown map id
-  const svgMarkup = mapStructureSvg(mapId); // live board-render geometry, matches the web board
+  const { svgMarkup, scene } = mapStructureScene(mapId); // live geometry + fort positions
   mkdirSync(outDir, { recursive: true });
-  const webp = await generateTerrainWebp(deps, { svgMarkup, map, profile });
+  const webp = await generateTerrainWebp(deps, { svgMarkup, map, profile, scene });
   const webpPath = join(outDir, "background.webp");
   writeFileSync(webpPath, webp);
   return { outDir, webpPath };
