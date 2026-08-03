@@ -122,7 +122,8 @@ export interface MapDetail {
  *  terrain package maps each id to a committed profile JSON via `loadStyleProfile`. */
 export const TERRAIN_STYLES = [
   { id: "antique", label: "Antique (colour)" },
-  { id: "ink", label: "Ink (greyscale)" }
+  { id: "ink", label: "Ink (greyscale)" },
+  { id: "fantasy", label: "Fantasy (colour)" }
 ] as const;
 
 export type TerrainStyleId = (typeof TERRAIN_STYLES)[number]["id"];

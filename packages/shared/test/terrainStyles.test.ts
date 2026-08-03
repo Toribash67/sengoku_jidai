@@ -8,7 +8,7 @@ import {
 
 describe("terrain style catalog", () => {
   it("lists antique (default, first) and ink with labels", () => {
-    expect(TERRAIN_STYLES.map((s) => s.id)).toEqual(["antique", "ink"]);
+    expect(TERRAIN_STYLES.map((s) => s.id)).toEqual(["antique", "ink", "fantasy"]);
     for (const s of TERRAIN_STYLES) {
       expect(s.label.length).toBeGreaterThan(0);
     }
@@ -22,6 +22,7 @@ describe("terrain style catalog", () => {
   it("recognises valid ids and rejects unknown ones", () => {
     expect(isTerrainStyleId("antique")).toBe(true);
     expect(isTerrainStyleId("ink")).toBe(true);
+    expect(isTerrainStyleId("fantasy")).toBe(true);
     expect(isTerrainStyleId("watercolour")).toBe(false);
   });
 });
