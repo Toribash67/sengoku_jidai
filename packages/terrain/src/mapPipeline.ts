@@ -143,6 +143,11 @@ export async function applyFortPass(
  * region and the prompt defines the content. Returns a width×height PNG. No fort tiles → the base
  * is returned unchanged. The mask disc uses `fortPass.maskRadiusFactor` (tile-sized, room for the
  * keep).
+ *
+ * Each fort is inpainted in its OWN pass (single-disc mask, chained onto the previous result): a
+ * single call over a multi-disc mask with a singular prompt unreliably fills only one disc with a
+ * castle and the others with plain terrain. Per-disc guarantees one castle per fort. Cost is one
+ * model call per fort tile.
  */
 export async function applyInpaintFortPass(
   deps: EditDeps,
@@ -158,13 +163,13 @@ export async function applyInpaintFortPass(
 ): Promise<Buffer> {
   const { base, width, height, profile, scene, model, prompt } = args;
   const discs = fortMarkers(scene, width, profile.fortPass.maskRadiusFactor);
-  const baseImage = await sharp(base).resize(width, height, { fit: "fill" }).png().toBuffer();
-  if (discs.length === 0) {
-    return baseImage;
+  let image = await sharp(base).resize(width, height, { fit: "fill" }).png().toBuffer();
+  for (const disc of discs) {
+    const mask = await fortFillMask({ width, height, discs: [disc] });
+    const edited = await inpaintPass(deps, { image, mask, model, prompt });
+    image = await sharp(edited).resize(width, height, { fit: "fill" }).png().toBuffer();
   }
-  const mask = await fortFillMask({ width, height, discs });
-  const edited = await inpaintPass(deps, { image: baseImage, mask, model, prompt });
-  return sharp(edited).resize(width, height, { fit: "fill" }).png().toBuffer();
+  return image;
 }
 
 /**
