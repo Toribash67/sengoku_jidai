@@ -46,3 +46,32 @@ export async function fortMaskImage(args: {
     .png()
     .toBuffer();
 }
+
+/**
+ * Build a luminance mask for true-inpainting models (FLUX Fill / SDXL inpaint): WHITE discs =
+ * the region to inpaint, BLACK = keep. Unlike `fortMaskImage` (alpha-based, for gpt-image), these
+ * models take an opaque black/white image and preserve every black pixel exactly.
+ */
+export async function fortFillMask(args: {
+  width: number;
+  height: number;
+  discs: MaskDisc[];
+}): Promise<Buffer> {
+  const { width, height, discs } = args;
+  const base = sharp({
+    create: { width, height, channels: 3, background: { r: 0, g: 0, b: 0 } }
+  });
+  if (discs.length === 0) {
+    return base.png().toBuffer();
+  }
+  const circles = discs
+    .map((d) => `<circle cx="${d.x}" cy="${d.y}" r="${d.radius}" fill="#ffffff"/>`)
+    .join("");
+  const svg = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${circles}</svg>`
+  );
+  return base
+    .composite([{ input: svg }])
+    .png()
+    .toBuffer();
+}

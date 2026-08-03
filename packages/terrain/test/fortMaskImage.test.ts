@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-import { fortMaskImage } from "../src/fortMaskImage.js";
+import { fortFillMask, fortMaskImage } from "../src/fortMaskImage.js";
 
 /** Read the RGBA value at (x,y) from a PNG buffer. */
 async function pixel(png: Buffer, x: number, y: number): Promise<[number, number, number, number]> {
@@ -41,5 +41,21 @@ describe("fortMaskImage", () => {
     const png = await fortMaskImage({ width: 16, height: 16, discs: [] });
     expect((await pixel(png, 8, 8))[3]).toBe(255);
     expect((await pixel(png, 0, 0))[3]).toBe(255);
+  });
+});
+
+describe("fortFillMask", () => {
+  it("draws white discs (inpaint) on a black field (keep) for FLUX-style masks", async () => {
+    const W = 40;
+    const H = 40;
+    const png = await fortFillMask({ width: W, height: H, discs: [{ x: 20, y: 20, radius: 6 }] });
+    const [r, g, b] = await pixel(png, 20, 20);
+    expect([r, g, b]).toEqual([255, 255, 255]); // disc = inpaint region
+    expect((await pixel(png, 1, 1)).slice(0, 3)).toEqual([0, 0, 0]); // elsewhere = keep
+  });
+
+  it("is fully black when there are no discs", async () => {
+    const png = await fortFillMask({ width: 16, height: 16, discs: [] });
+    expect((await pixel(png, 8, 8)).slice(0, 3)).toEqual([0, 0, 0]);
   });
 });

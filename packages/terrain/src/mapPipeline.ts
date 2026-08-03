@@ -8,7 +8,8 @@ import { renderControl } from "./composite.js";
 import { editMapPass, type EditDeps } from "./editPass.js";
 import { fortMarkerOverlay } from "./fortMarkerOverlay.js";
 import { fortMarkers, type FortScene } from "./fortMarkers.js";
-import { fortMaskImage } from "./fortMaskImage.js";
+import { fortFillMask, fortMaskImage } from "./fortMaskImage.js";
+import { inpaintPass } from "./inpaintPass.js";
 import { mapStructureScene } from "./mapSources.js";
 import { renderLandMask } from "./masks.js";
 import type { MapProfile } from "./mapProfile.js";
@@ -131,6 +132,38 @@ export async function applyFortPass(
     edit,
     seaColor: profile.base.seaColor
   });
+  return sharp(edited).resize(width, height, { fit: "fill" }).png().toBuffer();
+}
+
+/**
+ * Draw a castle at each fort tile using a TRUE-inpainting model (e.g. `fal-ai/flux-pro/v1/fill`)
+ * instead of gpt-image's soft mask. A white-disc mask (`fortFillMask`) marks each fort tile as the
+ * inpaint region; the model regenerates only those discs and preserves every other pixel exactly,
+ * so a castle cannot leak onto non-fort tiles. No magenta marker is needed — the mask defines the
+ * region and the prompt defines the content. Returns a width×height PNG. No fort tiles → the base
+ * is returned unchanged. The mask disc uses `fortPass.maskRadiusFactor` (tile-sized, room for the
+ * keep).
+ */
+export async function applyInpaintFortPass(
+  deps: EditDeps,
+  args: {
+    base: Buffer;
+    width: number;
+    height: number;
+    profile: MapProfile;
+    scene: FortScene;
+    model: string;
+    prompt: string;
+  }
+): Promise<Buffer> {
+  const { base, width, height, profile, scene, model, prompt } = args;
+  const discs = fortMarkers(scene, width, profile.fortPass.maskRadiusFactor);
+  const baseImage = await sharp(base).resize(width, height, { fit: "fill" }).png().toBuffer();
+  if (discs.length === 0) {
+    return baseImage;
+  }
+  const mask = await fortFillMask({ width, height, discs });
+  const edited = await inpaintPass(deps, { image: baseImage, mask, model, prompt });
   return sharp(edited).resize(width, height, { fit: "fill" }).png().toBuffer();
 }
 
