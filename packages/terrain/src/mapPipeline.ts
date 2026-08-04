@@ -173,6 +173,40 @@ export async function applyInpaintFortPass(
 }
 
 /**
+ * Apply the fort pass to an EXISTING base terrain webp (used by the two-candidate flow: the base
+ * is generated first, forts are inpainted only onto the chosen winner). Width/height come from the
+ * webp itself. When the scene has no fort tiles this re-encodes the input unchanged (no model call).
+ */
+export async function inpaintFortsOnWebp(
+  deps: EditDeps,
+  args: { webp: Buffer; profile: MapProfile; scene: FortScene }
+): Promise<Buffer> {
+  const { webp, profile, scene } = args;
+  const meta = await sharp(webp).metadata();
+  const width = meta.width ?? profile.base.outputSize.width;
+  const height = meta.height ?? width;
+  const base = await sharp(webp).resize(width, height, { fit: "fill" }).png().toBuffer();
+
+  const hasForts = fortMarkers(scene, width, profile.fortPass.markerRadiusFactor).length > 0;
+  if (!hasForts) {
+    return toWebp(base, { width, height, quality: profile.webpQuality });
+  }
+  const terrain =
+    profile.fortPass.method === "inpaint"
+      ? await applyInpaintFortPass(deps, {
+          base,
+          width,
+          height,
+          profile,
+          scene,
+          model: profile.fortPass.model,
+          prompt: profile.fortPass.inpaintPrompt
+        })
+      : await applyFortPass(deps, { base, width, height, profile, scene });
+  return toWebp(terrain, { width, height, quality: profile.webpQuality });
+}
+
+/**
  * Filesystem-free pipeline core. Structure comes from `svgMarkup` (any board SVG with
  * `.tile` paths + a viewBox); a domain-warped land mask becomes a flat control, which a
  * multi-image edit model redraws in the style reference's hand-drawn look. Returns the
