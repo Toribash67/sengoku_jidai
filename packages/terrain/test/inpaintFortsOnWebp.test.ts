@@ -18,12 +18,30 @@ const FORT_SOURCE = {
   bonusSlots: [],
   nextTileNumber: 3
 };
-const NO_FORT_SOURCE = { ...FORT_SOURCE, tiles: [{ ...FORT_SOURCE.tiles[0], features: {} }, FORT_SOURCE.tiles[1]] };
+const NO_FORT_SOURCE = {
+  ...FORT_SOURCE,
+  tiles: [{ ...FORT_SOURCE.tiles[0], features: {} }, FORT_SOURCE.tiles[1]]
+};
 
 const PROFILE = {
-  base: { landColor: "#2e7d32", seaColor: "#1565c0", outputSize: { width: 64 }, organicSigma: 0, background: "sea", coastWarp: { amplitude: 0, scale: 0.003, seed: 7 } },
+  base: {
+    landColor: "#2e7d32",
+    seaColor: "#1565c0",
+    outputSize: { width: 64 },
+    organicSigma: 0,
+    background: "sea",
+    coastWarp: { amplitude: 0, scale: 0.003, seed: 7 }
+  },
   edit: { model: "fake/model", quality: "high", inputFidelity: "high", prompt: "p" },
-  fortPass: { method: "inpaint", model: "fake/fill", inpaintPrompt: "castle", prompt: "m", markerRadiusFactor: 0.45, markerColor: "#ff00ff", maskRadiusFactor: 0.7 },
+  fortPass: {
+    method: "inpaint",
+    model: "fake/fill",
+    inpaintPrompt: "castle",
+    prompt: "m",
+    markerRadiusFactor: 0.45,
+    markerColor: "#ff00ff",
+    maskRadiusFactor: 0.7
+  },
   webpQuality: 80
 } as unknown as MapProfile;
 
@@ -37,19 +55,30 @@ function fakeDeps(): EditDeps {
       storage: { upload: vi.fn(async () => "https://fal/u") },
       subscribe: vi.fn(async () => ({ data: { images: [{ url: "https://fal/r.png" }] } }))
     },
-    fetch: vi.fn(async () => ({ ok: true, status: 200, arrayBuffer: async () => onePxPng.buffer.slice(onePxPng.byteOffset, onePxPng.byteOffset + onePxPng.length) }))
+    fetch: vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () =>
+        onePxPng.buffer.slice(onePxPng.byteOffset, onePxPng.byteOffset + onePxPng.length)
+    }))
   };
 }
 
 async function baseWebp(width: number, height: number): Promise<Buffer> {
-  return sharp({ create: { width, height, channels: 3, background: "#888888" } }).webp().toBuffer();
+  return sharp({ create: { width, height, channels: 3, background: "#888888" } })
+    .webp()
+    .toBuffer();
 }
 
 describe("inpaintFortsOnWebp", () => {
   it("runs one inpaint call per fort and returns webp", async () => {
     const scene = buildScene(compileHexMap(FORT_SOURCE as never));
     const deps = fakeDeps();
-    const out = await inpaintFortsOnWebp(deps, { webp: await baseWebp(64, 70), profile: PROFILE, scene });
+    const out = await inpaintFortsOnWebp(deps, {
+      webp: await baseWebp(64, 70),
+      profile: PROFILE,
+      scene
+    });
     expect(out.subarray(8, 12).toString("ascii")).toBe("WEBP");
     expect(deps.fal.subscribe).toHaveBeenCalledTimes(1); // one fort tile
   });
