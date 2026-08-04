@@ -23,13 +23,13 @@ describe("loadMapProfile", () => {
 describe("loadStyleProfile", () => {
   it("resolves antique to the colored profile", () => {
     const p = loadStyleProfile("antique");
-    expect(p.edit.styleRef).toBe("assets/texture-ref.jpeg");
+    expect(p.edit.styleRef).toBe("assets/antique-ref.jpeg");
     expect(p.edit.prompt.length).toBeGreaterThan(0);
   });
 
   it("resolves ink to the greyscale profile", () => {
     const p = loadStyleProfile("ink");
-    expect(p.edit.styleRef).toBe("assets/ink-texture-ref.png");
+    expect(p.edit.styleRef).toBe("assets/ink-ref.jpeg");
   });
 
   it("throws a clear error on an unknown style id", () => {
