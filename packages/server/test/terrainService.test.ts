@@ -122,4 +122,25 @@ describe("TerrainService", () => {
     expect(store.webpById(id)?.subarray(8, 12).toString("ascii")).toBe("WEBP");
     expect(store.candidateCount(id)).toBe(0);
   });
+
+  it("regenerate() replaces both candidates and stays in choosing", async () => {
+    const { library, store, mapId } = setup();
+    const deps = fakeDeps();
+    const service = new TerrainService({ library, store, falKey: "k", deps });
+    const id = service.generate(mapId, "fantasy");
+    await waitFor(() => expect(store.get(id)?.status).toBe("choosing"));
+    const afterGenerate = (deps.fal.subscribe as ReturnType<typeof vi.fn>).mock.calls.length;
+    expect(afterGenerate).toBe(2);
+
+    service.regenerate(mapId, id);
+    // Clears candidates immediately (markPendingById) then renders two fresh ones.
+    await waitFor(() => expect(store.get(id)?.status).toBe("pending"));
+    await waitFor(() => expect(store.get(id)?.status).toBe("choosing"));
+    expect(store.candidateCount(id)).toBe(2);
+    expect(store.styleIdOf(id)).toBe("fantasy"); // same row, same style
+    // Two more base renders happened.
+    expect((deps.fal.subscribe as ReturnType<typeof vi.fn>).mock.calls.length).toBe(
+      afterGenerate + 2
+    );
+  });
 });

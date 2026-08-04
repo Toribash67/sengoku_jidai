@@ -240,6 +240,28 @@ export function registerApiRoutes(
     return reply.status(202).send({ id: params.data.terrainId });
   });
 
+  app.post("/api/maps/:mapId/terrains/:terrainId/regenerate", async (request, reply) => {
+    const params = terrainParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Invalid ids.");
+    }
+    if (!terrainService.available()) {
+      return sendError(reply, 503, "terrainUnavailable", "Terrain generation is not configured.");
+    }
+    const terrain = terrainStore.get(params.data.terrainId);
+    if (!terrain) {
+      return sendError(reply, 404, "terrainNotFound", "Terrain was not found.");
+    }
+    if (terrain.status !== "choosing") {
+      return sendError(reply, 409, "terrainNotChoosing", "This terrain is not awaiting a choice.");
+    }
+    if (terrainService.isGenerating(params.data.mapId)) {
+      return sendError(reply, 409, "terrainInProgress", "Terrain is busy.");
+    }
+    terrainService.regenerate(params.data.mapId, params.data.terrainId);
+    return reply.status(202).send({ id: params.data.terrainId });
+  });
+
   app.post("/api/games", async (request, reply) => {
     const parsed = createGameRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {

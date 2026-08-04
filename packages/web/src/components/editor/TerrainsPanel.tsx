@@ -13,6 +13,7 @@ import {
   createTerrain,
   deleteTerrain,
   fetchMap,
+  regenerateTerrainCandidates,
   renameTerrain
 } from "../../client/api.js";
 import { defaultSelection } from "../board/terrainImages.js";
@@ -222,6 +223,20 @@ export function TerrainsPanel({
     }
   }
 
+  async function handleRegenerate(terrainId: string): Promise<void> {
+    setError(null);
+    setBusy(true);
+    try {
+      await regenerateTerrainCandidates(mapId, terrainId);
+      await refetch(); // status flips to pending (rendering fresh candidates); polling resumes
+    } catch {
+      setError("Regenerate failed — try again.");
+      await refetch();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function confirmDelete(id: string): Promise<void> {
     setConfirmingDeleteId(null);
     setBusy(true);
@@ -328,6 +343,14 @@ export function TerrainsPanel({
                       </button>
                     </div>
                   ))}
+                  <button
+                    type="button"
+                    className="terrain-regenerate"
+                    onClick={() => void handleRegenerate(terrain.id)}
+                    disabled={busy}
+                  >
+                    ↻ Regenerate both
+                  </button>
                 </div>
               ) : null}
               {terrain.status === "failed" ? (

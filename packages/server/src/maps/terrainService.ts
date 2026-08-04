@@ -97,6 +97,17 @@ export class TerrainService {
     }
   }
 
+  /** Discard both candidates of a choosing terrain and render two fresh ones onto the same row
+   *  (keeping its id, name and style). The route enforces existence, choosing, availability and
+   *  in-flight guards first; `run` re-flags the row pending (clearing the old candidates). */
+  regenerate(mapId: string, terrainId: string): void {
+    const styleId = this.store.styleIdOf(terrainId);
+    if (!styleId) {
+      return;
+    }
+    void this.run(mapId, terrainId, styleId);
+  }
+
   /** Keep candidate `index`: inpaint forts onto that base and commit it as the ready terrain. */
   choose(mapId: string, terrainId: string, index: number): void {
     void this.finalize(mapId, terrainId, index);
