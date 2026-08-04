@@ -1,5 +1,7 @@
+import { FIXTURE_HEX_MAP } from "@sengoku-jidai/engine";
 import { describe, expect, it } from "vitest";
 import { openDatabase, runMigrations } from "../src/persistence/database.js";
+import { MapLibrary } from "../src/maps/library.js";
 import { TerrainStore } from "../src/maps/terrainStore.js";
 
 function db() {
@@ -70,5 +72,45 @@ describe("TerrainStore", () => {
     const id = s.create("m1", "Terrain 1", "antique");
     s.resetInterrupted();
     expect(s.get(id)?.status).toBe("failed");
+  });
+});
+
+function setup() {
+  const d = openDatabase(":memory:");
+  runMigrations(d);
+  const library = new MapLibrary(d);
+  const created = library.create(structuredClone(FIXTURE_HEX_MAP));
+  if (!created.ok) throw new Error("fixture create failed");
+  return { store: new TerrainStore(d), mapId: created.value.id };
+}
+
+describe("TerrainStore candidates", () => {
+  it("adds, reads, counts and clears candidates and enters choosing", () => {
+    const { store, mapId } = setup();
+    const id = store.create(mapId, "Terrain 1", "fantasy");
+    store.addCandidate(id, 0, Buffer.from("aaa"));
+    store.addCandidate(id, 1, Buffer.from("bbbb"));
+    store.markChoosing(id);
+    expect(store.get(id)?.status).toBe("choosing");
+    expect(store.candidateCount(id)).toBe(2);
+    expect(store.candidateWebp(id, 0)?.toString()).toBe("aaa");
+    expect(store.candidateWebp(id, 1)?.toString()).toBe("bbbb");
+    store.clearCandidates(id);
+    expect(store.candidateCount(id)).toBe(0);
+    expect(store.candidateWebp(id, 0)).toBeNull();
+  });
+
+  it("markReady clears candidates; markFinalizing keeps them", () => {
+    const { store, mapId } = setup();
+    const id = store.create(mapId, "Terrain 1", "fantasy");
+    store.addCandidate(id, 0, Buffer.from("x"));
+    store.addCandidate(id, 1, Buffer.from("y"));
+    store.markChoosing(id);
+    store.markFinalizing(id);
+    expect(store.get(id)?.status).toBe("pending");
+    expect(store.candidateCount(id)).toBe(2); // preserved for retry/revert
+    store.markReadyById(id, Buffer.from("RIFFxxxxWEBP"));
+    expect(store.get(id)?.status).toBe("ready");
+    expect(store.candidateCount(id)).toBe(0); // consumed
   });
 });
