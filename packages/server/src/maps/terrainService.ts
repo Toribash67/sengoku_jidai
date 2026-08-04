@@ -124,7 +124,8 @@ export class TerrainService {
         scene
       });
       this.store.markReadyById(terrainId, webp); // clears candidates
-    } catch {
+    } catch (err) {
+      console.error("terrain finalize failed", err);
       this.store.markChoosing(terrainId); // revert; candidates intact so the pick can be retried
     } finally {
       this.inflight.delete(mapId);

@@ -123,13 +123,27 @@ export class TerrainStore {
   }
 
   /** Boot recovery: an in-process generation cannot survive a restart, so any "pending" row is
-   *  orphaned — flip it to failed so the author can retry. */
+   *  orphaned — flip it to failed so the author can retry. Also drops any candidates of the rows
+   *  it resets (a row interrupted mid-finalise keeps its candidates per markFinalizing, and those
+   *  would otherwise be orphaned since the row can no longer be picked from). */
   resetInterrupted(): void {
+    const ids = (
+      this.db.prepare("SELECT id FROM map_terrains WHERE status = 'pending'").all() as {
+        id: string;
+      }[]
+    ).map((r) => r.id);
+    if (ids.length === 0) {
+      return;
+    }
+    const placeholders = ids.map(() => "?").join(", ");
     this.db
       .prepare(
-        "UPDATE map_terrains SET status = 'failed', error = 'interrupted', updated_at = ? WHERE status = 'pending'"
+        `UPDATE map_terrains SET status = 'failed', error = 'interrupted', updated_at = ? WHERE id IN (${placeholders})`
       )
-      .run(new Date().toISOString());
+      .run(new Date().toISOString(), ...ids);
+    this.db
+      .prepare(`DELETE FROM map_terrain_candidates WHERE terrain_id IN (${placeholders})`)
+      .run(...ids);
   }
 
   markChoosing(terrainId: string): void {

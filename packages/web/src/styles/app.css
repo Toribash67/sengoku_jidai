@@ -1465,6 +1465,9 @@ button:disabled {
 .terrain-badge.is-pending {
   color: var(--muted, #888);
 }
+.terrain-badge.is-choosing {
+  color: #ef6c00;
+}
 .terrain-badge.is-failed {
   color: #c62828;
 }

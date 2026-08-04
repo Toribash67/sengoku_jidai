@@ -73,6 +73,29 @@ describe("TerrainStore", () => {
     s.resetInterrupted();
     expect(s.get(id)?.status).toBe("failed");
   });
+
+  it("resetInterrupted clears candidates of the rows it resets, leaving choosing rows untouched", () => {
+    const s = new TerrainStore(db());
+    // Interrupted mid-finalise: pending (via markFinalizing) with candidates preserved.
+    const interrupted = s.create("m1", "Terrain 1", "antique");
+    s.addCandidate(interrupted, 0, Buffer.from("a"));
+    s.addCandidate(interrupted, 1, Buffer.from("b"));
+    s.markChoosing(interrupted);
+    s.markFinalizing(interrupted);
+    expect(s.get(interrupted)?.status).toBe("pending");
+
+    // A legitimately-choosing row, untouched by resetInterrupted.
+    const choosing = s.create("m1", "Terrain 2", "antique");
+    s.addCandidate(choosing, 0, Buffer.from("c"));
+    s.markChoosing(choosing);
+
+    s.resetInterrupted();
+
+    expect(s.get(interrupted)?.status).toBe("failed");
+    expect(s.candidateCount(interrupted)).toBe(0);
+    expect(s.get(choosing)?.status).toBe("choosing");
+    expect(s.candidateCount(choosing)).toBe(1);
+  });
 });
 
 function setup() {

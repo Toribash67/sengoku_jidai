@@ -46,7 +46,7 @@ describe("TerrainService", () => {
     expect(new TerrainService({ library, store, falKey: "k" }).available()).toBe(true);
   });
 
-  it("generate() creates a ready terrain and returns its id", async () => {
+  it("generate() lands in choosing with two candidates and a default name", async () => {
     const { library, store, mapId } = setup();
     const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
     const id = service.generate(mapId, "antique");
