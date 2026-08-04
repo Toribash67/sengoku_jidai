@@ -82,6 +82,7 @@ export class TerrainStore {
   }
 
   markPendingById(terrainId: string): void {
+    this.clearCandidates(terrainId);
     this.db
       .prepare(
         "UPDATE map_terrains SET status = 'pending', webp = NULL, error = NULL, updated_at = ? WHERE id = ?"
@@ -90,6 +91,7 @@ export class TerrainStore {
   }
 
   markReadyById(terrainId: string, webp: Buffer): void {
+    this.clearCandidates(terrainId);
     this.db
       .prepare(
         "UPDATE map_terrains SET status = 'ready', webp = ?, error = NULL, updated_at = ? WHERE id = ?"
@@ -98,6 +100,7 @@ export class TerrainStore {
   }
 
   markFailedById(terrainId: string, error: string): void {
+    this.clearCandidates(terrainId);
     this.db
       .prepare(
         "UPDATE map_terrains SET status = 'failed', webp = NULL, error = ?, updated_at = ? WHERE id = ?"
@@ -120,12 +123,68 @@ export class TerrainStore {
   }
 
   /** Boot recovery: an in-process generation cannot survive a restart, so any "pending" row is
-   *  orphaned — flip it to failed so the author can retry. */
+   *  orphaned — flip it to failed so the author can retry. Also drops any candidates of the rows
+   *  it resets (a row interrupted mid-finalise keeps its candidates per markFinalizing, and those
+   *  would otherwise be orphaned since the row can no longer be picked from). */
   resetInterrupted(): void {
+    const ids = (
+      this.db.prepare("SELECT id FROM map_terrains WHERE status = 'pending'").all() as {
+        id: string;
+      }[]
+    ).map((r) => r.id);
+    if (ids.length === 0) {
+      return;
+    }
+    const placeholders = ids.map(() => "?").join(", ");
     this.db
       .prepare(
-        "UPDATE map_terrains SET status = 'failed', error = 'interrupted', updated_at = ? WHERE status = 'pending'"
+        `UPDATE map_terrains SET status = 'failed', error = 'interrupted', updated_at = ? WHERE id IN (${placeholders})`
       )
-      .run(new Date().toISOString());
+      .run(new Date().toISOString(), ...ids);
+    this.db
+      .prepare(`DELETE FROM map_terrain_candidates WHERE terrain_id IN (${placeholders})`)
+      .run(...ids);
+  }
+
+  markChoosing(terrainId: string): void {
+    this.db
+      .prepare("UPDATE map_terrains SET status = 'choosing', updated_at = ? WHERE id = ?")
+      .run(new Date().toISOString(), terrainId);
+  }
+
+  /** Finalising after a pick: show progress (pending) but KEEP candidates so a failed inpaint
+   *  can revert to choosing. Unlike markPendingById, does not clear candidates. */
+  markFinalizing(terrainId: string): void {
+    this.db
+      .prepare("UPDATE map_terrains SET status = 'pending', updated_at = ? WHERE id = ?")
+      .run(new Date().toISOString(), terrainId);
+  }
+
+  addCandidate(terrainId: string, idx: number, webp: Buffer): void {
+    this.db
+      .prepare(
+        `INSERT INTO map_terrain_candidates (id, terrain_id, idx, webp, created_at)
+         VALUES (@id, @terrainId, @idx, @webp, @now)`
+      )
+      .run({ id: randomUUID(), terrainId, idx, webp, now: new Date().toISOString() });
+  }
+
+  clearCandidates(terrainId: string): void {
+    this.db.prepare("DELETE FROM map_terrain_candidates WHERE terrain_id = ?").run(terrainId);
+  }
+
+  candidateWebp(terrainId: string, idx: number): Buffer | null {
+    const r = this.db
+      .prepare("SELECT webp FROM map_terrain_candidates WHERE terrain_id = ? AND idx = ?")
+      .get(terrainId, idx) as { webp: Buffer } | undefined;
+    return r?.webp ?? null;
+  }
+
+  candidateCount(terrainId: string): number {
+    return (
+      this.db
+        .prepare("SELECT COUNT(*) AS n FROM map_terrain_candidates WHERE terrain_id = ?")
+        .get(terrainId) as { n: number }
+    ).n;
   }
 }

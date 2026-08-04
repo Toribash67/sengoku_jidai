@@ -1422,6 +1422,21 @@ button:disabled {
   gap: 8px;
   flex-wrap: wrap;
 }
+.terrain-candidates {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.terrain-candidate {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.terrain-candidate img {
+  width: 120px;
+  height: auto;
+  border-radius: 4px;
+}
 .terrain-select {
   display: inline-flex;
   align-items: center;
@@ -1449,6 +1464,9 @@ button:disabled {
 }
 .terrain-badge.is-pending {
   color: var(--muted, #888);
+}
+.terrain-badge.is-choosing {
+  color: #ef6c00;
 }
 .terrain-badge.is-failed {
   color: #c62828;

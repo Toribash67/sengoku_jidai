@@ -8,6 +8,8 @@ import {
 } from "@sengoku-jidai/shared";
 import {
   ApiError,
+  candidatePreviewUrl,
+  chooseTerrainCandidate,
   createTerrain,
   deleteTerrain,
   fetchMap,
@@ -206,6 +208,20 @@ export function TerrainsPanel({
     }
   }
 
+  async function handleChoose(terrainId: string, index: number): Promise<void> {
+    setError(null);
+    setBusy(true);
+    try {
+      await chooseTerrainCandidate(mapId, terrainId, index);
+      await refetch(); // status flips to pending (finalising); polling drives it to ready
+    } catch {
+      setError("Choosing failed — try again.");
+      await refetch();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function confirmDelete(id: string): Promise<void> {
     setConfirmingDeleteId(null);
     setBusy(true);
@@ -295,6 +311,25 @@ export function TerrainsPanel({
               )}
               <span className="terrain-style muted">{styleLabel(terrain.styleId)}</span>
               <span className={`terrain-badge is-${terrain.status}`}>{terrain.status}</span>
+              {terrain.status === "choosing" ? (
+                <div className="terrain-candidates">
+                  {[0, 1].map((idx) => (
+                    <div key={idx} className="terrain-candidate">
+                      <img
+                        alt={`Candidate ${idx + 1}`}
+                        src={candidatePreviewUrl(mapId, terrain.id, idx, terrain.updatedAt)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleChoose(terrain.id, idx)}
+                        disabled={busy}
+                      >
+                        Keep {idx + 1}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               {terrain.status === "failed" ? (
                 <button type="button" onClick={() => void handleRetry(terrain)} disabled={busy}>
                   Retry

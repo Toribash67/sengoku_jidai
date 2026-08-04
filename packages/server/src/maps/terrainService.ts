@@ -5,6 +5,7 @@ import type { TerrainInfo } from "@sengoku-jidai/shared";
 import {
   createFalClient,
   generateTerrainWebp,
+  inpaintFortsOnWebp,
   loadStyleProfile,
   type EditDeps
 } from "@sengoku-jidai/terrain";
@@ -67,32 +68,65 @@ export class TerrainService {
     return id;
   }
 
-  /** Shared worker: compile → board SVG → terrain webp (style profile) → store by id. In-flight
-   *  guard is keyed by map id so a map generates one terrain at a time. Re-flags the row pending
-   *  first so a regenerated terrain shows progress (a fresh row is already pending — harmless). */
+  /** Render TWO base-only candidates (gpt-image varies naturally) and land the row in choosing.
+   *  Inflight guard keyed by map id so a map generates one terrain at a time. */
   private async run(mapId: string, terrainId: string, styleId: string): Promise<void> {
     const detail = this.library.get(mapId);
     if (!detail || detail.builtin) {
       return;
     }
     this.inflight.add(mapId);
-    this.store.markPendingById(terrainId);
+    this.store.markPendingById(terrainId); // clears any stale candidates from a prior attempt
+    try {
+      const compiled = compileHexMap(detail.source as HexMapSource);
+      const svgMarkup = assembleBoardSvg(buildScene(compiled));
+      const deps = await this.resolveDeps();
+      const profile = loadStyleProfile(styleId);
+      // Base-only: no `scene` → the fort pass is skipped for candidates.
+      const [a, b] = await Promise.all([
+        generateTerrainWebp(deps, { svgMarkup, map: compiled.definition, profile }),
+        generateTerrainWebp(deps, { svgMarkup, map: compiled.definition, profile })
+      ]);
+      this.store.addCandidate(terrainId, 0, a);
+      this.store.addCandidate(terrainId, 1, b);
+      this.store.markChoosing(terrainId);
+    } catch (err) {
+      this.store.markFailedById(terrainId, err instanceof Error ? err.message : String(err));
+    } finally {
+      this.inflight.delete(mapId);
+    }
+  }
+
+  /** Keep candidate `index`: inpaint forts onto that base and commit it as the ready terrain. */
+  choose(mapId: string, terrainId: string, index: number): void {
+    void this.finalize(mapId, terrainId, index);
+  }
+
+  private async finalize(mapId: string, terrainId: string, index: number): Promise<void> {
+    const detail = this.library.get(mapId);
+    if (!detail || detail.builtin) {
+      return;
+    }
+    const base = this.store.candidateWebp(terrainId, index);
+    if (!base) {
+      return; // nothing to finalise
+    }
+    const styleId = this.store.styleIdOf(terrainId) ?? "antique";
+    this.inflight.add(mapId);
+    this.store.markFinalizing(terrainId); // pending, candidates preserved
     try {
       const compiled = compileHexMap(detail.source as HexMapSource);
       const scene = buildScene(compiled);
-      const svgMarkup = assembleBoardSvg(scene);
       const deps = await this.resolveDeps();
-      // gpt-image has no seed and varies naturally between runs, so regenerate-for-variety
-      // still produces a different look without any reroll here.
-      const webp = await generateTerrainWebp(deps, {
-        svgMarkup,
-        map: compiled.definition,
+      const webp = await inpaintFortsOnWebp(deps, {
+        webp: base,
         profile: loadStyleProfile(styleId),
         scene
       });
-      this.store.markReadyById(terrainId, webp);
+      this.store.markReadyById(terrainId, webp); // clears candidates
     } catch (err) {
-      this.store.markFailedById(terrainId, err instanceof Error ? err.message : String(err));
+      console.error("terrain finalize failed", err);
+      this.store.markChoosing(terrainId); // revert; candidates intact so the pick can be retried
     } finally {
       this.inflight.delete(mapId);
     }

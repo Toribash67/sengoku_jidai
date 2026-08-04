@@ -46,12 +46,12 @@ describe("TerrainService", () => {
     expect(new TerrainService({ library, store, falKey: "k" }).available()).toBe(true);
   });
 
-  it("generate() creates a ready terrain and returns its id", async () => {
+  it("generate() lands in choosing with two candidates and a default name", async () => {
     const { library, store, mapId } = setup();
     const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
     const id = service.generate(mapId, "antique");
-    await waitFor(() => expect(store.get(id)?.status).toBe("ready"));
-    expect(store.webpById(id)?.subarray(8, 12).toString("ascii")).toBe("WEBP");
+    await waitFor(() => expect(store.get(id)?.status).toBe("choosing"));
+    expect(store.candidateCount(id)).toBe(2);
     expect(store.list(mapId).map((t) => t.name)).toEqual(["Terrain 1"]);
   });
 
@@ -59,7 +59,7 @@ describe("TerrainService", () => {
     const { library, store, mapId } = setup();
     const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
     const id = service.generate(mapId, "ink");
-    await waitFor(() => expect(store.get(id)?.status).toBe("ready"));
+    await waitFor(() => expect(store.get(id)?.status).toBe("choosing"));
     expect(store.styleIdOf(id)).toBe("ink");
   });
 
@@ -81,10 +81,12 @@ describe("TerrainService", () => {
     });
     const service = new TerrainService({ library, store, falKey: "k", deps });
     const id = service.generate(mapId, "antique");
-    await waitFor(() => expect(store.get(id)?.status).toBe("ready"));
-    expect(inputs).toHaveLength(1);
-    expect(inputs[0]).not.toHaveProperty("seed");
-    expect(inputs[0]).not.toHaveProperty("resolution");
+    await waitFor(() => expect(store.get(id)?.status).toBe("choosing"));
+    expect(inputs).toHaveLength(2);
+    for (const input of inputs) {
+      expect(input).not.toHaveProperty("seed");
+      expect(input).not.toHaveProperty("resolution");
+    }
   });
 
   it("records failure on the right terrain when the model errors", async () => {
@@ -96,5 +98,28 @@ describe("TerrainService", () => {
     const service = new TerrainService({ library, store, falKey: "k", deps });
     const id = service.generate(mapId, "antique");
     await waitFor(() => expect(store.get(id)?.status).toBe("failed"));
+  });
+
+  it("generate() renders two base candidates and lands in choosing", async () => {
+    const { library, store, mapId } = setup();
+    const deps = fakeDeps();
+    const service = new TerrainService({ library, store, falKey: "k", deps });
+    const id = service.generate(mapId, "fantasy");
+    await waitFor(() => expect(store.get(id)?.status).toBe("choosing"));
+    expect(store.candidateCount(id)).toBe(2);
+    // Two base passes (control+style upload each), zero fort model calls at generate time.
+    // Each base pass calls subscribe once → two subscribe calls total for a fort-less base.
+    expect((deps.fal.subscribe as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2);
+  });
+
+  it("choose() finalises the picked candidate to ready and clears candidates", async () => {
+    const { library, store, mapId } = setup();
+    const service = new TerrainService({ library, store, falKey: "k", deps: fakeDeps() });
+    const id = service.generate(mapId, "fantasy");
+    await waitFor(() => expect(store.get(id)?.status).toBe("choosing"));
+    service.choose(mapId, id, 0);
+    await waitFor(() => expect(store.get(id)?.status).toBe("ready"));
+    expect(store.webpById(id)?.subarray(8, 12).toString("ascii")).toBe("WEBP");
+    expect(store.candidateCount(id)).toBe(0);
   });
 });

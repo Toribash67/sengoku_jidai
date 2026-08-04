@@ -100,6 +100,27 @@ export async function deleteTerrain(mapId: string, terrainId: string): Promise<v
   );
 }
 
+export async function chooseTerrainCandidate(
+  mapId: string,
+  terrainId: string,
+  index: number
+): Promise<void> {
+  await request(
+    `/api/maps/${encodeURIComponent(mapId)}/terrains/${encodeURIComponent(terrainId)}/choose`,
+    { method: "POST", body: JSON.stringify({ index }) }
+  );
+}
+
+/** Cache-busted URL for a base-only candidate preview (only valid while the terrain is choosing). */
+export function candidatePreviewUrl(
+  mapId: string,
+  terrainId: string,
+  idx: number,
+  updatedAt: string
+): string {
+  return `/api/maps/${encodeURIComponent(mapId)}/terrains/${encodeURIComponent(terrainId)}/candidates/${idx}.webp?v=${encodeURIComponent(updatedAt)}`;
+}
+
 export async function fetchGameView(
   gameId: string,
   token: string
