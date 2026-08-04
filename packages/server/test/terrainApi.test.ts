@@ -279,6 +279,60 @@ describe("terrain API", () => {
     );
   }, 20000);
 
+  it("regenerate replaces the candidates and stays choosing; 409 when not choosing", async () => {
+    const { app, store } = buildTestApp();
+    const mapId = await createMap(app);
+    const create = await app.inject({
+      method: "POST",
+      url: `/api/maps/${mapId}/terrains`,
+      payload: { styleId: "antique" }
+    });
+    const { id } = create.json() as { id: string };
+
+    await vi.waitFor(
+      async () => {
+        const detail = await app.inject({ method: "GET", url: `/api/maps/${mapId}` });
+        const t = (detail.json() as { terrains: { id: string; status: string }[] }).terrains.find(
+          (x) => x.id === id
+        );
+        expect(t?.status).toBe("choosing");
+      },
+      { timeout: 20000, interval: 50 }
+    );
+
+    const regen = await app.inject({
+      method: "POST",
+      url: `/api/maps/${mapId}/terrains/${id}/regenerate`
+    });
+    expect(regen.statusCode).toBe(202);
+
+    await vi.waitFor(
+      async () => {
+        const detail = await app.inject({ method: "GET", url: `/api/maps/${mapId}` });
+        const t = (detail.json() as { terrains: { id: string; status: string }[] }).terrains.find(
+          (x) => x.id === id
+        );
+        expect(t?.status).toBe("choosing");
+      },
+      { timeout: 20000, interval: 50 }
+    );
+    const cand = await app.inject({
+      method: "GET",
+      url: `/api/maps/${mapId}/terrains/${id}/candidates/1.webp`
+    });
+    expect(cand.statusCode).toBe(200);
+
+    // Regenerate is rejected once the terrain is no longer choosing.
+    const ready = store.create(mapId, "Ready", "antique");
+    store.markReadyById(ready, Buffer.from([1]));
+    const bad = await app.inject({
+      method: "POST",
+      url: `/api/maps/${mapId}/terrains/${ready}/regenerate`
+    });
+    expect(bad.statusCode).toBe(409);
+    expect(bad.json().error.code).toBe("terrainNotChoosing");
+  }, 20000);
+
   it("MapDetail exposes terrains[]", async () => {
     const { app, store } = buildTestApp();
     const mapId = await createMap(app);

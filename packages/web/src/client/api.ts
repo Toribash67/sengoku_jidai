@@ -111,6 +111,14 @@ export async function chooseTerrainCandidate(
   );
 }
 
+/** Discard both candidates of a choosing terrain and render two fresh ones on the same row. */
+export async function regenerateTerrainCandidates(mapId: string, terrainId: string): Promise<void> {
+  await request(
+    `/api/maps/${encodeURIComponent(mapId)}/terrains/${encodeURIComponent(terrainId)}/regenerate`,
+    { method: "POST" }
+  );
+}
+
 /** Cache-busted URL for a base-only candidate preview (only valid while the terrain is choosing). */
 export function candidatePreviewUrl(
   mapId: string,

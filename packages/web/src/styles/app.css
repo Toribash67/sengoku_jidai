@@ -1424,8 +1424,12 @@ button:disabled {
 }
 .terrain-candidates {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 6px;
+}
+.terrain-regenerate {
+  flex-basis: 100%;
 }
 .terrain-candidate {
   display: flex;

@@ -9,6 +9,7 @@ import {
   createMap,
   deleteMap,
   listMaps,
+  regenerateTerrainCandidates,
   updateMap
 } from "./api.js";
 import type { HexMapSource } from "@sengoku-jidai/engine/client";
@@ -144,5 +145,14 @@ describe("terrain candidates api", () => {
     expect(candidatePreviewUrl("m", "t1", 1, "2026-01-02T03:04:05.000Z")).toBe(
       "/api/maps/m/terrains/t1/candidates/1.webp?v=2026-01-02T03%3A04%3A05.000Z"
     );
+  });
+
+  it("POSTs to the regenerate endpoint", async () => {
+    const mock = stubFetchWithStatus(202, { id: "t1" });
+    await regenerateTerrainCandidates("m", "t1");
+
+    const [url, init] = mock.mock.calls[0]! as unknown as [string, RequestInit];
+    expect(url).toBe("/api/maps/m/terrains/t1/regenerate");
+    expect(init.method).toBe("POST");
   });
 });
