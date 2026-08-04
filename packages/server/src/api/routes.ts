@@ -191,6 +191,55 @@ export function registerApiRoutes(
       .send(webp);
   });
 
+  app.get("/api/maps/:mapId/terrains/:terrainId/candidates/:idx.webp", async (request, reply) => {
+    const params = z
+      .object({
+        mapId: z.string().min(1),
+        terrainId: z.string().min(1),
+        idx: z.coerce.number().int().min(0).max(1)
+      })
+      .safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Invalid ids.");
+    }
+    const terrain = terrainStore.get(params.data.terrainId);
+    if (!terrain || terrain.status !== "choosing") {
+      return sendError(reply, 404, "terrainNotFound", "No candidate for this id.");
+    }
+    const webp = terrainStore.candidateWebp(params.data.terrainId, params.data.idx);
+    if (!webp) {
+      return sendError(reply, 404, "terrainNotFound", "No candidate for this id.");
+    }
+    return reply
+      .header("Content-Type", "image/webp")
+      .header("Cache-Control", "public, max-age=60")
+      .header("ETag", `"${params.data.terrainId}-${params.data.idx}-${terrain.updatedAt}"`)
+      .send(webp);
+  });
+
+  app.post("/api/maps/:mapId/terrains/:terrainId/choose", async (request, reply) => {
+    const params = terrainParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Invalid ids.");
+    }
+    const body = z.object({ index: z.number().int().min(0).max(1) }).safeParse(request.body ?? {});
+    if (!body.success) {
+      return sendError(reply, 400, "invalidRequest", "index must be 0 or 1.");
+    }
+    const terrain = terrainStore.get(params.data.terrainId);
+    if (!terrain) {
+      return sendError(reply, 404, "terrainNotFound", "Terrain was not found.");
+    }
+    if (terrain.status !== "choosing") {
+      return sendError(reply, 409, "terrainNotChoosing", "This terrain is not awaiting a choice.");
+    }
+    if (terrainService.isGenerating(params.data.mapId)) {
+      return sendError(reply, 409, "terrainInProgress", "Terrain is busy.");
+    }
+    terrainService.choose(params.data.mapId, params.data.terrainId, body.data.index);
+    return reply.status(202).send({ id: params.data.terrainId });
+  });
+
   app.post("/api/games", async (request, reply) => {
     const parsed = createGameRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {

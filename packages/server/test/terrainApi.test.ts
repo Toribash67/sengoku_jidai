@@ -71,22 +71,28 @@ describe("terrain API", () => {
     expect(res.statusCode).toBe(403);
   });
 
-  it("generates via POST /terrains, reports ready in terrains[], and serves the webp", async () => {
+  it("generates via POST /terrains, reports choosing in terrains[], and serves a candidate webp", async () => {
     const { app } = buildTestApp();
     const id = await createMap(app);
     const post = await app.inject({ method: "POST", url: `/api/maps/${id}/terrains`, payload: {} });
     expect(post.statusCode).toBe(202);
     const tid = post.json().id as string;
     // Generation is fire-and-forget and does real sharp image work, which is markedly
-    // slower on CI's shared runners — poll with a generous budget (exits as soon as ready).
+    // slower on CI's shared runners — poll with a generous budget (exits as soon as choosing).
+    // generate() now renders two base candidates and lands in "choosing" rather than "ready"
+    // (see TerrainService.run) — finalisation to "ready" happens via the choose endpoint,
+    // covered by the "serves candidates while choosing..." test below.
     let status = "pending";
-    for (let i = 0; i < 150 && status !== "ready"; i++) {
+    for (let i = 0; i < 150 && status !== "choosing"; i++) {
       const detail = await app.inject({ method: "GET", url: `/api/maps/${id}` });
       status = detail.json().terrains[0]?.status;
-      if (status !== "ready") await new Promise((r) => setTimeout(r, 100));
+      if (status !== "choosing") await new Promise((r) => setTimeout(r, 100));
     }
-    expect(status).toBe("ready");
-    const img = await app.inject({ method: "GET", url: `/api/maps/${id}/terrains/${tid}.webp` });
+    expect(status).toBe("choosing");
+    const img = await app.inject({
+      method: "GET",
+      url: `/api/maps/${id}/terrains/${tid}/candidates/0.webp`
+    });
     expect(img.statusCode).toBe(200);
     expect(img.headers["content-type"]).toBe("image/webp");
     expect(img.rawPayload.subarray(8, 12).toString("ascii")).toBe("WEBP");
@@ -218,6 +224,60 @@ describe("terrain API", () => {
     expect(ok.statusCode).toBe(200);
     expect(ok.headers["content-type"]).toBe("image/webp");
   });
+
+  it("serves candidates while choosing, then choose finalises to a served webp", async () => {
+    const { app } = buildTestApp();
+    const mapId = await createMap(app);
+    const create = await app.inject({
+      method: "POST",
+      url: `/api/maps/${mapId}/terrains`,
+      payload: { styleId: "antique" }
+    });
+    const { id } = create.json() as { id: string };
+
+    await vi.waitFor(
+      async () => {
+        const detail = await app.inject({ method: "GET", url: `/api/maps/${mapId}` });
+        const t = (detail.json() as { terrains: { id: string; status: string }[] }).terrains.find(
+          (x) => x.id === id
+        );
+        expect(t?.status).toBe("choosing");
+      },
+      { timeout: 20000, interval: 50 }
+    );
+
+    const cand = await app.inject({
+      method: "GET",
+      url: `/api/maps/${mapId}/terrains/${id}/candidates/0.webp`
+    });
+    expect(cand.statusCode).toBe(200);
+    expect(cand.headers["content-type"]).toBe("image/webp");
+
+    const bad = await app.inject({
+      method: "POST",
+      url: `/api/maps/${mapId}/terrains/${id}/choose`,
+      payload: { index: 5 }
+    });
+    expect(bad.statusCode).toBe(400);
+
+    const chosen = await app.inject({
+      method: "POST",
+      url: `/api/maps/${mapId}/terrains/${id}/choose`,
+      payload: { index: 0 }
+    });
+    expect(chosen.statusCode).toBe(202);
+
+    await vi.waitFor(
+      async () => {
+        const webp = await app.inject({
+          method: "GET",
+          url: `/api/maps/${mapId}/terrains/${id}.webp`
+        });
+        expect(webp.statusCode).toBe(200);
+      },
+      { timeout: 20000, interval: 50 }
+    );
+  }, 20000);
 
   it("MapDetail exposes terrains[]", async () => {
     const { app, store } = buildTestApp();
