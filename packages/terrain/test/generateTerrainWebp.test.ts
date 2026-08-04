@@ -45,7 +45,7 @@ const PROFILE: MapProfile = {
   },
   edit: {
     model: "fake/model",
-    styleRef: "assets/style-ref.jpeg",
+    styleRef: "assets/antique-ref.jpeg",
     quality: "high",
     inputFidelity: "high",
     prompt: "draw a map"

@@ -8,6 +8,6 @@ describe("server default terrain profile", () => {
   it("uses the shared default style via loadStyleProfile", () => {
     const p = loadStyleProfile(DEFAULT_TERRAIN_STYLE);
     expect(DEFAULT_TERRAIN_STYLE).toBe("antique");
-    expect(p.edit.styleRef).toBe("assets/texture-ref.jpeg");
+    expect(p.edit.styleRef).toBe("assets/antique-ref.jpeg");
   });
 });
