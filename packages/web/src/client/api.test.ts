@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,
   apiErrorMessage,
+  candidatePreviewUrl,
+  chooseTerrainCandidate,
   claimSeat,
   createGame,
   createMap,
@@ -122,5 +124,25 @@ describe("maps api client", () => {
     });
     expect(apiErrorMessage(err)).toBe("Map is used by existing games.");
     expect(apiErrorMessage(new Error("boom"))).toBe("boom");
+  });
+});
+
+describe("terrain candidates api", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("POSTs the chosen index to the choose endpoint", async () => {
+    const mock = stubFetchWithStatus(202, { id: "t1" });
+    await chooseTerrainCandidate("m", "t1", 0);
+
+    const [url, init] = mock.mock.calls[0]! as unknown as [string, RequestInit];
+    expect(url).toBe("/api/maps/m/terrains/t1/choose");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ index: 0 });
+  });
+
+  it("builds a cache-busted candidate preview URL with the updatedAt URL-encoded", () => {
+    expect(candidatePreviewUrl("m", "t1", 1, "2026-01-02T03:04:05.000Z")).toBe(
+      "/api/maps/m/terrains/t1/candidates/1.webp?v=2026-01-02T03%3A04%3A05.000Z"
+    );
   });
 });
