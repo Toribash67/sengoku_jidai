@@ -130,23 +130,37 @@ attachment stays heuristic (first strength upgrade after v1).
 ## 7. Evaluation function (`eval.ts`)
 
 Pure, symmetric, fast (runs at every rollout leaf). Terminal states short-circuit to a
-large ±value. Non-terminal = weighted **differential (seat − opponent)**:
+large ±value. Non-terminal = weighted **differential (seat − opponent)**.
 
-- **Supplied tiles** (≥1 unit + unit-chain to capital, via `suppliedAreas`):
-  - `+ VPstars(t)` — flat, count-independent (VP saturates at the first unit).
-  - `+ bonusValue(t)` if a supplied bonus slot — flat, valued per bonus type
-    (`suppliesBonus`; e.g. an extra bombard die ≠ a reinforce bump).
-  - `+ tileValue(t, seat) · f(#units)` — military position.
-- **Controlled-but-unsupplied tiles** (have units, chain broken):
-  - `+ tileValue(t, seat) · f(#units) · 0.2` — no VP/bonus (unsupplied).
+**Unified supply multiplier.** Every per-tile term is scaled by the tile's supply
+factor `sf(t) = 1.0` if the tile is supplied, `0.2` if controlled-but-unsupplied. This
+applies to *all three* contributions — VP, bonus, and military — because an unsupplied
+tile still denies the enemy that ground and sits one reconnected supply line away from
+paying off. For each tile the seat controls (owned ⟺ ≥1 unit here):
+
+- `+ VPstars(t) · sf(t)` — the VP payoff. **Flat in unit count** (the rules pay the same
+  stars for 1 unit or 5); the garrison's defensive worth lives in the military term below.
+- `+ bonusValue(t) · sf(t)` if a bonus slot — valued per bonus type (`suppliesBonus`;
+  e.g. an extra bombard die ≠ a reinforce bump). Also flat in unit count.
+- `+ tileValue(t, seat) · f(#units) · sf(t)` — military position; **scales with the
+  garrison**, so a bigger stack on a star/frontline tile is worth more (defensive
+  robustness) without inflating raw VP.
+
+Plus, per seat:
 - `+ cards` — diminishing in `hand.length`.
 - `+ initiative` — small flat bonus for holding next-round initiative.
 - **Terminal:** ±BIG for HQ loss / final-round VP result.
 
+**Computation strategy (important for speed — runs at every leaf):** compute
+`suppliedAreas(map, gameBoard(state), seat)` **once** per seat (a single HQ BFS,
+`supply.ts:26`), then iterate **only unit-bearing tiles**, splitting supplied vs
+controlled-unsupplied by O(1) set membership. Never call `inSupply(t)` per tile — it
+re-runs the whole BFS each time. Empty tiles are skipped for free.
+
 Definitions:
 - `tileValue(t, seat)` is **asymmetric**: higher near the *enemy* capital, bumped for
   star/bonus tiles. Consequence: HQ *defense* falls out of the differential (enemy units
-  massing near your capital score high in *their* positional term, subtracting from
+  massing near your capital score high in *their* military term, subtracting from
   yours) — no separate defense term beyond the terminal HQ-loss value.
 - `f(#units)` is concave: a presence constant plus a diminishing tail, bounded by the
   per-tile caps (5 land / 3 sea, `resolve.ts:100`) — prefers spreading over over-stacking.
@@ -154,7 +168,8 @@ Definitions:
 **Dropped terms:** material (≈conserved via reserve recycling) and commanders-available
 (uncontrollable and already seen by the search).
 
-Weights start hand-tuned; the match runner (§10) is the tuning loop.
+Weights (including `sf`'s `0.2`, the bonus-type values, and the `tileValue` bumps) start
+hand-tuned; the match runner (§10) is the tuning loop.
 
 ## 8. Determinism / RNG (`rng.ts`)
 
