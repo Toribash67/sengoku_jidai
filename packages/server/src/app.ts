@@ -3,7 +3,7 @@ import fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import type { Bot } from "@sengoku-jidai/ai";
+import type { Command, GameState } from "@sengoku-jidai/engine";
 import type { SeatId } from "@sengoku-jidai/shared";
 import { registerApiRoutes } from "./api/routes.js";
 import type { ServerConfig } from "./config.js";
@@ -14,7 +14,7 @@ import { openDatabase, runMigrations } from "./persistence/database.js";
 import { GameRepository } from "./persistence/repository.js";
 
 export interface BuildAppOptions {
-  aiBotFor?: (gameId: string, seat: SeatId) => Bot;
+  aiPickCommandFor?: (gameId: string) => (seat: SeatId, state: GameState) => Promise<Command>;
 }
 
 export function buildApp(config: ServerConfig, opts?: BuildAppOptions) {
@@ -47,7 +47,7 @@ export function buildApp(config: ServerConfig, opts?: BuildAppOptions) {
     terrainStore,
     terrainService,
     config.adminPassword,
-    opts?.aiBotFor
+    opts?.aiPickCommandFor
   );
 
   if (config.nodeEnv === "production") {

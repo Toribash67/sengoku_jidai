@@ -12,7 +12,8 @@ import {
 import type { SeatId } from "@sengoku-jidai/shared";
 import { z } from "zod";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { IsmctsBot, type Bot } from "@sengoku-jidai/ai";
+import { runIsmctsInWorker } from "@sengoku-jidai/ai";
+import type { Command, GameState } from "@sengoku-jidai/engine";
 import { bearerToken, hashToken } from "../sessions/tokens.js";
 import type { GameRepository, SessionRecord } from "../persistence/repository.js";
 import type { MapLibrary, MapLibraryError } from "../maps/library.js";
@@ -34,24 +35,21 @@ export function registerApiRoutes(
   terrainStore: TerrainStore,
   terrainService: TerrainService,
   adminPassword?: string,
-  aiBotFor: (gameId: string, seat: SeatId) => Bot = (gameId) =>
-    new IsmctsBot({ deadlineMs: 1500, seed: gameId })
+  aiPickCommandFor: (gameId: string) => (seat: SeatId, state: GameState) => Promise<Command> = (
+    gameId
+  ) => (seat, state) => runIsmctsInWorker(state, seat, { deadlineMs: 1500, seed: gameId })
 ): void {
   const driveAiSoon = (gameId: string) =>
     setImmediate(() => {
-      try {
-        driveAiTurns(
-          {
-            controllersOf: (id) => repository.controllersOf(id),
-            currentState: (id) => repository.currentState(id),
-            applyAiCommand: (id, seat, cmd) => repository.applyAiCommand(id, seat, cmd)
-          },
-          gameId,
-          (seat) => aiBotFor(gameId, seat)
-        );
-      } catch (err) {
-        app.log.error({ err, gameId }, "AI driver failed");
-      }
+      driveAiTurns(
+        {
+          controllersOf: (id) => repository.controllersOf(id),
+          currentState: (id) => repository.currentState(id),
+          applyAiCommand: (id, seat, cmd) => repository.applyAiCommand(id, seat, cmd)
+        },
+        gameId,
+        aiPickCommandFor(gameId)
+      ).catch((err) => app.log.error({ err, gameId }, "AI driver failed"));
     });
 
   app.get("/healthz", async () => ({ ok: true }));
