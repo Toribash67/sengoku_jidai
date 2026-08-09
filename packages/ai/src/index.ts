@@ -8,5 +8,5 @@ export { RandomBot } from "./bots/random.js";
 export { GreedyBot, greedyCommand } from "./bots/greedy.js";
 export { runMatch, runMatches, type MatchResult, type SeriesResult } from "./match.js";
 export { evaluate, DEFAULT_WEIGHTS, type EvalWeights } from "./eval.js";
-export { chooseCommandIsmcts, IsmctsBot, type IsmctsOptions } from "./ismcts.js";
+export { chooseCommandIsmcts, IsmctsBot, type IsmctsOptions, type IsmctsBotOptions } from "./ismcts.js";
 export { determinize } from "./determinize.js";
