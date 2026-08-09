@@ -7,14 +7,13 @@ import {
   type SeatId
 } from "@sengoku-jidai/engine";
 
-/** How many candidate archetypes we keep per move space. Widening this trades speed for
- *  coverage — a deliberate cap, not an accident. */
-const WIDTH_CAP = 3;
-
 /** Concrete, engine-legal deploy commands for `seat` right now (empty if not its clean
  *  deploy turn). Canonical archetypes only — see the spec §6.
  *
- *  advance/sail: all-in, strongest-single, minimum-viable */
+ *  advance/sail: all-in, strongest-single, minimum-viable
+ *
+ *  How many candidate archetypes we keep per move space. Widening this trades speed for
+ *  coverage — a deliberate cap, not an accident. */
 export function deployCandidates(state: GameState, seat: SeatId): Command[] {
   const legal = legalCommandsForState(state, seat);
   if (legal.activeSeat !== seat || !legal.canPass) {
