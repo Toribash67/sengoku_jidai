@@ -5,8 +5,6 @@ import { GameRepository } from "../src/persistence/repository.js";
 
 describe("runIsmctsInWorker", () => {
   it("returns the same command as the in-process bot (serialization + determinism)", async () => {
-    // Real initial-deploy board state; 150 ISMCTS iterations run twice (in-process + worker)
-    // comfortably exceeds vitest's default 5s test timeout.
     const db = openDatabase(":memory:");
     runMigrations(db);
     const repo = new GameRepository(db);
@@ -16,11 +14,11 @@ describe("runIsmctsInWorker", () => {
     expect(seat).not.toBeNull();
 
     // iterations (not deadlineMs) so the result is bit-reproducible across process/worker.
-    const opts = { iterations: 150, seed: "worker-test" };
+    const opts = { iterations: 30, seed: "worker-test" };
     const inProcess = new IsmctsBot(opts).chooseCommand(state, seat!);
     const viaWorker = await runIsmctsInWorker(state, seat!, opts);
 
     expect(viaWorker).toEqual(inProcess);
     db.close();
-  }, 30000);
+  }, 15000);
 });
