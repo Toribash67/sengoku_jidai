@@ -1,1 +1,8 @@
-export const AI_PACKAGE = "@sengoku-jidai/ai";
+export type { Bot, SeatId, GameState, Command } from "./types.js";
+export { other } from "./types.js";
+export { createAiRng, seedFromString, pick, shuffle, type AiRng } from "./rng.js";
+export { onTheClock } from "./onclock.js";
+export { resolvePending } from "./heuristics.js";
+export { deployCandidates } from "./candidates.js";
+export { RandomBot } from "./bots/random.js";
+export { runMatch, runMatches, type MatchResult, type SeriesResult } from "./match.js";
