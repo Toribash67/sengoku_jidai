@@ -6,12 +6,16 @@ export interface TileValueWeights {
   proximity: number;
 }
 
-const distanceCache = new Map<string, Map<string, number>>();
+const distanceCache = new WeakMap<MapDefinition, Map<SeatId, Map<string, number>>>();
 
 /** BFS hop-count from `seat`'s HQ over general adjacency. Cached per (mapId, seat). */
 export function hqDistances(map: MapDefinition, seat: SeatId): Map<string, number> {
-  const key = `${map.id}:${seat}`;
-  const cached = distanceCache.get(key);
+  let perSeat = distanceCache.get(map);
+  if (!perSeat) {
+    perSeat = new Map();
+    distanceCache.set(map, perSeat);
+  }
+  const cached = perSeat.get(seat);
   if (cached) return cached;
 
   const dist = new Map<string, number>();
@@ -30,7 +34,7 @@ export function hqDistances(map: MapDefinition, seat: SeatId): Map<string, numbe
       }
     }
   }
-  distanceCache.set(key, dist);
+  perSeat.set(seat, dist);
   return dist;
 }
 
