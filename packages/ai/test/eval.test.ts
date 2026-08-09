@@ -28,10 +28,35 @@ describe("geometry", () => {
   });
 
   it("returns fresh distances when a new map object reuses an id (no stale cache)", () => {
-    const a = { id: "t", name: "t", bonusSlots: [], areas: {
-      hq: { id: "hq", kind: "land", hq: "red", valueStars: 0, harbor: false, shellable: false, fort: false, adjacent: ["x"], ports: [] },
-      x:  { id: "x",  kind: "land", hq: null,  valueStars: 0, harbor: false, shellable: false, fort: false, adjacent: ["hq"], ports: [] }
-    } } as unknown as import("@sengoku-jidai/engine").MapDefinition;
+    const a = {
+      id: "t",
+      name: "t",
+      bonusSlots: [],
+      areas: {
+        hq: {
+          id: "hq",
+          kind: "land",
+          hq: "red",
+          valueStars: 0,
+          harbor: false,
+          shellable: false,
+          fort: false,
+          adjacent: ["x"],
+          ports: []
+        },
+        x: {
+          id: "x",
+          kind: "land",
+          hq: null,
+          valueStars: 0,
+          harbor: false,
+          shellable: false,
+          fort: false,
+          adjacent: ["hq"],
+          ports: []
+        }
+      }
+    } as unknown as import("@sengoku-jidai/engine").MapDefinition;
     expect(hqDistances(a, "red").get("x")).toBe(1);
     // A DIFFERENT object with the same id but x no longer adjacent to hq -> unreachable.
     const b = { ...a, areas: { ...a.areas, hq: { ...a.areas.hq, adjacent: [] } } } as typeof a;
