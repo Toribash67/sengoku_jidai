@@ -16,5 +16,6 @@ export * from "./maps/hex/validate.js";
 export * from "./maps/hex/compile.js";
 export * from "./maps/hex/fixtures.js";
 export * from "./rng.js";
+export * from "./board.js";
 export * from "./supply.js";
 export * from "./scoring.js";
