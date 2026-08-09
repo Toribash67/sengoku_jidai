@@ -1,4 +1,4 @@
-import type { GameState, type OperationCard, type SeatId } from "@sengoku-jidai/engine";
+import type { GameState, OperationCard, SeatId } from "@sengoku-jidai/engine";
 import type { AiRng } from "./rng.js";
 import { shuffle } from "./rng.js";
 import { other } from "./types.js";
@@ -23,8 +23,8 @@ export function determinize(state: GameState, seat: SeatId, rng: AiRng): GameSta
 
   // Unseen-from-seat pool = total cards minus what seat can see (own hand + discard).
   const pool = { ...totalInState };
-  for (const c of clone.players[seat].hand) pool[c]--;
-  for (const c of clone.discard) pool[c]--;
+  for (const c of clone.players[seat].hand) pool[c] = (pool[c] ?? 0) - 1;
+  for (const c of clone.discard) pool[c] = (pool[c] ?? 0) - 1;
 
   // The unseen cards are exactly the opponent's hand plus the draw deck.
   const unseen: OperationCard[] = [];
