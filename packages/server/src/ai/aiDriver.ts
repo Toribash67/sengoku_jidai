@@ -1,5 +1,5 @@
-import type { GameState, SeatId } from "@sengoku-jidai/engine";
-import { onTheClock, type Bot } from "@sengoku-jidai/ai";
+import type { Command, GameState, SeatId } from "@sengoku-jidai/engine";
+import { onTheClock } from "@sengoku-jidai/ai";
 
 export interface AiDriverDeps {
   controllersOf(gameId: string): Record<SeatId, "human" | "ai">;
@@ -7,7 +7,7 @@ export interface AiDriverDeps {
   applyAiCommand(
     gameId: string,
     seat: SeatId,
-    command: import("@sengoku-jidai/engine").Command
+    command: Command
   ): { status: "accepted" | "rejected"; revision: number };
 }
 
@@ -16,20 +16,22 @@ export interface AiDriverDeps {
  * and the game is active, pick and apply one AI command per step. Stops when a human is on the
  * clock, the game ends, or `maxSteps` is reached. Throws if an AI command is rejected — that is
  * a bug (the AI must only ever emit engine-legal commands), not an expected outcome.
+ *
+ * `pickCommand` is async so the ISMCTS search can run off the event loop (see runIsmctsInWorker).
  */
-export function driveAiTurns(
+export async function driveAiTurns(
   deps: AiDriverDeps,
   gameId: string,
-  botFor: (seat: SeatId) => Bot,
+  pickCommand: (seat: SeatId, state: GameState) => Promise<Command>,
   maxSteps = 2000
-): void {
+): Promise<void> {
   const controllers = deps.controllersOf(gameId);
   for (let step = 0; step < maxSteps; step++) {
     const state = deps.currentState(gameId);
     if (state.status !== "active") return;
     const seat = onTheClock(state);
     if (!seat || controllers[seat] !== "ai") return; // human (or nobody) on the clock
-    const command = botFor(seat).chooseCommand(state, seat);
+    const command = await pickCommand(seat, state);
     const res = deps.applyAiCommand(gameId, seat, command);
     if (res.status !== "accepted") {
       throw new Error(`driveAiTurns: AI(${seat}) emitted an illegal command for game ${gameId}`);
