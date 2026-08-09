@@ -12,11 +12,13 @@ import {
 import type { SeatId } from "@sengoku-jidai/shared";
 import { z } from "zod";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { IsmctsBot, type Bot } from "@sengoku-jidai/ai";
 import { bearerToken, hashToken } from "../sessions/tokens.js";
 import type { GameRepository, SessionRecord } from "../persistence/repository.js";
 import type { MapLibrary, MapLibraryError } from "../maps/library.js";
 import type { TerrainStore } from "../maps/terrainStore.js";
 import type { TerrainService } from "../maps/terrainService.js";
+import { driveAiTurns } from "../ai/aiDriver.js";
 
 const MAP_ERROR_STATUS: Record<MapLibraryError["code"], number> = {
   invalidMap: 400,
@@ -31,8 +33,27 @@ export function registerApiRoutes(
   mapLibrary: MapLibrary,
   terrainStore: TerrainStore,
   terrainService: TerrainService,
-  adminPassword?: string
+  adminPassword?: string,
+  aiBotFor: (gameId: string, seat: SeatId) => Bot = (gameId) =>
+    new IsmctsBot({ deadlineMs: 1500, seed: gameId })
 ): void {
+  const driveAiSoon = (gameId: string) =>
+    setImmediate(() => {
+      try {
+        driveAiTurns(
+          {
+            controllersOf: (id) => repository.controllersOf(id),
+            currentState: (id) => repository.currentState(id),
+            applyAiCommand: (id, seat, cmd) => repository.applyAiCommand(id, seat, cmd)
+          },
+          gameId,
+          (seat) => aiBotFor(gameId, seat)
+        );
+      } catch (err) {
+        app.log.error({ err, gameId }, "AI driver failed");
+      }
+    });
+
   app.get("/healthz", async () => ({ ok: true }));
 
   app.get("/api/maps", async () => ({ maps: mapLibrary.list() }));
@@ -283,6 +304,11 @@ export function registerApiRoutes(
       mapId: parsed.data.mapId,
       aiSeats
     });
+
+    if (Object.values(repository.controllersOf(game.gameId)).includes("ai")) {
+      driveAiSoon(game.gameId);
+    }
+
     return reply.send(game);
   });
 
@@ -374,6 +400,10 @@ export function registerApiRoutes(
         events: result.events,
         error: withRequestId(request, result.error)
       });
+    }
+
+    if (result.status === "accepted") {
+      driveAiSoon(params.data.gameId);
     }
 
     return reply.status(result.httpStatus).send({
