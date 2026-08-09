@@ -102,6 +102,16 @@ export class GameRepository {
     return rows.map((r) => ({ seat: r.seat, name: r.display_name, status: r.status }));
   }
 
+  /** Per-seat controller ('human' | 'ai') for a game. */
+  controllersOf(gameId: string): Record<SeatId, "human" | "ai"> {
+    const rows = this.db
+      .prepare("SELECT seat, controller FROM game_seats WHERE game_id = ?")
+      .all(gameId) as { seat: SeatId; controller: "human" | "ai" }[];
+    const out: Record<SeatId, "human" | "ai"> = { red: "human", black: "human" };
+    for (const r of rows) out[r.seat] = r.controller;
+    return out;
+  }
+
   listGamesForAdmin(): AdminGameSummary[] {
     const games = this.db
       .prepare(
@@ -145,7 +155,12 @@ export class GameRepository {
   createGame(
     mode: GameMode,
     seed?: string,
-    opts: { creatorName?: string; creatorSide?: SeatId; mapId?: string } = {}
+    opts: {
+      creatorName?: string;
+      creatorSide?: SeatId;
+      mapId?: string;
+      aiSeats?: SeatId[];
+    } = {}
   ): CreatedGame {
     const gameId = randomUUID();
     const now = new Date().toISOString();
@@ -184,13 +199,14 @@ export class GameRepository {
         const status: SeatStatus = !named || isCreator ? "claimed" : "open";
         const displayName = !named ? seat : isCreator ? opts.creatorName! : null;
         const claimedAt = status === "claimed" ? now : null;
+        const controller = (opts.aiSeats ?? []).includes(seat) ? "ai" : "human";
         this.db
           .prepare(
             `INSERT INTO game_seats
-              (game_id, seat, player_id, status, display_name, claimed_at, last_seen_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`
+              (game_id, seat, player_id, status, display_name, claimed_at, last_seen_at, controller)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
           )
-          .run(gameId, seat, seat, status, displayName, claimedAt, now);
+          .run(gameId, seat, seat, status, displayName, claimedAt, now, controller);
 
         const token = issueToken();
         seatTokens.push({ seat, token: token.token });

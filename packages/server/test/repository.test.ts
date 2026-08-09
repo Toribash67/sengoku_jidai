@@ -58,6 +58,17 @@ describe("GameRepository named seats", () => {
   });
 });
 
+describe("GameRepository AI seats", () => {
+  it("defaults both seats to human, and marks requested AI seats", () => {
+    const repo = makeRepo(); // existing helper in this test file (in-memory db + migrations)
+    const human = repo.createGame("hotseat", "seed-x");
+    expect(repo.controllersOf(human.gameId)).toEqual({ red: "human", black: "human" });
+
+    const vsAi = repo.createGame("hotseat", "seed-y", { aiSeats: ["black"] });
+    expect(repo.controllersOf(vsAi.gameId)).toEqual({ red: "human", black: "ai" });
+  });
+});
+
 describe("GameRepository event projection", () => {
   it("eventsAfter projects events per seat and drops non-public event rows", () => {
     const db = openDatabase(":memory:");
