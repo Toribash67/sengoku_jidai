@@ -66,7 +66,11 @@ function rawScore(state: GameState, map: MapDefinition, seat: SeatId, w: EvalWei
 }
 
 /** Antisymmetric position value for `seat` (seat − opponent). Terminal states short-circuit. */
-export function evaluate(state: GameState, seat: SeatId, weights: EvalWeights = DEFAULT_WEIGHTS): number {
+export function evaluate(
+  state: GameState,
+  seat: SeatId,
+  weights: EvalWeights = DEFAULT_WEIGHTS
+): number {
   const enemy: SeatId = seat === "red" ? "black" : "red";
   if (state.status === "complete") {
     if (state.winner === seat) return weights.terminal;

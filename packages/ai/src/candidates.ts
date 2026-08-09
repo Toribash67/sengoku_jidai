@@ -36,13 +36,18 @@ export function deployCandidates(state: GameState, seat: SeatId): Command[] {
     const target = [...pl.targets].sort(
       (a, b) => (map.areas[b]?.valueStars ?? 0) - (map.areas[a]?.valueStars ?? 0)
     )[0]!;
-    out.push({ type: pl.type, spaceId: pl.spaceId, placements: [{ area: target, count: placeable }] });
+    out.push({
+      type: pl.type,
+      spaceId: pl.spaceId,
+      placements: [{ area: target, count: placeable }]
+    });
   }
 
   // Bombard / Shell: one candidate per enemy target.
   for (const st of legal.strikes) {
     for (const target of st.targets) {
-      if (st.type === "bombard") out.push({ type: "bombard", spaceId: st.spaceId, targetAreaId: target });
+      if (st.type === "bombard")
+        out.push({ type: "bombard", spaceId: st.spaceId, targetAreaId: target });
       else out.push({ type: "shell", spaceId: st.spaceId, targetAreaId: target });
     }
   }

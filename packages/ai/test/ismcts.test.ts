@@ -20,10 +20,13 @@ describe("chooseCommandIsmcts", () => {
   });
 
   // Strength/win-rate validation; slow (~12 min) — runs only with AI_STRENGTH_TESTS=1.
-  it.skipIf(!process.env.AI_STRENGTH_TESTS)("beats the greedy baseline over a seeded series", () => {
-    const ismcts = new IsmctsBot({ iterations: 120, seed: "ai" });
-    const greedy = new GreedyBot();
-    const res = runMatches(ismcts, greedy, { games: 12, seedPrefix: "mcts-vs-greedy" });
-    expect(res.aWins).toBeGreaterThanOrEqual(8); // ≥~65% for ISMCTS(A)
-  });
+  it.skipIf(!process.env.AI_STRENGTH_TESTS)(
+    "beats the greedy baseline over a seeded series",
+    () => {
+      const ismcts = new IsmctsBot({ iterations: 120, seed: "ai" });
+      const greedy = new GreedyBot();
+      const res = runMatches(ismcts, greedy, { games: 12, seedPrefix: "mcts-vs-greedy" });
+      expect(res.aWins).toBeGreaterThanOrEqual(8); // ≥~65% for ISMCTS(A)
+    }
+  );
 });
