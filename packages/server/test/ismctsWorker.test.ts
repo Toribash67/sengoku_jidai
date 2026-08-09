@@ -8,7 +8,7 @@ describe("runIsmctsInWorker", () => {
     const db = openDatabase(":memory:");
     runMigrations(db);
     const repo = new GameRepository(db);
-    const game = repo.createGame("hotseat", 12345, { creatorName: "P1", creatorSide: "red" });
+    const game = repo.createGame("hotseat", "12345", { creatorName: "P1", creatorSide: "red" });
     const state = repo.currentState(game.gameId);
     const seat = onTheClock(state);
     expect(seat).not.toBeNull();

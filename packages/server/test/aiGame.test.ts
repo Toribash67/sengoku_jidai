@@ -16,14 +16,19 @@ function testConfig(): ServerConfig {
 }
 
 /** Yield to the event loop once — long enough for the server's `setImmediate`-scheduled
- *  `driveAiTurns` fire-and-forget call to run to completion (it's synchronous once started). */
+ *  `driveAiTurns` fire-and-forget call to run to completion (it runs to completion
+ *  asynchronously; one macrotask tick lets its awaited picks settle since the in-test
+ *  pick resolves immediately). */
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 describe("AI game (end-to-end auto-drive)", () => {
   it("plays a full human-vs-AI game to completion via the HTTP surface", async () => {
     // Inject a fast, deterministic bot for the AI seat so the whole game resolves in
     // milliseconds — no ISMCTS search needed to prove the HTTP wiring works.
-    const app = buildApp(testConfig(), { aiBotFor: () => new RandomBot(createAiRng(1)) });
+    const bot = new RandomBot(createAiRng(1));
+    const app = buildApp(testConfig(), {
+      aiPickCommandFor: () => (seat, state) => Promise.resolve(bot.chooseCommand(state, seat))
+    });
 
     const created = await app.inject({
       method: "POST",
