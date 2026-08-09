@@ -130,7 +130,8 @@ function descend(
   let next: GameState;
   try {
     next = applyForSearch(cur, mover, edge.cmd);
-  } catch {
+  } catch (e) {
+    if (!(e instanceof Error && e.message.startsWith("search illegal command"))) throw e;
     next = applyForSearch(cur, mover, { type: "pass" });
   }
 
