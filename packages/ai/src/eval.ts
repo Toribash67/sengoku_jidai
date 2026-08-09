@@ -23,7 +23,7 @@ export interface EvalWeights {
 
 export const DEFAULT_WEIGHTS: EvalWeights = {
   vp: 10,
-  bonus: { barracks: 3, warRoom: 3, pirateHaven: 2, shipyard: 2, hiddenBase: 2 },
+  bonus: { barracks: 3, warRoom: 3, pirateHaven: 2, shipyard: 2, hiddenBase: 2, armoury: 2 },
   tile: { star: 2, bonusSlot: 1.5, proximity: 1 },
   unsuppliedFactor: 0.2,
   card: 1.5,
