@@ -1,4 +1,5 @@
 import { FIXTURE_HEX_MAP } from "@sengoku-jidai/engine";
+import { RandomBot, createAiRng } from "@sengoku-jidai/ai";
 import fastify from "fastify";
 import { describe, expect, it } from "vitest";
 import { registerApiRoutes } from "../src/api/routes.js";
@@ -206,7 +207,7 @@ describe("AI opponent at game creation", () => {
     const library = new MapLibrary(db);
     const terrainStore = new TerrainStore(db);
     const terrainService = new TerrainService({ library, store: terrainStore, falKey: undefined });
-    registerApiRoutes(app, repository, library, terrainStore, terrainService);
+    registerApiRoutes(app, repository, library, terrainStore, terrainService, undefined, () => new RandomBot(createAiRng(1)));
 
     const res = await app.inject({
       method: "POST",
