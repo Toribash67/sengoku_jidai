@@ -392,6 +392,57 @@ export class GameRepository {
     return submit();
   }
 
+  /** Apply a server-driven AI command at the game's current revision. Mirrors the accept
+   *  effects of submitCommand (snapshot + events + attempt + games update) but has no session,
+   *  dedup, or stale check — the caller drives it authoritatively. */
+  applyAiCommand(
+    gameId: string,
+    seat: SeatId,
+    command: Command
+  ): { status: "accepted" | "rejected"; revision: number } {
+    const apply = this.db.transaction(() => {
+      const game = this.getGameRow(gameId);
+      if (!game) throw new Error(`applyAiCommand: game ${gameId} not found`);
+      const state = this.loadSnapshot(gameId, game.current_revision);
+      const result = resolveCommand(state, { seat }, command);
+      const now = new Date().toISOString();
+
+      if (result.status === "rejected") {
+        this.insertCommandAttempt({
+          gameId,
+          seat,
+          clientCommandId: `ai-${game.current_revision}-${Math.random().toString(36).slice(2)}`,
+          baseRevision: game.current_revision,
+          acceptedRevision: null,
+          command,
+          resultStatus: "rejected",
+          rejectionCode: result.reason.code,
+          now
+        });
+        return { status: "rejected" as const, revision: game.current_revision };
+      }
+
+      this.insertSnapshot(result.nextState, now);
+      this.insertEvents(gameId, result.nextState.revision, result.events, now);
+      this.insertCommandAttempt({
+        gameId,
+        seat,
+        clientCommandId: `ai-${game.current_revision}`,
+        baseRevision: game.current_revision,
+        acceptedRevision: result.nextState.revision,
+        command,
+        resultStatus: "accepted",
+        rejectionCode: null,
+        now
+      });
+      this.db
+        .prepare("UPDATE games SET current_revision = ?, status = ?, updated_at = ? WHERE id = ?")
+        .run(result.nextState.revision, result.nextState.status, now, gameId);
+      return { status: "accepted" as const, revision: result.nextState.revision };
+    });
+    return apply();
+  }
+
   eventsAfter(gameId: string, seat: SeatId, afterRevision: number): PlayerGameEvent[] {
     const rows = this.db
       .prepare(

@@ -1,3 +1,5 @@
+import { createAiRng, onTheClock, RandomBot } from "@sengoku-jidai/ai";
+import { createInitialState } from "@sengoku-jidai/engine";
 import type { GameSeatInfo } from "@sengoku-jidai/shared";
 import { describe, expect, it } from "vitest";
 import { openDatabase, runMigrations } from "../src/persistence/database.js";
@@ -66,6 +68,24 @@ describe("GameRepository AI seats", () => {
 
     const vsAi = repo.createGame("hotseat", "seed-y", { aiSeats: ["black"] });
     expect(repo.controllersOf(vsAi.gameId)).toEqual({ red: "human", black: "ai" });
+  });
+});
+
+describe("GameRepository applyAiCommand", () => {
+  it("applyAiCommand advances the game at the current revision", () => {
+    const repo = makeRepo();
+    const g = repo.createGame("hotseat", "seed-ai", { aiSeats: ["black"] });
+
+    // No public snapshot accessor exists yet (added in a later task), so rebuild the
+    // initial state deterministically from the same seed/mode/map used by createGame.
+    const state0 = createInitialState({ gameId: g.gameId, seed: "seed-ai", mode: "hotseat" });
+    const seat = onTheClock(state0)!;
+    const cmd = new RandomBot(createAiRng(1)).chooseCommand(state0, seat);
+
+    const res = repo.applyAiCommand(g.gameId, seat, cmd);
+
+    expect(res.status).toBe("accepted");
+    expect(res.revision).toBe(g.revision + 1);
   });
 });
 
