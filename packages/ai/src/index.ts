@@ -5,4 +5,6 @@ export { onTheClock } from "./onclock.js";
 export { resolvePending } from "./heuristics.js";
 export { deployCandidates } from "./candidates.js";
 export { RandomBot } from "./bots/random.js";
+export { GreedyBot, greedyCommand } from "./bots/greedy.js";
 export { runMatch, runMatches, type MatchResult, type SeriesResult } from "./match.js";
+export { evaluate, DEFAULT_WEIGHTS, type EvalWeights } from "./eval.js";
