@@ -10,3 +10,4 @@ export { runMatch, runMatches, type MatchResult, type SeriesResult } from "./mat
 export { evaluate, DEFAULT_WEIGHTS, type EvalWeights } from "./eval.js";
 export { chooseCommandIsmcts, IsmctsBot, type IsmctsOptions, type IsmctsBotOptions } from "./ismcts.js";
 export { determinize } from "./determinize.js";
+export { runIsmctsInWorker } from "./ismctsWorkerRunner.js";
