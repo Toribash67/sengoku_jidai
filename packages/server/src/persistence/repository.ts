@@ -443,6 +443,13 @@ export class GameRepository {
     return apply();
   }
 
+  /** The authoritative GameState at the current revision. */
+  currentState(gameId: string): GameState {
+    const game = this.getGameRow(gameId);
+    if (!game) throw new Error(`currentState: game ${gameId} not found`);
+    return this.loadSnapshot(gameId, game.current_revision);
+  }
+
   eventsAfter(gameId: string, seat: SeatId, afterRevision: number): PlayerGameEvent[] {
     const rows = this.db
       .prepare(
