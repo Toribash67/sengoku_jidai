@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "corepack pnpm build:libs && concurrently -n server,web -c blue,green \"corepack pnpm dev:server\" \"corepack pnpm dev:web\"",
-    "build:libs": "corepack pnpm --filter @sengoku-jidai/engine --filter @sengoku-jidai/shared --filter @sengoku-jidai/board-render --filter @sengoku-jidai/terrain --sort run build",
+    "build:libs": "corepack pnpm --filter @sengoku-jidai/engine --filter @sengoku-jidai/shared --filter @sengoku-jidai/board-render --filter @sengoku-jidai/terrain --filter @sengoku-jidai/ai --sort run build",
     "dev:web": "corepack pnpm --filter @sengoku-jidai/web dev",
     "dev:server": "corepack pnpm --filter @sengoku-jidai/server dev",
     "build": "corepack pnpm -r --sort run build",

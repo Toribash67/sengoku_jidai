@@ -3,6 +3,8 @@ import fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import type { Bot } from "@sengoku-jidai/ai";
+import type { SeatId } from "@sengoku-jidai/shared";
 import { registerApiRoutes } from "./api/routes.js";
 import type { ServerConfig } from "./config.js";
 import { MapLibrary } from "./maps/library.js";
@@ -11,7 +13,11 @@ import { TerrainService } from "./maps/terrainService.js";
 import { openDatabase, runMigrations } from "./persistence/database.js";
 import { GameRepository } from "./persistence/repository.js";
 
-export function buildApp(config: ServerConfig) {
+export interface BuildAppOptions {
+  aiBotFor?: (gameId: string, seat: SeatId) => Bot;
+}
+
+export function buildApp(config: ServerConfig, opts?: BuildAppOptions) {
   const app = fastify({
     logger: {
       level: config.logLevel
@@ -40,7 +46,8 @@ export function buildApp(config: ServerConfig) {
     mapLibrary,
     terrainStore,
     terrainService,
-    config.adminPassword
+    config.adminPassword,
+    opts?.aiBotFor
   );
 
   if (config.nodeEnv === "production") {

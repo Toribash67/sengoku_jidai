@@ -102,6 +102,16 @@ export class GameRepository {
     return rows.map((r) => ({ seat: r.seat, name: r.display_name, status: r.status }));
   }
 
+  /** Per-seat controller ('human' | 'ai') for a game. */
+  controllersOf(gameId: string): Record<SeatId, "human" | "ai"> {
+    const rows = this.db
+      .prepare("SELECT seat, controller FROM game_seats WHERE game_id = ?")
+      .all(gameId) as { seat: SeatId; controller: "human" | "ai" }[];
+    const out: Record<SeatId, "human" | "ai"> = { red: "human", black: "human" };
+    for (const r of rows) out[r.seat] = r.controller;
+    return out;
+  }
+
   listGamesForAdmin(): AdminGameSummary[] {
     const games = this.db
       .prepare(
@@ -145,7 +155,12 @@ export class GameRepository {
   createGame(
     mode: GameMode,
     seed?: string,
-    opts: { creatorName?: string; creatorSide?: SeatId; mapId?: string } = {}
+    opts: {
+      creatorName?: string;
+      creatorSide?: SeatId;
+      mapId?: string;
+      aiSeats?: SeatId[];
+    } = {}
   ): CreatedGame {
     const gameId = randomUUID();
     const now = new Date().toISOString();
@@ -184,13 +199,14 @@ export class GameRepository {
         const status: SeatStatus = !named || isCreator ? "claimed" : "open";
         const displayName = !named ? seat : isCreator ? opts.creatorName! : null;
         const claimedAt = status === "claimed" ? now : null;
+        const controller = (opts.aiSeats ?? []).includes(seat) ? "ai" : "human";
         this.db
           .prepare(
             `INSERT INTO game_seats
-              (game_id, seat, player_id, status, display_name, claimed_at, last_seen_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`
+              (game_id, seat, player_id, status, display_name, claimed_at, last_seen_at, controller)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
           )
-          .run(gameId, seat, seat, status, displayName, claimedAt, now);
+          .run(gameId, seat, seat, status, displayName, claimedAt, now, controller);
 
         const token = issueToken();
         seatTokens.push({ seat, token: token.token });
@@ -374,6 +390,64 @@ export class GameRepository {
     });
 
     return submit();
+  }
+
+  /** Apply a server-driven AI command at the game's current revision. Mirrors the accept
+   *  effects of submitCommand (snapshot + events + attempt + games update) but has no session,
+   *  dedup, or stale check — the caller drives it authoritatively. */
+  applyAiCommand(
+    gameId: string,
+    seat: SeatId,
+    command: Command
+  ): { status: "accepted" | "rejected"; revision: number } {
+    const apply = this.db.transaction(() => {
+      const game = this.getGameRow(gameId);
+      if (!game) throw new Error(`applyAiCommand: game ${gameId} not found`);
+      const state = this.loadSnapshot(gameId, game.current_revision);
+      const result = resolveCommand(state, { seat }, command);
+      const now = new Date().toISOString();
+
+      if (result.status === "rejected") {
+        this.insertCommandAttempt({
+          gameId,
+          seat,
+          clientCommandId: `ai-${game.current_revision}-${Math.random().toString(36).slice(2)}`,
+          baseRevision: game.current_revision,
+          acceptedRevision: null,
+          command,
+          resultStatus: "rejected",
+          rejectionCode: result.reason.code,
+          now
+        });
+        return { status: "rejected" as const, revision: game.current_revision };
+      }
+
+      this.insertSnapshot(result.nextState, now);
+      this.insertEvents(gameId, result.nextState.revision, result.events, now);
+      this.insertCommandAttempt({
+        gameId,
+        seat,
+        clientCommandId: `ai-${game.current_revision}`,
+        baseRevision: game.current_revision,
+        acceptedRevision: result.nextState.revision,
+        command,
+        resultStatus: "accepted",
+        rejectionCode: null,
+        now
+      });
+      this.db
+        .prepare("UPDATE games SET current_revision = ?, status = ?, updated_at = ? WHERE id = ?")
+        .run(result.nextState.revision, result.nextState.status, now, gameId);
+      return { status: "accepted" as const, revision: result.nextState.revision };
+    });
+    return apply();
+  }
+
+  /** The authoritative GameState at the current revision. */
+  currentState(gameId: string): GameState {
+    const game = this.getGameRow(gameId);
+    if (!game) throw new Error(`currentState: game ${gameId} not found`);
+    return this.loadSnapshot(gameId, game.current_revision);
   }
 
   eventsAfter(gameId: string, seat: SeatId, afterRevision: number): PlayerGameEvent[] {

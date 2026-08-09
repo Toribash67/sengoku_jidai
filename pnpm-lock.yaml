@@ -134,6 +134,9 @@ importers:
       "@fastify/static":
         specifier: ^8.0.3
         version: 8.3.0
+      "@sengoku-jidai/ai":
+        specifier: workspace:*
+        version: link:../ai
       "@sengoku-jidai/board-render":
         specifier: workspace:*
         version: link:../board-render
