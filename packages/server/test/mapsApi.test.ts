@@ -196,3 +196,28 @@ describe("games on custom maps", () => {
     await app.close();
   });
 });
+
+describe("AI opponent at game creation", () => {
+  it("POST /api/games with opponent:'ai' marks the non-creator seat as ai", async () => {
+    const db = openDatabase(":memory:");
+    runMigrations(db);
+    const app = fastify({ logger: { level: "silent" } });
+    const repository = new GameRepository(db);
+    const library = new MapLibrary(db);
+    const terrainStore = new TerrainStore(db);
+    const terrainService = new TerrainService({ library, store: terrainStore, falKey: undefined });
+    registerApiRoutes(app, repository, library, terrainStore, terrainService);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      payload: { mode: "hotseat", opponent: "ai" }
+    });
+    expect(res.statusCode).toBe(200);
+    const { gameId } = res.json();
+    expect(repository.controllersOf(gameId)).toEqual({ red: "human", black: "ai" });
+
+    await app.close();
+    db.close();
+  });
+});

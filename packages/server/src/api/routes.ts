@@ -9,6 +9,7 @@ import {
   MAX_TERRAINS_PER_MAP,
   submitCommandRequestSchema
 } from "@sengoku-jidai/shared";
+import type { SeatId } from "@sengoku-jidai/shared";
 import { z } from "zod";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { bearerToken, hashToken } from "../sessions/tokens.js";
@@ -272,10 +273,15 @@ export function registerApiRoutes(
       return sendError(reply, 404, "mapNotFound", "Map was not found.");
     }
 
+    const creatorSide: SeatId = parsed.data.side ?? "red";
+    const aiSeats: SeatId[] =
+      parsed.data.opponent === "ai" ? [creatorSide === "red" ? "black" : "red"] : [];
+
     const game = repository.createGame(parsed.data.mode, parsed.data.seed, {
       creatorName: parsed.data.name,
       creatorSide: parsed.data.side,
-      mapId: parsed.data.mapId
+      mapId: parsed.data.mapId,
+      aiSeats
     });
     return reply.send(game);
   });

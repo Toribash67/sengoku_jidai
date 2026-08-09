@@ -146,7 +146,8 @@ export const createGameRequestSchema = z.object({
   seed: z.string().optional(),
   name: z.string().trim().min(1).max(80).optional(),
   side: seatIdSchema.optional(),
-  mapId: z.string().min(1).optional()
+  mapId: z.string().min(1).optional(),
+  opponent: z.enum(["human", "ai"]).optional()
 });
 
 export const claimGameRequestSchema = z.object({
