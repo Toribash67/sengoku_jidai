@@ -26,7 +26,9 @@ export function runIsmctsInWorker(
     });
     worker.on("error", (err) => finish(() => reject(err)));
     worker.on("exit", (code) => {
-      if (code !== 0) finish(() => reject(new Error(`ISMCTS worker exited with code ${code}`)));
+      finish(() =>
+        reject(new Error(`ISMCTS worker exited before returning a command (code ${code})`))
+      );
     });
     worker.postMessage({ state, seat, opts });
   });

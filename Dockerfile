@@ -33,6 +33,7 @@ COPY packages/web/package.json ./packages/web/package.json
 # assets/, read via import.meta.url) must be copied into the runtime image.
 COPY packages/terrain/package.json ./packages/terrain/package.json
 COPY packages/board-render/package.json ./packages/board-render/package.json
+COPY packages/ai/package.json ./packages/ai/package.json
 RUN corepack enable
 RUN corepack pnpm install --prod --frozen-lockfile
 
@@ -45,6 +46,7 @@ COPY --from=build /app/packages/terrain/dist ./packages/terrain/dist
 COPY --from=build /app/packages/terrain/profiles ./packages/terrain/profiles
 COPY --from=build /app/packages/terrain/assets ./packages/terrain/assets
 COPY --from=build /app/packages/board-render/dist ./packages/board-render/dist
+COPY --from=build /app/packages/ai/dist ./packages/ai/dist
 
 EXPOSE 80
 
