@@ -27,7 +27,8 @@ function reachPendingCombat() {
           moves: [{ from: atk.sources[0].areaId, count: atk.sources[0].max }]
         };
         const r = resolveCommand(state, { seat }, cmd);
-        if (r.status === "accepted" && r.nextState.pendingCombat) return { state: r.nextState, seat };
+        if (r.status === "accepted" && r.nextState.pendingCombat)
+          return { state: r.nextState, seat };
         if (r.status === "accepted") {
           state = r.nextState;
           continue;
@@ -57,7 +58,11 @@ describe("expected-combat evaluation", () => {
       // `mc-${k}` coerces to NaN → 0 for every k, collapsing the MC sample to a single die
       // roll. Use a varying numeric seed so each iteration draws independently.
       let s = { ...state, rngState: String(10000 + k) } as typeof state;
-      const rolled = resolveCommand(s, { seat: pc.responsibleSeat }, { type: "combatRoll", pendingId: pc.id });
+      const rolled = resolveCommand(
+        s,
+        { seat: pc.responsibleSeat },
+        { type: "combatRoll", pendingId: pc.id }
+      );
       if (rolled.status !== "accepted") throw new Error("expected combatRoll to be accepted");
       s = rolled.nextState;
       const resolvedRes = resolveCommand(
@@ -65,7 +70,8 @@ describe("expected-combat evaluation", () => {
         { seat: pc.responsibleSeat },
         { type: "combatResolve", pendingId: pc.id }
       );
-      if (resolvedRes.status !== "accepted") throw new Error("expected combatResolve to be accepted");
+      if (resolvedRes.status !== "accepted")
+        throw new Error("expected combatResolve to be accepted");
       sum += evaluate(resolvedRes.nextState, seat);
     }
     const mc = sum / N;

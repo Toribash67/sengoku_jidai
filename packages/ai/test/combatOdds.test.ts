@@ -19,7 +19,9 @@ describe("rollTotalDistribution", () => {
     const total = rollTotalDistribution(FACES, 2).reduce((s, d) => s + d.prob, 0);
     expect(total).toBeCloseTo(1, 10);
     // sum ranges 0..4
-    const totals = rollTotalDistribution(FACES, 2).map((d) => d.total).sort((a, b) => a - b);
+    const totals = rollTotalDistribution(FACES, 2)
+      .map((d) => d.total)
+      .sort((a, b) => a - b);
     expect(totals[0]).toBe(0);
     expect(totals[totals.length - 1]).toBe(4);
   });
