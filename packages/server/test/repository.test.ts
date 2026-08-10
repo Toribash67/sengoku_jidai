@@ -46,17 +46,40 @@ describe("GameRepository named seats", () => {
     const game = repo.createGame("private_multiplayer", "s4", { creatorName: "Oda" });
 
     const claimed = repo.claimSeat(game.gameId, "black", "Takeda");
-    expect(claimed).not.toBeNull();
-    expect(bySeat(claimed!.seatInfo, "black")).toMatchObject({ name: "Takeda", status: "claimed" });
+    expect(claimed.ok).toBe(true);
+    if (!claimed.ok) throw new Error("expected ok");
+    expect(bySeat(claimed.seatInfo, "black")).toMatchObject({ name: "Takeda", status: "claimed" });
 
     // Re-claim on an already-claimed seat is a no-op on the name.
     const again = repo.claimSeat(game.gameId, "black", "Someone Else");
-    expect(bySeat(again!.seatInfo, "black").name).toBe("Takeda");
+    if (!again.ok) throw new Error("expected ok");
+    expect(bySeat(again.seatInfo, "black").name).toBe("Takeda");
   });
 
-  it("returns null when claiming a seat in a missing game", () => {
+  it("returns notFound when claiming a seat in a missing game", () => {
     const repo = makeRepo();
-    expect(repo.claimSeat("no-such-game", "red", "Ghost")).toBeNull();
+    expect(repo.claimSeat("no-such-game", "red", "Ghost")).toEqual({
+      ok: false,
+      reason: "notFound"
+    });
+  });
+
+  it("refuses to claim an AI-controlled seat and leaves it unchanged", () => {
+    const repo = makeRepo();
+    const game = repo.createGame("private_multiplayer", "s5", {
+      creatorName: "Oda",
+      creatorSide: "red",
+      aiSeats: ["black"]
+    });
+
+    expect(repo.claimSeat(game.gameId, "black", "Intruder")).toEqual({
+      ok: false,
+      reason: "aiSeat"
+    });
+    // The AI seat is untouched: still controller ai, no human name.
+    const info = repo.getSeatInfo(game.gameId);
+    expect(bySeat(info, "black").controller).toBe("ai");
+    expect(bySeat(info, "black").name).toBeNull();
   });
 });
 

@@ -356,7 +356,10 @@ export function registerApiRoutes(
     }
 
     const result = repository.claimSeat(params.data.gameId, session.seat, body.data.name);
-    if (!result) {
+    if (!result.ok) {
+      if (result.reason === "aiSeat") {
+        return sendError(reply, 409, "seatNotClaimable", "That seat is computer-controlled.");
+      }
       return sendError(reply, 404, "gameNotFound", "Game was not found.");
     }
 

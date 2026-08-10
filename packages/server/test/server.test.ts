@@ -1,3 +1,4 @@
+import { RandomBot, createAiRng } from "@sengoku-jidai/ai";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 import type { ServerConfig } from "../src/config.js";
@@ -75,6 +76,30 @@ describe("server", () => {
     const claimedBlack = claimed.json().seatInfo.find((s: { seat: string }) => s.seat === "black");
     expect(claimedBlack).toMatchObject({ name: "Takeda", status: "claimed" });
 
+    await app.close();
+  });
+
+  it("refuses to claim the AI-controlled seat", async () => {
+    const app = buildApp(testConfig(), {
+      aiPickCommandFor: () => (seat, state) =>
+        Promise.resolve(new RandomBot(createAiRng(1)).chooseCommand(state, seat))
+    });
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      payload: { mode: "private_multiplayer", name: "Oda", side: "red", opponent: "ai" }
+    });
+    const body = created.json();
+    const blackToken = body.seats.find((s: { seat: string }) => s.seat === "black").token;
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/games/${body.gameId}/claim`,
+      headers: { authorization: `Bearer ${blackToken}` },
+      payload: { name: "Intruder" }
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.code).toBe("seatNotClaimable");
     await app.close();
   });
 });
