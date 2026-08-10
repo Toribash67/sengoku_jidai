@@ -9,7 +9,7 @@ interface CreateGameScreenProps {
   busy: boolean;
   error: string | null;
   preselectMapId: string | null;
-  onCreate: (name: string, side: SeatId, mapId: string) => void;
+  onCreate: (name: string, side: SeatId, mapId: string, opponent: "human" | "ai") => void;
 }
 
 const SIDES: { id: SeatId; label: string }[] = [
@@ -20,6 +20,7 @@ const SIDES: { id: SeatId; label: string }[] = [
 export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: CreateGameScreenProps) {
   const [name, setName] = useState("");
   const [side, setSide] = useState<SeatId>("red");
+  const [opponent, setOpponent] = useState<"human" | "ai">("human");
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
   const [mapsFailed, setMapsFailed] = useState(false);
   const [mapId, setMapId] = useState<string>(riversMapId);
@@ -54,7 +55,7 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
     if (trimmed.length === 0 || busy) {
       return;
     }
-    onCreate(trimmed, side, mapId);
+    onCreate(trimmed, side, mapId, opponent);
   }
 
   return (
@@ -106,6 +107,26 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
                 {option.label}
               </button>
             ))}
+          </fieldset>
+
+          <fieldset className="side-toggle">
+            <legend>Opponent</legend>
+            <button
+              type="button"
+              aria-pressed={opponent === "human"}
+              className={opponent === "human" ? "is-active" : ""}
+              onClick={() => setOpponent("human")}
+            >
+              Human (invite a friend)
+            </button>
+            <button
+              type="button"
+              aria-pressed={opponent === "ai"}
+              className={opponent === "ai" ? "is-active" : ""}
+              onClick={() => setOpponent("ai")}
+            >
+              Computer (AI)
+            </button>
           </fieldset>
 
           <button type="submit" className="primary-action" disabled={busy || trimmed.length === 0}>

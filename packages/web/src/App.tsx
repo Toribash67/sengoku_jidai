@@ -351,11 +351,11 @@ export function App() {
   const cardPlays = useMemo(() => game?.view.legal.cardPlays ?? [], [game?.view.legal.cardPlays]);
   const playableCards = useMemo(() => new Set(cardPlays.map((p) => p.card)), [cardPlays]);
 
-  async function handleCreate(name: string, side: SeatId, mapId: string) {
+  async function handleCreate(name: string, side: SeatId, mapId: string, opponent: "human" | "ai") {
     setBusy(true);
     setError(null);
     try {
-      const created = await createGame({ name, side, mapId });
+      const created = await createGame({ name, side, mapId, opponent });
       await ensureMapLoaded(created.view.mapId);
       rememberSeatTokens(created.gameId, created.seats);
       const myToken = created.seats.find((s) => s.seat === created.seat)!.token;
