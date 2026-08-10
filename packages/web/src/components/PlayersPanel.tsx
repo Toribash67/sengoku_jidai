@@ -38,6 +38,7 @@ interface PlayersPanelProps {
   inviteLink: string | null;
   busy: boolean;
   onSwitchSeat: (seat: SeatId) => void;
+  thinkingSeat?: SeatId | null;
 }
 
 const sideLabel: Record<SeatId, string> = { red: "Red", black: "Black" };
@@ -50,7 +51,8 @@ export function PlayersPanel({
   activeSeat,
   inviteLink,
   busy,
-  onSwitchSeat
+  onSwitchSeat,
+  thinkingSeat = null
 }: PlayersPanelProps) {
   const [copied, setCopied] = useState(false);
   const copiedTimer = useRef<number | null>(null);
@@ -89,6 +91,7 @@ export function PlayersPanel({
           const isActive = seat.seat === activeSeat;
           const label =
             seat.name ?? (seat.status === "open" ? "Waiting to join…" : sideLabel[seat.seat]);
+          const isThinking = seat.seat === thinkingSeat;
           return (
             <li key={seat.seat} className={`player-row${isActive ? " is-turn" : ""}`}>
               {held ? (
@@ -115,6 +118,11 @@ export function PlayersPanel({
                   </span>
                 </span>
               )}
+              {isThinking ? (
+                <span className="player-thinking" role="status" aria-live="polite">
+                  Computer is thinking…
+                </span>
+              ) : null}
             </li>
           );
         })}

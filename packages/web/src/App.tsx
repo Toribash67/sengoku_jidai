@@ -59,6 +59,7 @@ import {
   rememberSeatTokens,
   savePanelWidth
 } from "./state/localGame.js";
+import { onClockSeat } from "./state/onClock.js";
 import { gameUrl, inviteUrl, navigateTo, useRoute } from "./state/route.js";
 import { shouldPoll } from "./state/polling.js";
 import { useTurnAlert } from "./state/turnAlert.js";
@@ -800,6 +801,14 @@ export function App() {
 
   const isViewerActive = game.view.activeSeat === game.view.viewerSeat;
 
+  // The seat currently on the clock, and whether it's the AI — drives the "Computer is
+  // thinking…" indicator in the PlayersPanel.
+  const clockSeat = onClockSeat(game.view);
+  const thinkingSeat =
+    clockSeat && game.seatInfo.find((s) => s.seat === clockSeat)?.controller === "ai"
+      ? clockSeat
+      : null;
+
   // Resolvers for the event log: seat -> player name, tile id -> human area label.
   const eventLookup: EventLookup = {
     seatName: (seat) => seatDisplayName(seat, game.seatInfo),
@@ -1026,6 +1035,7 @@ export function App() {
             inviteLink={inviteLink}
             busy={busy}
             onSwitchSeat={handleSwitchSeat}
+            thinkingSeat={thinkingSeat}
           />
 
           <section className="panel-section panel-hand">
