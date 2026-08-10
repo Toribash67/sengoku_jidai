@@ -11,6 +11,7 @@ export interface GameSeatInfo {
   seat: SeatId;
   name: string | null;
   status: SeatStatus;
+  controller: "human" | "ai";
 }
 
 export interface PlayerGameViewEnvelope<View = unknown> {
