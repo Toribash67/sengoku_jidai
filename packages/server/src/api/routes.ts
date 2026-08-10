@@ -20,6 +20,7 @@ import type { MapLibrary, MapLibraryError } from "../maps/library.js";
 import type { TerrainStore } from "../maps/terrainStore.js";
 import type { TerrainService } from "../maps/terrainService.js";
 import { driveAiTurns } from "../ai/aiDriver.js";
+import { withRetry } from "../ai/withRetry.js";
 
 const MAP_ERROR_STATUS: Record<MapLibraryError["code"], number> = {
   invalidMap: 400,
@@ -39,7 +40,10 @@ export function registerApiRoutes(
       gameId
     ) =>
     (seat, state) =>
-      runIsmctsInWorker(state, seat, { deadlineMs: 1500, seed: gameId })
+      withRetry(() => runIsmctsInWorker(state, seat, { deadlineMs: 1500, seed: gameId }), {
+        attempts: 3,
+        delayMs: 50
+      })
 ): void {
   const driveAiSoon = (gameId: string) =>
     setImmediate(() => {
@@ -356,7 +360,10 @@ export function registerApiRoutes(
     }
 
     const result = repository.claimSeat(params.data.gameId, session.seat, body.data.name);
-    if (!result) {
+    if (!result.ok) {
+      if (result.reason === "aiSeat") {
+        return sendError(reply, 409, "seatNotClaimable", "That seat is computer-controlled.");
+      }
       return sendError(reply, 404, "gameNotFound", "Game was not found.");
     }
 

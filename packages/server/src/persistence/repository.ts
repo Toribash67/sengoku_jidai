@@ -286,16 +286,21 @@ export class GameRepository {
     gameId: string,
     seat: SeatId,
     name: string
-  ): { revision: number; view: PlayerGameView; seatInfo: GameSeatInfo[] } | null {
+  ):
+    | { ok: true; revision: number; view: PlayerGameView; seatInfo: GameSeatInfo[] }
+    | { ok: false; reason: "notFound" | "aiSeat" } {
     const game = this.getGameRow(gameId);
     if (!game) {
-      return null;
+      return { ok: false, reason: "notFound" };
     }
     const row = this.db
-      .prepare("SELECT status FROM game_seats WHERE game_id = ? AND seat = ?")
-      .get(gameId, seat) as { status: SeatStatus } | undefined;
+      .prepare("SELECT status, controller FROM game_seats WHERE game_id = ? AND seat = ?")
+      .get(gameId, seat) as { status: SeatStatus; controller: "human" | "ai" } | undefined;
     if (!row) {
-      return null;
+      return { ok: false, reason: "notFound" };
+    }
+    if (row.controller === "ai") {
+      return { ok: false, reason: "aiSeat" };
     }
     if (row.status === "open") {
       this.db
@@ -306,6 +311,7 @@ export class GameRepository {
     }
     const state = this.loadSnapshot(gameId, game.current_revision);
     return {
+      ok: true,
       revision: game.current_revision,
       view: playerView(state, seat),
       seatInfo: this.getSeatInfo(gameId)
