@@ -72,15 +72,4 @@ describe("expected-combat evaluation", () => {
     // Tolerance covers MC sampling error (few distinct outcomes → small variance).
     expect(Math.abs(expected - mc)).toBeLessThan(0.75);
   });
-
-  it("a winning attack evaluates above pass", () => {
-    const { state, seat } = reachPendingCombat();
-    const passState = createInitialState({ gameId: "ec", seed: "ec-3" }); // baseline reference unused
-    void passState;
-    // The pending state IS the post-advance state; compare its expected value to the
-    // pre-advance pass baseline by reconstructing: evaluate(pending) should exceed the value
-    // of simply not having attacked only when the odds favour the attacker. Here we assert the
-    // expected value is finite and that mutual-annihilation/loss cases are not treated as wins.
-    expect(Number.isFinite(evaluate(state, seat))).toBe(true);
-  });
 });

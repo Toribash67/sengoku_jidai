@@ -86,7 +86,10 @@ export function evaluate(
 
 /** Probability-weighted eval over the defence-roll distribution of the pending combat. The
  *  resolved boards have no pendingCombat, so evaluate() recurses exactly one level. Fort adds
- *  a defence die; ambush/reroll cards are not modelled (documented simplification). */
+ *  a defence die; ambush/reroll cards are not modelled (documented simplification). Assumes
+ *  state.combatQueue is empty (always true: deploy candidates are single-placement, so only
+ *  one combat is ever pending at eval time) — the resolved-board rebuilds below clear
+ *  pendingCombat but do not drain combatQueue the way the engine's applyPendingCombat does. */
 function expectedCombatValue(state: GameState, seat: SeatId, weights: EvalWeights): number {
   const pc = state.pendingCombat!;
   const faces = state.rules.diceFaces;
