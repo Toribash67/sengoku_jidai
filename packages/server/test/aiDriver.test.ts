@@ -30,7 +30,9 @@ describe("driveAiTurns", () => {
     const f = fakeDeps("seed-1");
     const startRev = f.get().revision;
     const bot = new RandomBot(createAiRng(2));
-    await driveAiTurns(f.deps, "g", (seat, state) => Promise.resolve(bot.chooseCommand(state, seat)));
+    await driveAiTurns(f.deps, "g", (seat, state) =>
+      Promise.resolve(bot.chooseCommand(state, seat))
+    );
     const s = f.get();
     expect(s.revision).toBeGreaterThan(startRev); // AI actually moved >= 1 step
     // After driving, it's either the human's turn, or the game is over.

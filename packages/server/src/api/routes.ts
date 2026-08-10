@@ -36,8 +36,10 @@ export function registerApiRoutes(
   terrainService: TerrainService,
   adminPassword?: string,
   aiPickCommandFor: (gameId: string) => (seat: SeatId, state: GameState) => Promise<Command> = (
-    gameId
-  ) => (seat, state) => runIsmctsInWorker(state, seat, { deadlineMs: 1500, seed: gameId })
+      gameId
+    ) =>
+    (seat, state) =>
+      runIsmctsInWorker(state, seat, { deadlineMs: 1500, seed: gameId })
 ): void {
   const driveAiSoon = (gameId: string) =>
     setImmediate(() => {

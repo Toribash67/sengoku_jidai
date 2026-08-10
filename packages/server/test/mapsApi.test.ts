@@ -214,7 +214,8 @@ describe("AI opponent at game creation", () => {
       terrainStore,
       terrainService,
       undefined,
-      () => (seat, state) => Promise.resolve(new RandomBot(createAiRng(1)).chooseCommand(state, seat))
+      () => (seat, state) =>
+        Promise.resolve(new RandomBot(createAiRng(1)).chooseCommand(state, seat))
     );
 
     const res = await app.inject({
