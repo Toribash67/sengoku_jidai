@@ -1,4 +1,5 @@
 import {
+  conflictOutcome,
   gameBoard,
   getMap,
   suppliedAreas,
@@ -7,6 +8,7 @@ import {
   type MapDefinition,
   type SeatId
 } from "@sengoku-jidai/engine";
+import { rollTotalDistribution } from "./combatOdds.js";
 import { tileBaseValue, type TileValueWeights } from "./geometry.js";
 
 export interface EvalWeights {
@@ -77,6 +79,78 @@ export function evaluate(
     if (state.winner === enemy) return -weights.terminal;
     return 0;
   }
+  if (state.pendingCombat) return expectedCombatValue(state, seat, weights);
   const map = getMap(state.mapId);
   return rawScore(state, map, seat, weights) - rawScore(state, map, enemy, weights);
+}
+
+/** Probability-weighted eval over the defence-roll distribution of the pending combat. The
+ *  resolved boards have no pendingCombat, so evaluate() recurses exactly one level. Fort adds
+ *  a defence die; ambush/reroll cards are not modelled (documented simplification). Assumes
+ *  state.combatQueue is empty (always true at any AI eval call site): pendingCombat is set
+ *  either directly by advance/sail/bombard/shell (which never touch combatQueue) or by
+ *  advanceCombatQueue, which promotes a queued battle only when the queue drains to empty. The
+ *  one state with pendingCombat set AND combatQueue non-empty is a multi-target Commandeer
+ *  resolved via a selectCombat decision, which the search never reaches (candidate generation
+ *  never plays an operation card). If ever violated, the effect is a mild under-count, never a
+ *  mutation or crash. */
+function expectedCombatValue(state: GameState, seat: SeatId, weights: EvalWeights): number {
+  const pc = state.pendingCombat!;
+  const faces = state.rules.diceFaces;
+
+  if (pc.kind === "advance" || pc.kind === "sail") {
+    const fort = pc.kind === "advance" && getMap(state.mapId).areas[pc.area]?.fort === true;
+    const dist = rollTotalDistribution(faces, 1 + (fort ? 1 : 0));
+    let acc = 0;
+    for (const { total, prob } of dist) {
+      const o = conflictOutcome(total, pc.attackers ?? 0, pc.defenders ?? 0);
+      acc += prob * evaluate(resolveAdvanceBoard(state, pc, o), seat, weights);
+    }
+    return acc;
+  }
+
+  // bombard / shell: the rolled total removes that many enemy units (no capture).
+  // Shell's optional Ship Strike follow-up (card-gated, unreachable for AI) is not modelled.
+  const dist = rollTotalDistribution(faces, pc.dice ?? 1);
+  let acc = 0;
+  for (const { total, prob } of dist) {
+    acc += prob * evaluate(resolveStrikeBoard(state, pc, total), seat, weights);
+  }
+  return acc;
+}
+
+/** Shallow rebuild of the board after an advance/sail resolves to `o`. Mirrors the ownership
+ *  rule in engine actions.ts applyPendingCombat: attacker captures with the survivors, else the
+ *  defender holds, else mutual annihilation leaves the tile neutral. */
+function resolveAdvanceBoard(
+  state: GameState,
+  pc: NonNullable<GameState["pendingCombat"]>,
+  o: { attackersLeft: number; defendersLeft: number }
+): GameState {
+  const src = state.areas[pc.area]!;
+  const target = { ...src, units: { ...src.units } };
+  if (o.attackersLeft > 0) {
+    target.owner = pc.attacker;
+    target.units[pc.unit] = o.attackersLeft;
+  } else if (o.defendersLeft > 0) {
+    target.units[pc.unit] = o.defendersLeft; // defender still owns
+  } else {
+    target.owner = null;
+    target.units[pc.unit] = 0;
+  }
+  return { ...state, areas: { ...state.areas, [pc.area]: target }, pendingCombat: null };
+}
+
+/** Shallow rebuild after a bombard/shell removes `total` enemy units (mirrors removeUnits:
+ *  losses to reserve — unscored — and an emptied tile goes neutral). */
+function resolveStrikeBoard(
+  state: GameState,
+  pc: NonNullable<GameState["pendingCombat"]>,
+  total: number
+): GameState {
+  const src = state.areas[pc.area]!;
+  const target = { ...src, units: { ...src.units } };
+  target.units[pc.unit] = Math.max(0, target.units[pc.unit] - total);
+  if (target.units.troop === 0 && target.units.ship === 0) target.owner = null;
+  return { ...state, areas: { ...state.areas, [pc.area]: target }, pendingCombat: null };
 }
