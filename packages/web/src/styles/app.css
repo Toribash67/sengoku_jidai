@@ -1250,6 +1250,12 @@ button:disabled {
   color: var(--sumi-soft);
   font-style: italic;
 }
+.player-thinking {
+  font-size: 0.8rem;
+  font-style: italic;
+  opacity: 0.75;
+  margin-left: 0.5rem;
+}
 .invite-box {
   display: flex;
   flex-direction: column;

@@ -13,12 +13,12 @@ function view(over: Partial<PlayerGameView>): PlayerGameView {
 }
 
 const bothClaimed: GameSeatInfo[] = [
-  { seat: "red", name: "Oda", status: "claimed" },
-  { seat: "black", name: "Tok", status: "claimed" }
+  { seat: "red", name: "Oda", status: "claimed", controller: "human" },
+  { seat: "black", name: "Tok", status: "claimed", controller: "human" }
 ];
 const opponentOpen: GameSeatInfo[] = [
-  { seat: "red", name: "Oda", status: "claimed" },
-  { seat: "black", name: null, status: "open" }
+  { seat: "red", name: "Oda", status: "claimed", controller: "human" },
+  { seat: "black", name: null, status: "open", controller: "human" }
 ];
 
 describe("shouldPoll", () => {

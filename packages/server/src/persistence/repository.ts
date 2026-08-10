@@ -73,6 +73,7 @@ interface SeatInfoRow {
   seat: SeatId;
   display_name: string | null;
   status: SeatStatus;
+  controller: "human" | "ai";
 }
 
 interface AdminGameRow {
@@ -97,9 +98,16 @@ export class GameRepository {
 
   getSeatInfo(gameId: string): GameSeatInfo[] {
     const rows = this.db
-      .prepare("SELECT seat, display_name, status FROM game_seats WHERE game_id = ? ORDER BY seat")
+      .prepare(
+        "SELECT seat, display_name, status, controller FROM game_seats WHERE game_id = ? ORDER BY seat"
+      )
       .all(gameId) as SeatInfoRow[];
-    return rows.map((r) => ({ seat: r.seat, name: r.display_name, status: r.status }));
+    return rows.map((r) => ({
+      seat: r.seat,
+      name: r.display_name,
+      status: r.status,
+      controller: r.controller
+    }));
   }
 
   /** Per-seat controller ('human' | 'ai') for a game. */

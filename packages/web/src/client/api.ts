@@ -19,6 +19,7 @@ export async function createGame(input: {
   name: string;
   side: SeatId;
   mapId?: string;
+  opponent?: "human" | "ai";
 }): Promise<CreateGameResponse<PlayerGameView>> {
   return request("/api/games", {
     method: "POST",
@@ -26,7 +27,8 @@ export async function createGame(input: {
       mode: "private_multiplayer",
       name: input.name,
       side: input.side,
-      mapId: input.mapId
+      mapId: input.mapId,
+      opponent: input.opponent
     })
   });
 }

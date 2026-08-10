@@ -38,6 +38,7 @@ interface PlayersPanelProps {
   inviteLink: string | null;
   busy: boolean;
   onSwitchSeat: (seat: SeatId) => void;
+  thinkingSeat?: SeatId | null;
 }
 
 const sideLabel: Record<SeatId, string> = { red: "Red", black: "Black" };
@@ -50,7 +51,8 @@ export function PlayersPanel({
   activeSeat,
   inviteLink,
   busy,
-  onSwitchSeat
+  onSwitchSeat,
+  thinkingSeat = null
 }: PlayersPanelProps) {
   const [copied, setCopied] = useState(false);
   const copiedTimer = useRef<number | null>(null);
@@ -88,7 +90,10 @@ export function PlayersPanel({
           const isViewer = seat.seat === viewerSeat;
           const isActive = seat.seat === activeSeat;
           const label =
-            seat.name ?? (seat.status === "open" ? "Waiting to join…" : sideLabel[seat.seat]);
+            seat.controller === "ai"
+              ? "Computer"
+              : (seat.name ?? (seat.status === "open" ? "Waiting to join…" : sideLabel[seat.seat]));
+          const isThinking = seat.seat === thinkingSeat;
           return (
             <li key={seat.seat} className={`player-row${isActive ? " is-turn" : ""}`}>
               {held ? (
@@ -110,11 +115,18 @@ export function PlayersPanel({
                   <span className="player-side" data-seat={seat.seat}>
                     {sideLabel[seat.seat]}
                   </span>
-                  <span className={`player-name${seat.status === "open" ? " is-open" : ""}`}>
+                  <span
+                    className={`player-name${seat.status === "open" && seat.controller !== "ai" ? " is-open" : ""}`}
+                  >
                     {label}
                   </span>
                 </span>
               )}
+              {isThinking ? (
+                <span className="player-thinking" role="status" aria-live="polite">
+                  Computer is thinking…
+                </span>
+              ) : null}
             </li>
           );
         })}

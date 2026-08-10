@@ -119,6 +119,12 @@ describe("maps api client", () => {
     expect(JSON.parse(mock.mock.calls[0]![1].body as string).mapId).toBe("abc");
   });
 
+  it("sends opponent in the create-game body", async () => {
+    const mock = stubFetchWithStatus(200, { gameId: "g1" });
+    await createGame({ name: "N", side: "red", opponent: "ai" });
+    expect(JSON.parse(mock.mock.calls[0]![1].body as string).opponent).toBe("ai");
+  });
+
   it("extracts the server error envelope message", () => {
     const err = new ApiError(409, {
       error: { code: "mapInUse", message: "Map is used by existing games.", requestId: "r" }

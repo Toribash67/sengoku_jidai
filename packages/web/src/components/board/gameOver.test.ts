@@ -20,8 +20,8 @@ describe("endReasonText", () => {
 
 describe("seatDisplayName", () => {
   const seatInfo: GameSeatInfo[] = [
-    { seat: "red", name: "Nobunaga", status: "claimed" },
-    { seat: "black", name: null, status: "open" }
+    { seat: "red", name: "Nobunaga", status: "claimed", controller: "human" },
+    { seat: "black", name: null, status: "open", controller: "human" }
   ];
   it("returns the seat's player name when set", () => {
     expect(seatDisplayName("red", seatInfo)).toBe("Nobunaga");
