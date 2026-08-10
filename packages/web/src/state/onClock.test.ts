@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { onClockSeat } from "./onClock.js";
 
-const base = { status: "active" as const, activeSeat: "red" as const, pendingCombat: null, pendingDecision: null };
+const base = {
+  status: "active" as const,
+  activeSeat: "red" as const,
+  pendingCombat: null,
+  pendingDecision: null
+};
 
 describe("onClockSeat", () => {
   it("returns null when the game is not active", () => {
