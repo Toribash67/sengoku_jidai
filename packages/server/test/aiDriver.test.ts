@@ -26,10 +26,13 @@ function fakeDeps(seed: string) {
 }
 
 describe("driveAiTurns", () => {
-  it("drives the AI seat's turn(s) then stops for the human (or game over)", () => {
+  it("drives the AI seat's turn(s) then stops for the human (or game over)", async () => {
     const f = fakeDeps("seed-1");
     const startRev = f.get().revision;
-    driveAiTurns(f.deps, "g", () => new RandomBot(createAiRng(2)));
+    const bot = new RandomBot(createAiRng(2));
+    await driveAiTurns(f.deps, "g", (seat, state) =>
+      Promise.resolve(bot.chooseCommand(state, seat))
+    );
     const s = f.get();
     expect(s.revision).toBeGreaterThan(startRev); // AI actually moved >= 1 step
     // After driving, it's either the human's turn, or the game is over.

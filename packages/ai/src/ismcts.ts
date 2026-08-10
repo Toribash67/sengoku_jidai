@@ -178,19 +178,21 @@ export function chooseCommandIsmcts(state: GameState, seat: SeatId, opts: Ismcts
   return best.cmd;
 }
 
+/** Serializable options for a single ISMCTS decision. Plain data so it can cross a worker
+ *  boundary (see runIsmctsInWorker). */
+export interface IsmctsBotOptions {
+  iterations?: number;
+  deadlineMs?: number;
+  seed?: string;
+  depthCap?: number;
+  exploration?: number;
+  weights?: EvalWeights;
+}
+
 /** The AI opponent. For reproducible tests pass `iterations` + `seed`; for production pass
  *  `deadlineMs`. A fresh RNG is derived per decision from `seed + state.revision`. */
 export class IsmctsBot implements Bot {
-  constructor(
-    private readonly opts: {
-      iterations?: number;
-      deadlineMs?: number;
-      seed?: string;
-      depthCap?: number;
-      exploration?: number;
-      weights?: EvalWeights;
-    }
-  ) {}
+  constructor(private readonly opts: IsmctsBotOptions) {}
 
   chooseCommand(state: GameState, seat: SeatId): Command {
     const rng = createAiRng(seedFromString(`${this.opts.seed ?? "ai"}:${state.revision}:${seat}`));
