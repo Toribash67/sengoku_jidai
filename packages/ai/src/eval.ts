@@ -87,9 +87,13 @@ export function evaluate(
 /** Probability-weighted eval over the defence-roll distribution of the pending combat. The
  *  resolved boards have no pendingCombat, so evaluate() recurses exactly one level. Fort adds
  *  a defence die; ambush/reroll cards are not modelled (documented simplification). Assumes
- *  state.combatQueue is empty (always true: deploy candidates are single-placement, so only
- *  one combat is ever pending at eval time) — the resolved-board rebuilds below clear
- *  pendingCombat but do not drain combatQueue the way the engine's applyPendingCombat does. */
+ *  state.combatQueue is empty (always true at any AI eval call site): pendingCombat is set
+ *  either directly by advance/sail/bombard/shell (which never touch combatQueue) or by
+ *  advanceCombatQueue, which promotes a queued battle only when the queue drains to empty. The
+ *  one state with pendingCombat set AND combatQueue non-empty is a multi-target Commandeer
+ *  resolved via a selectCombat decision, which the search never reaches (candidate generation
+ *  never plays an operation card). If ever violated, the effect is a mild under-count, never a
+ *  mutation or crash. */
 function expectedCombatValue(state: GameState, seat: SeatId, weights: EvalWeights): number {
   const pc = state.pendingCombat!;
   const faces = state.rules.diceFaces;
@@ -106,6 +110,7 @@ function expectedCombatValue(state: GameState, seat: SeatId, weights: EvalWeight
   }
 
   // bombard / shell: the rolled total removes that many enemy units (no capture).
+  // Shell's optional Ship Strike follow-up (card-gated, unreachable for AI) is not modelled.
   const dist = rollTotalDistribution(faces, pc.dice ?? 1);
   let acc = 0;
   for (const { total, prob } of dist) {
