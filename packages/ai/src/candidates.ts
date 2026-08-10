@@ -14,6 +14,10 @@ import {
  *
  *  How many candidate archetypes we keep per move space. Widening this trades speed for
  *  coverage — a deliberate cap, not an accident. */
+
+/** How many free-capacity reinforce/embark targets (best by tile value) to offer per source. */
+const PLACEMENT_TARGETS = 3;
+
 export function deployCandidates(state: GameState, seat: SeatId): Command[] {
   const legal = legalCommandsForState(state, seat);
   if (legal.activeSeat !== seat || !legal.canPass) {
@@ -29,18 +33,26 @@ export function deployCandidates(state: GameState, seat: SeatId): Command[] {
   // Plans.
   for (const p of legal.plans) out.push({ type: "plan", spaceId: p.spaceId });
 
-  // Reinforce / Embark: fill the placeable pool into the single highest-value target.
+  // Reinforce / Embark: place into targets that actually have free capacity. A tile at its
+  // stacking cap (land 5 / water 3, see engine resolve.ts) returns the excess to reserve — so
+  // dumping onto the highest-value tile when it is full is a no-op that ties with pass, and the
+  // bot passes instead of strengthening the board. Offer the best few free-capacity targets by
+  // tile value (count clamped to what fits) so the search can commit where it helps.
   for (const pl of legal.placements) {
     const placeable = Math.min(pl.pool, pl.reserve);
     if (placeable <= 0 || pl.targets.length === 0) continue;
-    const target = [...pl.targets].sort(
-      (a, b) => (map.areas[b]?.valueStars ?? 0) - (map.areas[a]?.valueStars ?? 0)
-    )[0]!;
-    out.push({
-      type: pl.type,
-      spaceId: pl.spaceId,
-      placements: [{ area: target, count: placeable }]
-    });
+    const cap = pl.unit === "troop" ? 5 : 3;
+    const withRoom = pl.targets
+      .map((area) => ({ area, free: cap - (state.areas[area]?.units[pl.unit] ?? 0) }))
+      .filter((t) => t.free > 0)
+      .sort((a, b) => (map.areas[b.area]?.valueStars ?? 0) - (map.areas[a.area]?.valueStars ?? 0));
+    for (const { area, free } of withRoom.slice(0, PLACEMENT_TARGETS)) {
+      out.push({
+        type: pl.type,
+        spaceId: pl.spaceId,
+        placements: [{ area, count: Math.min(placeable, free) }]
+      });
+    }
   }
 
   // Bombard / Shell: one candidate per enemy target.
