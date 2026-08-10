@@ -20,6 +20,7 @@ import type { MapLibrary, MapLibraryError } from "../maps/library.js";
 import type { TerrainStore } from "../maps/terrainStore.js";
 import type { TerrainService } from "../maps/terrainService.js";
 import { driveAiTurns } from "../ai/aiDriver.js";
+import { withRetry } from "../ai/withRetry.js";
 
 const MAP_ERROR_STATUS: Record<MapLibraryError["code"], number> = {
   invalidMap: 400,
@@ -39,7 +40,10 @@ export function registerApiRoutes(
       gameId
     ) =>
     (seat, state) =>
-      runIsmctsInWorker(state, seat, { deadlineMs: 1500, seed: gameId })
+      withRetry(() => runIsmctsInWorker(state, seat, { deadlineMs: 1500, seed: gameId }), {
+        attempts: 3,
+        delayMs: 50
+      })
 ): void {
   const driveAiSoon = (gameId: string) =>
     setImmediate(() => {
