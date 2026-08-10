@@ -853,7 +853,7 @@ export function App() {
       : VERB[armedOrder.type]
     : null;
 
-  const openSeat = game.seatInfo.find((s) => s.status === "open");
+  const openSeat = game.seatInfo.find((s) => s.status === "open" && s.controller !== "ai");
   const openSeatToken = openSeat
     ? game.heldSeats.find((held) => held.seat === openSeat.seat)?.token
     : undefined;

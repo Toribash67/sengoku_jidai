@@ -90,7 +90,9 @@ export function PlayersPanel({
           const isViewer = seat.seat === viewerSeat;
           const isActive = seat.seat === activeSeat;
           const label =
-            seat.name ?? (seat.status === "open" ? "Waiting to join…" : sideLabel[seat.seat]);
+            seat.controller === "ai"
+              ? "Computer"
+              : (seat.name ?? (seat.status === "open" ? "Waiting to join…" : sideLabel[seat.seat]));
           const isThinking = seat.seat === thinkingSeat;
           return (
             <li key={seat.seat} className={`player-row${isActive ? " is-turn" : ""}`}>
@@ -113,7 +115,9 @@ export function PlayersPanel({
                   <span className="player-side" data-seat={seat.seat}>
                     {sideLabel[seat.seat]}
                   </span>
-                  <span className={`player-name${seat.status === "open" ? " is-open" : ""}`}>
+                  <span
+                    className={`player-name${seat.status === "open" && seat.controller !== "ai" ? " is-open" : ""}`}
+                  >
                     {label}
                   </span>
                 </span>
