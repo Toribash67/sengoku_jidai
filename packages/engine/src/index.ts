@@ -7,6 +7,7 @@ export * from "./commands.js";
 export * from "./resolve.js";
 export * from "./view.js";
 export * from "./serialization.js";
+export * from "./conflict.js";
 export * from "./maps/riversMap.js";
 export * from "./maps/riversSource.js";
 export * from "./maps/registry.js";
