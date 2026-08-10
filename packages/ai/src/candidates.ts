@@ -53,6 +53,19 @@ export function deployCandidates(state: GameState, seat: SeatId): Command[] {
         placements: [{ area, count: Math.min(placeable, free) }]
       });
     }
+    // Spread: fill the top free-capacity tiles to cap in value order until the pool is exhausted,
+    // so the whole reserve pool deploys in one command instead of banking the overflow (each tile
+    // caps at land 5 / water 3). Added only when it spans >1 tile — otherwise it duplicates the
+    // single-target candidate above.
+    const spread: { area: string; count: number }[] = [];
+    let remaining = placeable;
+    for (const { area, free } of withRoom) {
+      if (remaining <= 0) break;
+      const count = Math.min(remaining, free);
+      spread.push({ area, count });
+      remaining -= count;
+    }
+    if (spread.length > 1) out.push({ type: pl.type, spaceId: pl.spaceId, placements: spread });
   }
 
   // Bombard / Shell: one candidate per enemy target.
