@@ -396,14 +396,16 @@ git commit -m "feat(server): drive AI turns via worker-backed pickCommand"
 
 ---
 
-### Task 5: Update the two tests that inject the AI seam
+### Task 5: Update the tests that inject or exercise the AI seam
 
 **Files:**
 - Modify: `packages/server/test/aiGame.test.ts` (line 26)
 - Modify: `packages/server/test/mapsApi.test.ts` (lines 210-218)
+- Modify: `packages/server/test/aiDriver.test.ts` (the direct `driveAiTurns` unit test — line 29 `it` callback and line 32 call)
+- Modify: `packages/server/test/ismctsWorker.test.ts` (fix a latent seed-type error: `createGame`'s `seed` param is `string`, but the Task 2 test passes a number)
 
 **Interfaces:**
-- Consumes: `BuildAppOptions.aiPickCommandFor`, `registerApiRoutes`'s `aiPickCommandFor` param (Task 4).
+- Consumes: `BuildAppOptions.aiPickCommandFor`, `registerApiRoutes`'s `aiPickCommandFor` param (Task 4); `driveAiTurns(deps, gameId, pickCommand, maxSteps?)` async signature (Task 3).
 
 - [ ] **Step 1: Update `aiGame.test.ts`**
 
@@ -440,21 +442,38 @@ Replace the 7th argument (lines 216-217) `undefined,` / `() => new RandomBot(cre
     );
 ```
 
-- [ ] **Step 3: Run both tests**
+- [ ] **Step 3: Update `aiDriver.test.ts` (direct driver unit test)**
 
-Run: `corepack pnpm --filter @sengoku-jidai/ai build && corepack pnpm --filter @sengoku-jidai/server exec vitest run test/aiGame.test.ts test/mapsApi.test.ts`
+`driveAiTurns` is now async and takes an async `pickCommand`. In `packages/server/test/aiDriver.test.ts`, make the `it` callback async (line 29) and replace the call (line 32):
+
+```ts
+    const bot = new RandomBot(createAiRng(2));
+    await driveAiTurns(f.deps, "g", (seat, state) => Promise.resolve(bot.chooseCommand(state, seat)));
+```
+
+- [ ] **Step 4: Fix the `ismctsWorker.test.ts` seed type**
+
+`GameRepository.createGame(mode, seed?: string, opts)` takes a **string** seed. In `packages/server/test/ismctsWorker.test.ts`, change the numeric seed to a string:
+
+```ts
+    const game = repo.createGame("hotseat", "12345", { creatorName: "P1", creatorSide: "red" });
+```
+
+- [ ] **Step 5: Run the affected tests**
+
+Run: `corepack pnpm --filter @sengoku-jidai/ai build && corepack pnpm --filter @sengoku-jidai/server exec vitest run test/aiGame.test.ts test/mapsApi.test.ts test/aiDriver.test.ts test/ismctsWorker.test.ts`
 Expected: PASS.
 
-- [ ] **Step 4: Full server typecheck**
+- [ ] **Step 6: Full server typecheck**
 
 Run: `corepack pnpm --filter @sengoku-jidai/server run typecheck`
-Expected: PASS.
+Expected: PASS (all call-site and test signatures now match the async seam; the seed-type error is resolved).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add packages/server/test/aiGame.test.ts packages/server/test/mapsApi.test.ts
-git commit -m "test(server): inject async pickCommand seam"
+git add packages/server/test/aiGame.test.ts packages/server/test/mapsApi.test.ts packages/server/test/aiDriver.test.ts packages/server/test/ismctsWorker.test.ts
+git commit -m "test(server): drive AI turns via async pickCommand seam"
 ```
 
 ---
@@ -525,7 +544,7 @@ describe("getSeatInfo controller", () => {
     const db = openDatabase(":memory:");
     runMigrations(db);
     const repo = new GameRepository(db);
-    const game = repo.createGame("hotseat", 1, {
+    const game = repo.createGame("hotseat", "1", {
       creatorName: "P1",
       creatorSide: "red",
       aiSeats: ["black"]
