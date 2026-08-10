@@ -27,7 +27,9 @@ describe("deployCandidates offers a full-pool spread placement", () => {
           const placeable = Math.min(pl.pool, pl.reserve);
           if (placeable <= 0 || pl.targets.length === 0) continue;
           const cap = pl.unit === "troop" ? 5 : 3;
-          const frees = pl.targets.map((t) => cap - (state.areas[t]?.units[pl.unit] ?? 0)).filter((f) => f > 0);
+          const frees = pl.targets
+            .map((t) => cap - (state.areas[t]?.units[pl.unit] ?? 0))
+            .filter((f) => f > 0);
           const totalFree = frees.reduce((s, f) => s + f, 0);
           const topFree = frees.length ? Math.max(...frees) : 0;
           const deployable = Math.min(placeable, totalFree);
@@ -40,11 +42,16 @@ describe("deployCandidates offers a full-pool spread placement", () => {
             if (c.type !== pl.type) continue;
             if ((c as { spaceId?: string }).spaceId !== pl.spaceId) continue;
             const placements = (c as { placements?: { count: number }[] }).placements ?? [];
-            maxPlaced = Math.max(maxPlaced, placements.reduce((s, p) => s + p.count, 0));
+            maxPlaced = Math.max(
+              maxPlaced,
+              placements.reduce((s, p) => s + p.count, 0)
+            );
           }
           if (maxPlaced < deployable) {
             if (shortfalls.length < 10)
-              shortfalls.push(`round ${state.round} ${seat} ${pl.type}/${pl.spaceId}: maxPlaced=${maxPlaced} < deployable=${deployable} (placeable=${placeable}, topFree=${topFree})`);
+              shortfalls.push(
+                `round ${state.round} ${seat} ${pl.type}/${pl.spaceId}: maxPlaced=${maxPlaced} < deployable=${deployable} (placeable=${placeable}, topFree=${topFree})`
+              );
           }
         }
       }
