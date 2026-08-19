@@ -109,10 +109,15 @@ function moveArchetypes(state: GameState, seat: SeatId, mv: LegalMove): Command[
   const allIn = build(sources.map((s) => ({ from: s.areaId, count: s.max })));
   if (allIn) commands.push(allIn);
 
-  // Strongest single source.
-  const strongest = [...sources].sort((a, b) => b.max - a.max)[0]!;
-  const single = build([{ from: strongest.areaId, count: strongest.max }]);
-  if (single) commands.push(single);
+  // Solo from each source at its max. Attacking from a weaker source can beat pulling from the
+  // strongest one: eval rewards per-tile presence concavely, so draining your strongest stack to
+  // attack is a real cost the search should be free to avoid by spending a lesser tile instead.
+  // (Diagnostic 2026-08-19: solo-from-a-non-strongest-source was 100% of the advance
+  // candidate-generation gap.) De-duplication below collapses the overlap with all-in/min-viable.
+  for (const s of sources) {
+    const solo = build([{ from: s.areaId, count: s.max }]);
+    if (solo) commands.push(solo);
+  }
 
   // Minimum viable: attackers = defenders + 1, greedily from the biggest sources.
   let need = defenders + 1;
