@@ -65,6 +65,10 @@ test("author, merge, pan/zoom, and save a map by touch", async ({ page }) => {
   await page.getByRole("button", { name: "Multi-select" }).tap();
   await page.locator('[data-tile-id="t1"]').tap();
   await page.locator('[data-tile-id="t2"]').tap();
+  // Guard: confirm both tiles actually selected before merging. Without this, a touch-input hiccup
+  // that drops a selection surfaces only as an opaque 30s "Merge tiles never appeared" timeout;
+  // asserting the selection here fails fast with a clear count and lets the async select settle.
+  await expect(page.locator(".editor-hex.is-selected")).toHaveCount(2);
   await page.getByRole("button", { name: "Merge tiles" }).tap();
   await expect(page.locator('[data-tile-id="t1"]')).toHaveCount(2); // both hexes now t1
 
