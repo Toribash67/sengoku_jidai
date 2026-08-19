@@ -121,6 +121,8 @@ jobs:
   browser-smoke:
     name: Browser Smoke Test
     runs-on: ubuntu-latest
+    # Cap the job so a hung Playwright run fails in minutes instead of burning the 6h default.
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -141,6 +143,18 @@ jobs:
 
       - name: Browser smoke test
         run: corepack pnpm test:e2e
+
+      # On failure, keep the Playwright report + traces (trace: on-first-retry) so a recurring
+      # flake can actually be diagnosed instead of vanishing with the runner.
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
 
   build-and-push:
     name: Build and Push Image
