@@ -6,6 +6,7 @@ export { resolvePending } from "./heuristics.js";
 export { deployCandidates } from "./candidates.js";
 export { RandomBot } from "./bots/random.js";
 export { GreedyBot, greedyCommand } from "./bots/greedy.js";
+export { AlphaBetaBot, alphaBetaCommand, type AlphaBetaOptions } from "./bots/alphabeta.js";
 export { runMatch, runMatches, type MatchResult, type SeriesResult } from "./match.js";
 export { evaluate, DEFAULT_WEIGHTS, type EvalWeights } from "./eval.js";
 export {
@@ -16,3 +17,4 @@ export {
 } from "./ismcts.js";
 export { determinize } from "./determinize.js";
 export { runIsmctsInWorker } from "./ismctsWorkerRunner.js";
+export { runAlphaBetaInWorker } from "./alphabetaWorkerRunner.js";
