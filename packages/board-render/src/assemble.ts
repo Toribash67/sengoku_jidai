@@ -234,3 +234,25 @@ export function assembleBoardSvg(scene: BoardScene): string {
     `${defs}${seaGroup}${landGroup}${grid}${features}${slots}`
   );
 }
+
+/**
+ * A minimal land/sea preview of a map: one filled polygon per tile in its flat-terrain
+ * colour, framed by the scene viewBox. No features, glyphs, order slots, or defs — just the
+ * land/sea distribution, for small thumbnails (e.g. the map library). `preserveAspectRatio`
+ * letterboxes it into any container shape (e.g. a square).
+ */
+export function mapThumbnailSvg(scene: BoardScene): string {
+  const { x, y, width, height } = scene.viewBox;
+  const tiles = scene.tiles
+    .map((t) => el("path", { d: ringPath(t.rings), fill: t.authoredFill }))
+    .join("");
+  return el(
+    "svg",
+    {
+      xmlns: SVG_NS,
+      viewBox: `${x} ${y} ${width} ${height}`,
+      preserveAspectRatio: "xMidYMid meet"
+    },
+    tiles
+  );
+}

@@ -78,9 +78,18 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
             />
           </label>
 
-          <label className="field">
-            <span>Map</span>
-            <select value={mapId} onChange={(event) => setMapId(event.target.value)}>
+          <div className="field">
+            <div className="field-label-row">
+              <label htmlFor="map-select">Map</label>
+              <button type="button" className="field-link" onClick={() => navigateTo(mapsUrl())}>
+                Browse library →
+              </button>
+            </div>
+            <select
+              id="map-select"
+              value={mapId}
+              onChange={(event) => setMapId(event.target.value)}
+            >
               {(
                 maps ?? [
                   { id: riversMapId, name: "Rivers", tileCount: 22, builtin: true, updatedAt: null }
@@ -91,7 +100,7 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
                 </option>
               ))}
             </select>
-          </label>
+          </div>
           {mapsFailed ? (
             <p className="muted">Couldn’t load the map library — using Rivers.</p>
           ) : null}
@@ -139,9 +148,6 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
           </button>
         </form>
         {error ? <p className="error-text">{error}</p> : null}
-        <button type="button" className="secondary-action" onClick={() => navigateTo(mapsUrl())}>
-          Map library
-        </button>
       </section>
     </main>
   );

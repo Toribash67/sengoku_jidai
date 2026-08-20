@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { MapSummary } from "@sengoku-jidai/shared";
 import { apiErrorMessage, deleteMap, listMaps } from "../client/api.js";
 import { createUrl, editorUrl, navigateTo } from "../state/route.js";
+import { MapThumbnail } from "./MapThumbnail.js";
 
 export function MapLibraryScreen() {
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
@@ -65,6 +66,7 @@ export function MapLibraryScreen() {
           <ul className="map-list">
             {maps.map((map) => (
               <li key={map.id} className="map-row">
+                <MapThumbnail mapId={map.id} name={map.name} />
                 <div className="map-row-info">
                   <strong>{map.name}</strong>
                   <span className="muted">
