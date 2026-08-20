@@ -25,6 +25,9 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
   const [mapsFailed, setMapsFailed] = useState(false);
   const [mapId, setMapId] = useState<string>(riversMapId);
   const trimmed = name.trim();
+  // The opponent sits on the far side, so highlight the chosen opponent in the seat colour
+  // opposite to the player's — a visual cue for who's across the board.
+  const opponentSide: SeatId = side === "red" ? "black" : "red";
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +116,7 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
             <legend>Opponent</legend>
             <button
               type="button"
+              data-side={opponentSide}
               aria-pressed={opponent === "human"}
               className={opponent === "human" ? "is-active" : ""}
               onClick={() => setOpponent("human")}
@@ -121,6 +125,7 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
             </button>
             <button
               type="button"
+              data-side={opponentSide}
               aria-pressed={opponent === "ai"}
               className={opponent === "ai" ? "is-active" : ""}
               onClick={() => setOpponent("ai")}
