@@ -1234,7 +1234,9 @@ button:disabled {
   color: var(--washi-raised);
 }
 .primary-action {
-  padding: 0.65rem 1rem;
+  /* Vertical padding is 0 so the height comes from the base button's min-height (40px), keeping
+     .primary-action the same height as its sibling .secondary-action wherever they sit together. */
+  padding: 0 1rem;
   border: 0;
   border-radius: 6px;
   background: var(--sumi);
