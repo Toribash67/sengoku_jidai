@@ -1,6 +1,11 @@
 import { getMap } from "@sengoku-jidai/engine/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { boardSvgFor, ensureMapLoaded } from "../../src/client/maps.js";
+import {
+  boardSvgFor,
+  ensureMapLoaded,
+  ensureThumbnailLoaded,
+  thumbnailSvgFor
+} from "../../src/client/maps.js";
 
 /** Minimal valid HexMapSource (client compile only; no server-side validation here). */
 const CUSTOM_SOURCE = {
@@ -100,5 +105,36 @@ describe("ensureMapLoaded", () => {
 
     await ensureMapLoaded("custom-retry");
     expect(boardSvgFor("custom-retry")).toContain("<svg");
+  });
+});
+
+describe("thumbnailSvgFor", () => {
+  it("returns a simplified land/sea svg for the bundled Rivers map without fetching", () => {
+    const mock = mockFetchOnce(200, {});
+    const svg = thumbnailSvgFor("rivers");
+    expect(mock).not.toHaveBeenCalled();
+    expect(svg).toContain("<svg");
+    expect(svg).toContain("#8cb2f2"); // sea fill
+    expect(svg).toContain("#d5d3c4"); // land fill
+    expect(svg).not.toContain("<use"); // no feature glyphs — it's a plain distribution
+  });
+
+  it("is null until the map's thumbnail has loaded, then caches it", async () => {
+    expect(thumbnailSvgFor("custom-thumb")).toBeNull();
+    const detail = {
+      id: "custom-thumb",
+      name: "Custom Thumb",
+      builtin: false,
+      updatedAt: "2026-07-03T00:00:00.000Z",
+      source: { ...CUSTOM_SOURCE, id: "custom-thumb" }
+    };
+    const mock = mockFetchOnce(200, detail);
+
+    await ensureThumbnailLoaded("custom-thumb");
+    expect(mock).toHaveBeenCalledTimes(1);
+    expect(thumbnailSvgFor("custom-thumb")).toContain("<svg");
+
+    await ensureThumbnailLoaded("custom-thumb");
+    expect(mock).toHaveBeenCalledTimes(1); // cache hit, no second fetch
   });
 });

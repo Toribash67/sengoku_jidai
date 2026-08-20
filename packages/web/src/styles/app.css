@@ -1176,6 +1176,33 @@ button:disabled {
   outline: 2px solid var(--kin);
   outline-offset: 1px;
 }
+/* Label + inline action (e.g. "Browse library") sharing the field's top row. */
+.field-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+/* A text link that happens to be a <button>: none of the solid-button chrome. */
+.field-link {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--kin);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.field-link:hover:not(:disabled) {
+  background: none;
+  text-decoration: underline;
+}
+.field-link:focus-visible {
+  outline: 2px solid var(--kin);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
 .side-toggle {
   display: flex;
   gap: 0.5rem;
@@ -1351,11 +1378,32 @@ button:disabled {
   border: 1px solid var(--hairline);
   border-radius: 6px;
 }
+/* Square simplified land/sea preview at the head of each row. Letterboxes the map
+   (any aspect) onto a neutral ground, matching the flat-terrain tile colours. */
+.map-thumb {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  border: 1px solid var(--hairline);
+  background: var(--washi);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.map-thumb-svg,
+.map-thumb-svg svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 .map-row-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
   text-align: left;
+  flex: 1;
+  min-width: 0;
 }
 .map-row-actions {
   display: flex;
