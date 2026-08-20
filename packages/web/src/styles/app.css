@@ -1010,6 +1010,49 @@ button:disabled {
 /* The order-first verb palette: a stable row of order buttons, greyed when unusable. */
 .order-palette {
   flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Icon-first action button: the board token/piece over a small caption. Sits on the
+   light washi ground the board uses, so the black hex tokens (white icon inside) read
+   the same here as on a tile. */
+.action-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 52px;
+  padding: 5px 9px;
+  background: var(--washi-raised);
+  color: var(--sumi);
+  border: 1px solid var(--hairline);
+}
+
+.action-btn:hover:not(:disabled) {
+  background: var(--washi);
+  border-color: var(--sumi);
+}
+
+.action-glyph {
+  width: 28px;
+  height: 28px;
+  display: block;
+  flex: none;
+}
+
+.action-caption {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-size: 0.72rem;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.action-caption .action-meta {
+  font-size: 0.62rem;
+  font-weight: 500;
 }
 
 .order-palette button:disabled {

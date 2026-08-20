@@ -999,6 +999,7 @@ export function App() {
               composer={composer}
               isViewerActive={isViewerActive}
               busy={busy}
+              viewerSeat={game.view.viewerSeat}
               selectedAreaId={stepperAreaId}
               availability={availability}
               armedLabel={armedLabel}

@@ -302,6 +302,24 @@ const ORDER_DEFS = (Object.keys(ORDER_ART_INNER) as OrderKind[])
   })
   .join("\n");
 
+/** Half-extent of the standalone order-glyph viewBox. The white icon overflows the
+ *  black hex (radius {@link ORDER_TOKEN_RADIUS} ≈ 28.4), so pad past it. */
+const ORDER_GLYPH_HALF = 40;
+
+/**
+ * Standalone SVG art for an order token, decoupled from the board's coordinate
+ * system, for reuse in UI (e.g. action-bar buttons). Returns the re-centred inner
+ * art plus a symmetric viewBox that frames the token at the origin. The exact same
+ * `ORDER_ART_INNER` the board draws, so the button glyph matches the tile glyph.
+ */
+export function orderGlyphArt(kind: OrderKind): { viewBox: string; inner: string } {
+  const c = ORDER_ART_CENTER[kind];
+  return {
+    viewBox: `${-ORDER_GLYPH_HALF} ${-ORDER_GLYPH_HALF} ${ORDER_GLYPH_HALF * 2} ${ORDER_GLYPH_HALF * 2}`,
+    inner: el("g", { transform: `translate(${-c.x} ${-c.y})` }, ORDER_ART_INNER[kind])
+  };
+}
+
 const SYMBOLS = [
   ARMY_RED,
   ARMY_BLACK,

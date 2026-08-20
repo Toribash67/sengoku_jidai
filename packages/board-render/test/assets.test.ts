@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { ASSETS, armyGlyph, hqGlyph, shipGlyph, bonusTypeGlyph } from "../src/assets.js";
+import {
+  ASSETS,
+  armyGlyph,
+  hqGlyph,
+  shipGlyph,
+  bonusTypeGlyph,
+  orderGlyphArt,
+  ORDER_TOKEN_RADIUS
+} from "../src/assets.js";
+import type { OrderKind } from "../src/assets.js";
 import type { BonusType } from "@sengoku-jidai/engine";
 
 describe("ASSETS.defs", () => {
@@ -58,5 +67,41 @@ describe("bonusTypeGlyph", () => {
 
   it("bakes a generic marker symbol for game-less contexts", () => {
     expect(ASSETS.defs).toContain(`id="glyph-bonus-generic"`);
+  });
+});
+
+describe("orderGlyphArt", () => {
+  const KINDS: OrderKind[] = ["move", "sail", "bombard", "shell"];
+
+  it("returns distinct standalone art for each order kind", () => {
+    const inners = KINDS.map((k) => orderGlyphArt(k).inner);
+    expect(new Set(inners).size).toBe(KINDS.length);
+  });
+
+  it("re-centres each token at the origin so it renders in its own viewBox", () => {
+    // The board keeps the token art at board coordinates (~490,-403 for move);
+    // the standalone glyph must translate it back onto (0,0) or it renders off-screen.
+    for (const kind of KINDS) {
+      const { inner } = orderGlyphArt(kind);
+      expect(inner.startsWith('<g transform="translate(')).toBe(true);
+    }
+  });
+
+  it("keeps both the black hex and its white icon in every kind", () => {
+    for (const kind of KINDS) {
+      const { inner } = orderGlyphArt(kind);
+      expect(inner).toContain("fill:#000000"); // the hex token
+      expect(inner).toMatch(/fill:#(ffffff|fefefe|e8e8e8)/i); // the white icon
+    }
+  });
+
+  it("frames the token with a symmetric viewBox large enough to contain it", () => {
+    const { viewBox } = orderGlyphArt("move");
+    const parts = viewBox.split(/\s+/).map(Number);
+    expect(parts).toHaveLength(4);
+    const [minX, minY, w, h] = parts as [number, number, number, number];
+    expect(minX).toBe(-w / 2); // centred on origin
+    expect(minY).toBe(-h / 2);
+    expect(w / 2).toBeGreaterThanOrEqual(ORDER_TOKEN_RADIUS); // token fits
   });
 });
