@@ -1388,9 +1388,11 @@ button:disabled {
   border: 1px solid var(--hairline);
   background: var(--washi);
   overflow: hidden;
-  display: grid;
-  place-items: center;
 }
+/* Fill the square with a definite box so the SVG viewport is itself square; its
+   preserveAspectRatio="xMidYMid meet" then letterboxes tall/wide maps (full extent shown,
+   excess filled by the --washi ground) instead of overflowing and being cropped. A grid/
+   place-items:center parent would leave the SVG at its intrinsic aspect and clip it. */
 .map-thumb-svg,
 .map-thumb-svg svg {
   display: block;
