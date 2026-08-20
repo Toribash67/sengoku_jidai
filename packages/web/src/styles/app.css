@@ -1411,6 +1411,22 @@ button:disabled {
   display: flex;
   gap: 8px;
 }
+/* List-row buttons: tighter than the standalone-CTA padding so a row stays compact. */
+.map-row-actions button {
+  min-height: 0;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+/* Narrow phones can't fit the row's buttons side by side; stack them and let each fill
+   its column so the row wraps cleanly instead of overflowing the panel. */
+@media (max-width: 480px) {
+  .map-row-actions {
+    flex-direction: column;
+  }
+  .map-row-actions button {
+    width: 100%;
+  }
+}
 
 /* --- Map editor --- */
 .editor-shell {
