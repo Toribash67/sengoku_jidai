@@ -1,4 +1,5 @@
-import type { LegalPlacement, LegalPlan } from "@sengoku-jidai/engine/client";
+import type { LegalPlacement, LegalPlan, SeatId } from "@sengoku-jidai/engine/client";
+import { ActionGlyph } from "./ActionGlyph.js";
 import { cardLabel } from "./cardImages.js";
 import { UNIT_NOUN, VERB, sumCounts, type ComposerState } from "./composer.js";
 import type { VerbAvailability } from "./orders.js";
@@ -7,6 +8,8 @@ interface ActionBarProps {
   composer: ComposerState | null;
   isViewerActive: boolean;
   busy: boolean;
+  /** The viewer's seat, used to tint placement glyphs to match their board pieces. */
+  viewerSeat: SeatId;
   /** The gold-outlined area; in a move/placement it is the one the stepper adjusts. */
   selectedAreaId: string | null;
   // Idle-mode inputs: the fixed verb palette + the active targeting banner.
@@ -271,6 +274,7 @@ function IdleBar(props: ActionBarProps) {
   const {
     isViewerActive,
     busy,
+    viewerSeat,
     availability,
     armedLabel,
     placements,
@@ -311,43 +315,62 @@ function IdleBar(props: ActionBarProps) {
           <button
             key={verb}
             type="button"
+            className="action-btn"
             data-order-verb={verb}
             onClick={() => onArmVerb(verb)}
             disabled={busy || !availability[verb]}
           >
-            {VERB[verb]}
+            <ActionGlyph verb={verb} seat={viewerSeat} />
+            <span className="action-caption">{VERB[verb]}</span>
           </button>
         ))}
         {placements.map((placement) => (
           <button
             key={placement.spaceId}
             type="button"
+            className="action-btn"
             data-order-verb={placement.type}
             onClick={() => onStartPlacement(placement)}
             disabled={busy}
           >
-            {VERB[placement.type]}{" "}
-            <span className="action-meta">up to {Math.min(placement.pool, placement.reserve)}</span>
+            <ActionGlyph verb={placement.type} seat={viewerSeat} />
+            <span className="action-caption">
+              {VERB[placement.type]}
+              <span className="action-meta">
+                up to {Math.min(placement.pool, placement.reserve)}
+              </span>
+            </span>
           </button>
         ))}
         {plans.map((plan) => (
           <button
             key={plan.spaceId}
             type="button"
+            className="action-btn"
             data-order-verb="plan"
             onClick={() => onStartPlan(plan)}
             disabled={busy}
           >
-            Plan {plan.initiative ? <span className="action-meta">★</span> : null}
+            <ActionGlyph verb="plan" seat={viewerSeat} />
+            <span className="action-caption">
+              Plan
+              {plan.initiative ? (
+                <span className="action-meta" aria-label="initiative">
+                  ★
+                </span>
+              ) : null}
+            </span>
           </button>
         ))}
         <button
           type="button"
+          className="action-btn"
           data-order-verb="pass"
           onClick={onPass}
           disabled={busy || !availability.pass}
         >
-          Pass
+          <ActionGlyph verb="pass" seat={viewerSeat} />
+          <span className="action-caption">Pass</span>
         </button>
       </span>
     </>
