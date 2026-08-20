@@ -7,7 +7,7 @@ import { suppliesBonus } from "./validate.js";
 import { gameBoard } from "./board.js";
 import { shellTargets } from "./legality.js";
 import { suppliedAreas } from "./supply.js";
-import { conflictOutcome } from "./conflict.js";
+import { conflictOutcome, expectedRollTotal } from "./conflict.js";
 import { rollDie } from "./rng.js";
 import type { OperationCard, PendingCombat } from "./state.js";
 
@@ -424,7 +424,11 @@ export function resolveMoveIn(
  * reviews the result before `applyPendingCombat` lands the casualties. Returns the
  * `diceRolled` event so the log/animation can show the throw.
  */
-export function rollPendingCombat(state: GameState, card?: OperationCard): GameEvent[] {
+export function rollPendingCombat(
+  state: GameState,
+  card?: OperationCard,
+  expectedCombat?: boolean
+): GameEvent[] {
   const pc = state.pendingCombat!;
   const events: GameEvent[] = [];
   const isDefence = pc.kind === "advance" || pc.kind === "sail";
@@ -438,11 +442,20 @@ export function rollPendingCombat(state: GameState, card?: OperationCard): GameE
   const count = (isDefence ? 1 : pc.dice!) + (ambush ? 2 : 0) + (fort ? 1 : 0);
   const rolls: number[] = [];
   let total = 0;
-  for (let i = 0; i < count; i++) {
-    const roll = rollDie(state.rngState, state.rules.diceFaces);
-    state.rngState = roll.state;
-    rolls.push(roll.value);
-    total += roll.value;
+  if (expectedCombat) {
+    // Search resolution: land on the dice expectation (rounded mean total) without spending
+    // rng, so combat is valued by its expected outcome rather than a peeked-at real roll. The
+    // per-die `rolls` are illustrative (their sum may differ by rounding); `total` is authoritative.
+    total = expectedRollTotal(state.rules.diceFaces, count);
+    const perDie = expectedRollTotal(state.rules.diceFaces, 1);
+    for (let i = 0; i < count; i++) rolls.push(perDie);
+  } else {
+    for (let i = 0; i < count; i++) {
+      const roll = rollDie(state.rngState, state.rules.diceFaces);
+      state.rngState = roll.state;
+      rolls.push(roll.value);
+      total += roll.value;
+    }
   }
   pc.rolls = rolls;
   pc.total = total;

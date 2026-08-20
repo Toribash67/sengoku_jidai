@@ -34,6 +34,16 @@ export function conflictOutcome(
   };
 }
 
+/** The expected (mean) total of `count` dice with the given `faces`, rounded to the nearest
+ *  integer. The AI search resolves combat to this central-tendency total instead of a real
+ *  seeded roll, so it values an attack by its expectation and cannot "peek" at the outcome the
+ *  live `rngState` will actually produce. Pure — never touches RNG. */
+export function expectedRollTotal(faces: readonly number[], count: number): number {
+  if (count <= 0 || faces.length === 0) return 0;
+  const mean = faces.reduce((a, f) => a + f, 0) / faces.length;
+  return Math.round(count * mean);
+}
+
 /**
  * Section 3 conflict, pure: (1) defender rolls one die; attacker removes that many
  * attacking units. (2) If attackers remain, both sides remove one unit at a time

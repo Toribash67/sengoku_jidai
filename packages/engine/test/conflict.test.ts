@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveConflict } from "../src/conflict.js";
+import { resolveConflict, expectedRollTotal } from "../src/conflict.js";
 
 // All-1 faces make the defence roll deterministic (=1) for arithmetic assertions.
 const ONES = [1, 1, 1, 1, 1, 1];
@@ -41,5 +41,29 @@ describe("resolveConflict", () => {
   it("advances the rng state", () => {
     const r = resolveConflict("123", ONES, 1, 1);
     expect(r.rngState).not.toBe("123");
+  });
+});
+
+describe("expectedRollTotal", () => {
+  // faces [0,1,2,3,4,5] have mean 2.5; the search uses this central-tendency total in place of
+  // an actual (seeded) roll so combat is valued by its expectation, not a peeked-at outcome.
+  const D6 = [0, 1, 2, 3, 4, 5];
+
+  it("is the rounded mean of a single die", () => {
+    expect(expectedRollTotal(D6, 1)).toBe(3); // round(2.5)
+  });
+
+  it("scales with the dice count", () => {
+    expect(expectedRollTotal(D6, 2)).toBe(5); // round(5.0)
+    expect(expectedRollTotal(D6, 3)).toBe(8); // round(7.5)
+  });
+
+  it("is zero for no dice", () => {
+    expect(expectedRollTotal(D6, 0)).toBe(0);
+  });
+
+  it("matches the fixed face when every face is identical", () => {
+    expect(expectedRollTotal([1, 1, 1, 1, 1, 1], 1)).toBe(1);
+    expect(expectedRollTotal([1, 1, 1, 1, 1, 1], 3)).toBe(3);
   });
 });
