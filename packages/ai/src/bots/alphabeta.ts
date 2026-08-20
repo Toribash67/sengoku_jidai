@@ -1,7 +1,7 @@
 import { resolveCommand, type Command, type GameState, type SeatId } from "@sengoku-jidai/engine";
 import type { Bot } from "../types.js";
 import { onTheClock } from "../onclock.js";
-import { resolvePending } from "../heuristics.js";
+import { resolvePending, combatResponse } from "../heuristics.js";
 import { deployCandidates } from "../candidates.js";
 import { evaluate, DEFAULT_WEIGHTS, type EvalWeights } from "../eval.js";
 
@@ -120,9 +120,11 @@ export function alphaBetaCommand(
   seat: SeatId,
   opts: AlphaBetaOptions = {}
 ): Command {
-  const pending = resolvePending(state, seat);
-  if (pending) return pending;
   const weights = opts.weights ?? DEFAULT_WEIGHTS;
+  // The AI's ACTUAL combat responses use the eval-driven policy (plays ambush / ship_strike /
+  // reroll when worth it); the search's INTERNAL combat resolution keeps the cheap resolvePending.
+  const pending = combatResponse(state, seat, weights);
+  if (pending) return pending;
 
   const root = settle(state);
   const mover = onTheClock(root);
