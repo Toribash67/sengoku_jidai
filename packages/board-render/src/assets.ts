@@ -311,12 +311,16 @@ const ORDER_GLYPH_HALF = 40;
  * system, for reuse in UI (e.g. action-bar buttons). Returns the re-centred inner
  * art plus a symmetric viewBox that frames the token at the origin. The exact same
  * `ORDER_ART_INNER` the board draws, so the button glyph matches the tile glyph.
+ *
+ * `ORDER_ART_INNER` is authored upside down; the board renders it upright by placing
+ * every token inside `rotate(180)` (see slotAnchors in assemble.ts). We apply the same
+ * 180° flip about the token centre here, or the glyph shows inverted relative to the tile.
  */
 export function orderGlyphArt(kind: OrderKind): { viewBox: string; inner: string } {
   const c = ORDER_ART_CENTER[kind];
   return {
     viewBox: `${-ORDER_GLYPH_HALF} ${-ORDER_GLYPH_HALF} ${ORDER_GLYPH_HALF * 2} ${ORDER_GLYPH_HALF * 2}`,
-    inner: el("g", { transform: `translate(${-c.x} ${-c.y})` }, ORDER_ART_INNER[kind])
+    inner: el("g", { transform: `rotate(180) translate(${-c.x} ${-c.y})` }, ORDER_ART_INNER[kind])
   };
 }
 

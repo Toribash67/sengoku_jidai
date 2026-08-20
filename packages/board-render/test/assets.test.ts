@@ -83,7 +83,17 @@ describe("orderGlyphArt", () => {
     // the standalone glyph must translate it back onto (0,0) or it renders off-screen.
     for (const kind of KINDS) {
       const { inner } = orderGlyphArt(kind);
-      expect(inner.startsWith('<g transform="translate(')).toBe(true);
+      expect(inner).toContain("translate(");
+    }
+  });
+
+  it("applies the board's 180° flip so the glyph renders upright, not inverted", () => {
+    // board.svg authors the token art upside down; assemble.ts places every token inside
+    // rotate(180) (see slotAnchors). The standalone glyph must do the same or it shows
+    // inverted relative to the tile.
+    for (const kind of KINDS) {
+      const { inner } = orderGlyphArt(kind);
+      expect(inner).toContain("rotate(180)");
     }
   });
 
