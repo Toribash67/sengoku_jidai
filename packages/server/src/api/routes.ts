@@ -12,7 +12,7 @@ import {
 import type { SeatId } from "@sengoku-jidai/shared";
 import { z } from "zod";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { runIsmctsInWorker } from "@sengoku-jidai/ai";
+import { runAlphaBetaInWorker } from "@sengoku-jidai/ai";
 import type { Command, GameState } from "@sengoku-jidai/engine";
 import { bearerToken, hashToken } from "../sessions/tokens.js";
 import type { GameRepository, SessionRecord } from "../persistence/repository.js";
@@ -37,10 +37,10 @@ export function registerApiRoutes(
   terrainService: TerrainService,
   adminPassword?: string,
   aiPickCommandFor: (gameId: string) => (seat: SeatId, state: GameState) => Promise<Command> = (
-      gameId
+      _gameId // alpha-beta is deterministic and needs no per-game seed
     ) =>
     (seat, state) =>
-      withRetry(() => runIsmctsInWorker(state, seat, { deadlineMs: 1500, seed: gameId }), {
+      withRetry(() => runAlphaBetaInWorker(state, seat, { deadlineMs: 1500 }), {
         attempts: 3,
         delayMs: 50
       })
