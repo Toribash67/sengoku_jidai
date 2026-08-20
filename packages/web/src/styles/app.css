@@ -1388,9 +1388,11 @@ button:disabled {
   border: 1px solid var(--hairline);
   background: var(--washi);
   overflow: hidden;
-  display: grid;
-  place-items: center;
 }
+/* Fill the square with a definite box so the SVG viewport is itself square; its
+   preserveAspectRatio="xMidYMid meet" then letterboxes tall/wide maps (full extent shown,
+   excess filled by the --washi ground) instead of overflowing and being cropped. A grid/
+   place-items:center parent would leave the SVG at its intrinsic aspect and clip it. */
 .map-thumb-svg,
 .map-thumb-svg svg {
   display: block;
@@ -1408,6 +1410,22 @@ button:disabled {
 .map-row-actions {
   display: flex;
   gap: 8px;
+}
+/* List-row buttons: tighter than the standalone-CTA padding so a row stays compact. */
+.map-row-actions button {
+  min-height: 0;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+/* Narrow phones can't fit the row's buttons side by side; stack them and let each fill
+   its column so the row wraps cleanly instead of overflowing the panel. */
+@media (max-width: 480px) {
+  .map-row-actions {
+    flex-direction: column;
+  }
+  .map-row-actions button {
+    width: 100%;
+  }
 }
 
 /* --- Map editor --- */
