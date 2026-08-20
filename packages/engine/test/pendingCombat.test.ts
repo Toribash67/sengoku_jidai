@@ -6,6 +6,7 @@ import { playerView } from "../src/view.js";
 import { registerMap } from "../src/maps/registry.js";
 import { compileHexMap } from "../src/maps/hex/compile.js";
 import type { HexMapSource } from "../src/maps/hex/source.js";
+import { createRngState } from "../src/rng.js";
 
 /** Red-to-act base state with bonuses cleared and a fixed (all-1s) defence die. */
 function game(): GameState {
@@ -537,6 +538,56 @@ describe("pending combat lifecycle", () => {
       // 1 base + 2 ambush + 1 fort = 4.
       expect(rolled.nextState.pendingCombat!.rolls!.length).toBe(4);
       expect(rolled.nextState.pendingCombat!.total).toBe(4);
+    });
+  });
+
+  describe("expectedCombat resolution (RNG-free search settle)", () => {
+    // faces mean 2.5 -> a single defence die's expected total is round(2.5) = 3.
+    const D6 = [0, 1, 2, 3, 4, 5];
+
+    it("resolves to the rounded mean total, identical across rng seeds, without spending rng", () => {
+      const paused = advanceIntoEnemy(); // 3 attackers vs 1 defender, one defence die
+      paused.rules = { ...paused.rules, diceFaces: D6 };
+      const pendingId = paused.pendingCombat!.id;
+
+      const a = { ...paused, rngState: createRngState("aaa") };
+      const b = { ...paused, rngState: createRngState("zzz") };
+      const ra = resolveCommand(
+        a,
+        { seat: "black" },
+        { type: "combatRoll", pendingId },
+        { expectedCombat: true }
+      );
+      const rb = resolveCommand(
+        b,
+        { seat: "black" },
+        { type: "combatRoll", pendingId },
+        { expectedCombat: true }
+      );
+      expect(ra.status).toBe("accepted");
+      expect(rb.status).toBe("accepted");
+      if (ra.status !== "accepted" || rb.status !== "accepted") return;
+
+      // Expectation, not a peeked roll: the same total regardless of the seed that would have
+      // been drawn, equal to the rounded mean.
+      expect(ra.nextState.pendingCombat!.total).toBe(3);
+      expect(rb.nextState.pendingCombat!.total).toBe(3);
+      // The real future roll is untouched — the search "resolved" this without consuming rng.
+      expect(ra.nextState.rngState).toBe(a.rngState);
+    });
+
+    it("does not change normal (real-roll) resolution when the flag is absent", () => {
+      const paused = advanceIntoEnemy();
+      paused.rules = { ...paused.rules, diceFaces: D6 };
+      const pendingId = paused.pendingCombat!.id;
+      const seed = createRngState("aaa");
+      const r = resolveCommand(
+        { ...paused, rngState: seed },
+        { seat: "black" },
+        { type: "combatRoll", pendingId }
+      );
+      if (r.status !== "accepted") throw new Error("roll rejected");
+      expect(r.nextState.rngState).not.toBe(seed); // a real roll advances rng
     });
   });
 

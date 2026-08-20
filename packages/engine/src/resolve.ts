@@ -27,11 +27,20 @@ function clone(state: GameState): GameState {
   return JSON.parse(JSON.stringify(state)) as GameState;
 }
 
+/** Options for a single resolution. `expectedCombat` makes a `combatRoll` land on the dice
+ *  *expectation* (the rounded mean total) instead of a real seeded throw, leaving `rngState`
+ *  untouched. Real play never sets it; the AI search does, so its combat valuation reflects the
+ *  expected outcome and cannot peek at the roll the live rng will actually produce. */
+export interface ResolveOptions {
+  expectedCombat?: boolean;
+}
+
 /** Resolve a single command. Pure: returns a new state, never mutates the input. */
 export function resolveCommand(
   state: GameState,
   actor: CommandActor,
-  command: Command
+  command: Command,
+  opts: ResolveOptions = {}
 ): CommandResult {
   const rejection = validateCommand(state, actor, command);
   if (rejection) return { status: "rejected", reason: rejection };
@@ -47,7 +56,7 @@ export function resolveCommand(
     // Throw the dice and pause again on the `rolled` phase for the responsible seat to
     // review (and, with cards, reroll) before casualties land on combatResolve. An Ambush
     // card may be played here to add two defence dice.
-    events.push(...rollPendingCombat(next, command.card));
+    events.push(...rollPendingCombat(next, command.card, opts.expectedCombat));
   } else if (command.type === "combatReroll") {
     // Discard a card to re-throw; stays on the `rolled` phase for another review.
     events.push(...rerollPendingCombat(next, command.card));

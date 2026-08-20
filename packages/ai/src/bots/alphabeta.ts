@@ -10,13 +10,17 @@ import { evaluate, DEFAULT_WEIGHTS, type EvalWeights } from "../eval.js";
  *  seat and minimizes otherwise. Deterministic — a pure function of the state — so it is
  *  reproducible and needs no RNG seed.
  *
- *  Combat handling: a battle is resolved THROUGH the search via the fixed heuristic (one roll off
- *  the state's own `rngState`), so the line continues and the opponent gets to respond. This
- *  matters — scoring an attack at a pendingCombat *leaf* instead truncates it before the reply,
- *  an asymmetry that made deeper search play WORSE than 1-ply greedy (measured). Resolving through
- *  fixes it (depth 2–3 beat greedy 9/10). Known simplification: the single roll is one plausible
- *  outcome, not the dice *expectation*; a later version can expand combat as an expectiminimax
- *  chance node (average over `rollTotalDistribution`) for variance-robust attack valuation. */
+ *  Combat handling: a battle is resolved THROUGH the search via the fixed heuristic, so the line
+ *  continues and the opponent gets to respond. This matters — scoring an attack at a pendingCombat
+ *  *leaf* instead truncates it before the reply, an asymmetry that made deeper search play WORSE
+ *  than 1-ply greedy (measured). Resolving through fixes it (depth 2–3 beat greedy 9/10). The roll
+ *  is resolved to the dice EXPECTATION (rounded mean total, `expectedCombat` on resolveCommand),
+ *  NOT a real throw off the state's own `rngState` — otherwise the cloned search state shares the
+ *  live rng, so the "roll" the search sees is bit-identical to the one the real game will produce
+ *  and the AI effectively peeks at the future outcome. Expectation-resolution severs that leak and
+ *  values an attack by its central-tendency result. Known simplification: this is one deterministic
+ *  representative line, not a full average over outcomes; a later version can expand combat as an
+ *  expectiminimax chance node (average over `rollTotalDistribution`) for variance-robust valuation. */
 
 export interface AlphaBetaOptions {
   /** Fixed search depth in plies (commander deployments). Deterministic. */
@@ -30,14 +34,17 @@ export interface AlphaBetaOptions {
 
 /** Resolve any pending combat/decision with the fixed heuristic so we land on a clean deploy or a
  *  terminal state — see the combat-handling note above for why combat is resolved through here. */
-function settle(state: GameState): GameState {
+export function settle(state: GameState): GameState {
   let cur = state;
   let guard = 0;
   while (cur.status === "active" && (cur.pendingDecision || cur.pendingCombat)) {
     const seat = cur.pendingCombat ? cur.pendingCombat.responsibleSeat : cur.pendingDecision!.seat;
     const cmd = resolvePending(cur, seat);
     if (!cmd) break;
-    const r = resolveCommand(cur, { seat }, cmd);
+    // Resolve a combat roll to the dice EXPECTATION (rounded mean), not a real seeded throw, so the
+    // search values an attack by its expected outcome and cannot peek at the roll the live rng will
+    // actually produce. Decisions and non-roll commands are unaffected (the flag only gates the roll).
+    const r = resolveCommand(cur, { seat }, cmd, { expectedCombat: true });
     if (r.status !== "accepted") break;
     cur = r.nextState;
     if (++guard > 1000) break;
