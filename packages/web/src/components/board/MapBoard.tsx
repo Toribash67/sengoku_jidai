@@ -260,6 +260,18 @@ function makeSupplyTint(tile: SVGGraphicsElement, seat: SeatId): SVGElement {
   return clone;
 }
 
+/** Filled clone marking an out-of-supply owned tile with the seat's diagonal stripe pattern.
+ *  Washed at the same 0.4 opacity as {@link makeSupplyTint}, so the seat bands land on exactly
+ *  the in-supply shade while the pattern's transparent gaps leave the map fully visible. */
+function makeUnsuppliedTint(tile: SVGGraphicsElement, fill: string): SVGElement {
+  const clone = tile.cloneNode(false) as SVGElement;
+  stripTileHooks(clone);
+  clone.style.fill = fill;
+  clone.style.opacity = "0.4";
+  clone.style.stroke = "none";
+  return clone;
+}
+
 /** Translucent amber fill clone marking a legal Advance/Sail/Strike (or card) target. A thin
  *  border ring alone gets lost on a dark enemy supply tint — which is exactly where card
  *  targets sit — so the whole tile is washed amber, painted in the overlay above the tint. */
@@ -418,18 +430,15 @@ function decorate(
     if (!tile) {
       throw new Error(`assembled board SVG has no element for area "${area.id}"`);
     }
-    // Supplied tiles keep their natural map colour; a translucent overlay provides the tint.
-    // Unsupplied-owned tiles get the stripe pattern. Unowned tiles keep their authored colour.
+    // Every tile keeps its natural map colour; ownership shows purely through the supply
+    // overlay below (a solid tint when supplied, seat stripes when not), so a supplied tile
+    // and the bands of an unsupplied one read at exactly the same shade.
     const isSupplied = area.owner !== null && area.suppliedBy === area.owner;
-    if (area.owner === null || isSupplied) {
-      // With terrain behind the board, let it show through unowned/supplied tiles (the
-      // hex stroke grid still paints on top); otherwise keep the authored flat fill.
-      tile.style.fill = hasTerrain
-        ? "transparent"
-        : (tile.dataset.authoredFill ?? (area.kind === "sea" ? TILE_SEA_FILL : TILE_LAND_FILL));
-    } else {
-      tile.style.fill = tileFill(area);
-    }
+    // With terrain behind the board, let it show through the tile (the hex stroke grid still
+    // paints on top); otherwise keep the authored flat fill.
+    tile.style.fill = hasTerrain
+      ? "transparent"
+      : (tile.dataset.authoredFill ?? (area.kind === "sea" ? TILE_SEA_FILL : TILE_LAND_FILL));
     tile.style.stroke = "#000000";
     tile.style.strokeWidth = "5";
     tile.style.cursor = "pointer";
@@ -453,8 +462,11 @@ function decorate(
       }
     };
 
-    if (isSupplied && area.owner !== null) {
-      supplyLayerFor(tile)?.appendChild(makeSupplyTint(tile, area.owner));
+    if (area.owner !== null) {
+      const tint = isSupplied
+        ? makeSupplyTint(tile, area.owner)
+        : makeUnsuppliedTint(tile, tileFill(area));
+      supplyLayerFor(tile)?.appendChild(tint);
     }
 
     // Eligible sources/targets get a striped highlight, painted over any supply tint.

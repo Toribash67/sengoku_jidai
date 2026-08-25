@@ -234,13 +234,14 @@ const BONUS_GENERIC = symbol(
 // ---------------------------------------------------------------------------
 // Stripe patterns (duplicated from web tileFill.ts / board render usage)
 // ---------------------------------------------------------------------------
+// The muted gaps between seat bands are transparent (no background rect) so the map shows
+// through; the caller washes the whole pattern at the same opacity as a supplied tile's tint,
+// making the seat bands read as the in-supply shade.
 const STRIPE_PATTERNS = [
   `<pattern id="stripe-red" patternUnits="userSpaceOnUse" width="26" height="26" patternTransform="rotate(45)">` +
-    `<rect width="26" height="26" fill="#d5d3c4"/>` +
     `<rect width="13" height="26" fill="#c0392b"/>` +
     `</pattern>`,
   `<pattern id="stripe-black" patternUnits="userSpaceOnUse" width="26" height="26" patternTransform="rotate(45)">` +
-    `<rect width="26" height="26" fill="#d5d3c4"/>` +
     `<rect width="13" height="26" fill="#2f343c"/>` +
     `</pattern>`,
   `<pattern id="stripe-source" patternUnits="userSpaceOnUse" width="22" height="22" patternTransform="rotate(45)">` +
