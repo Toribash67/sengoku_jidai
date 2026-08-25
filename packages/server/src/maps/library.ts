@@ -3,7 +3,6 @@ import {
   compileHexMap,
   createInitialState,
   registerMap,
-  riversSource,
   validateHexMap
 } from "@sengoku-jidai/engine";
 import type { HexMapSource } from "@sengoku-jidai/engine";
@@ -16,13 +15,11 @@ const _wireMatchesEngine = (v: HexMapSourceDto): HexMapSource => v;
 void _wireMatchesEngine;
 
 export interface MapLibraryError {
-  code: "invalidMap" | "mapNotFound" | "mapInUse" | "builtinMap";
+  code: "invalidMap" | "mapNotFound" | "mapInUse";
   message: string;
 }
 
 export type MapResult<T> = { ok: true; value: T } | { ok: false; error: MapLibraryError };
-
-const BUILTIN_SOURCES: readonly HexMapSource[] = [riversSource];
 
 /**
  * Fixed id used for the dry-run validation pass (see `validate()`). Every
@@ -42,47 +39,26 @@ interface MapRow {
 /**
  * Owns the `maps` table and the engine map-registry lifecycle: every stored map is
  * registered (`registerMap`) at boot and on write, so game creation, snapshot
- * rehydration, and view building resolve custom maps exactly like built-ins.
- * Built-ins (Rivers) are served read-only through the same interface.
+ * rehydration, and view building resolve every map the same way. The default Rivers map
+ * is seeded as an ordinary row (see `seedRivers`), so there is no read-only special case.
  */
 export class MapLibrary {
   constructor(private readonly db: SqliteDatabase) {}
 
   list(): MapSummary[] {
-    const builtins: MapSummary[] = BUILTIN_SOURCES.map((source) => ({
-      id: source.id,
-      name: source.name,
-      tileCount: source.tiles.length,
-      builtin: true,
-      updatedAt: null
-    }));
     const rows = this.db
       .prepare("SELECT id, name, source_json, updated_at FROM maps ORDER BY updated_at DESC")
       .all() as MapRow[];
-    const stored: MapSummary[] = rows.map((row) => ({
+    return rows.map((row) => ({
       id: row.id,
       name: row.name,
       tileCount: (JSON.parse(row.source_json) as HexMapSource).tiles.length,
       builtin: false,
       updatedAt: row.updated_at
     }));
-    return [...builtins, ...stored];
   }
 
   get(id: string, terrainsFn?: (id: string) => TerrainInfo[]): MapDetail | null {
-    const builtin = BUILTIN_SOURCES.find((source) => source.id === id);
-    if (builtin) {
-      // `HexMapSource` (engine) and the wire DTO are structurally identical — see the
-      // drift guard above.
-      return {
-        id,
-        name: builtin.name,
-        builtin: true,
-        updatedAt: null,
-        terrains: [],
-        source: builtin
-      };
-    }
     const row = this.db
       .prepare("SELECT id, name, source_json, updated_at FROM maps WHERE id = ?")
       .get(id) as MapRow | undefined;
@@ -100,10 +76,19 @@ export class MapLibrary {
   }
 
   has(id: string): boolean {
-    if (BUILTIN_SOURCES.some((source) => source.id === id)) {
-      return true;
-    }
     return this.db.prepare("SELECT 1 FROM maps WHERE id = ?").get(id) !== undefined;
+  }
+
+  /** Idempotently insert a map at its own fixed id (INSERT OR IGNORE) and register it with the
+   *  engine. Used to seed the default Rivers map as a normal, editable library entry. */
+  insertSeed(source: HexMapSource): void {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        "INSERT OR IGNORE INTO maps (id, name, source_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
+      )
+      .run(source.id, source.name, JSON.stringify(source), now, now);
+    registerMap(compileHexMap(source).definition);
   }
 
   create(source: HexMapSourceDto): MapResult<MapDetail> {
@@ -191,12 +176,9 @@ export class MapLibrary {
     return { ok: true, value: null };
   }
 
-  /** Shared update/delete preconditions: built-ins are read-only, the row must
-   *  exist, and maps referenced by any game are immutable (upload a copy). */
+  /** Shared update/delete preconditions: the row must exist, and maps referenced by any
+   *  game are immutable (upload a copy). */
   private writeGuard(id: string): MapLibraryError | null {
-    if (BUILTIN_SOURCES.some((source) => source.id === id)) {
-      return { code: "builtinMap", message: "Built-in maps cannot be modified." };
-    }
     if (this.db.prepare("SELECT 1 FROM maps WHERE id = ?").get(id) === undefined) {
       return { code: "mapNotFound", message: "Map was not found." };
     }

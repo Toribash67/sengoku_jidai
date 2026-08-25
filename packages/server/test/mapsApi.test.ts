@@ -44,7 +44,8 @@ describe("maps API", () => {
     const listed = await app.inject({ method: "GET", url: "/api/maps" });
     expect(listed.statusCode).toBe(200);
     const { maps } = listed.json();
-    expect(maps[0]).toMatchObject({ id: "rivers", builtin: true });
+    // Rivers is seeded at boot as a normal (non-builtin) map, listed alongside uploads.
+    expect(maps.find((m: { id: string }) => m.id === "rivers")).toMatchObject({ builtin: false });
     expect(maps.some((m: { id: string }) => m.id === map.id)).toBe(true);
 
     const fetched = await app.inject({ method: "GET", url: `/api/maps/${map.id}` });
@@ -68,23 +69,26 @@ describe("maps API", () => {
     await app.close();
   });
 
-  it("serves the built-in rivers map and protects it from writes", async () => {
+  it("seeds Rivers as a normal, editable map (no longer a read-only built-in)", async () => {
     const app = buildApp(testConfig());
 
     const rivers = await app.inject({ method: "GET", url: "/api/maps/rivers" });
     expect(rivers.statusCode).toBe(200);
-    expect(rivers.json().builtin).toBe(true);
+    expect(rivers.json().builtin).toBe(false);
+    expect(rivers.json().source.tiles.length).toBeGreaterThan(20);
+    // Its seeded Ink terrain is served as a normal DB terrain.
+    expect(rivers.json().terrains).toEqual([
+      expect.objectContaining({ id: "rivers-ink", name: "Ink", styleId: "ink", status: "ready" })
+    ]);
 
+    // Rivers can now be edited like any other unreferenced map.
     const put = await app.inject({
       method: "PUT",
       url: "/api/maps/rivers",
-      payload: fixturePayload()
+      payload: { ...rivers.json().source, name: "Rivers (edited)" }
     });
-    expect(put.statusCode).toBe(403);
-    expect(put.json().error.code).toBe("builtinMap");
-
-    const del = await app.inject({ method: "DELETE", url: "/api/maps/rivers" });
-    expect(del.statusCode).toBe(403);
+    expect(put.statusCode).toBe(200);
+    expect(put.json().name).toBe("Rivers (edited)");
 
     await app.close();
   });

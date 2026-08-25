@@ -39,6 +39,8 @@ RUN corepack pnpm install --prod --frozen-lockfile
 
 COPY --from=build /app/packages/server/dist ./packages/server/dist
 COPY --from=build /app/packages/server/migrations ./packages/server/migrations
+# Seed assets (the committed Rivers terrain art) read at boot via import.meta.url.
+COPY --from=build /app/packages/server/seed ./packages/server/seed
 COPY --from=build /app/packages/engine/dist ./packages/engine/dist
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/packages/web/dist ./packages/web/dist

@@ -39,6 +39,18 @@ export class TerrainStore {
     return id;
   }
 
+  /** Idempotently insert an already-rendered terrain at a fixed id (INSERT OR IGNORE), ready to
+   *  serve. Used to seed a map's committed terrain art as a normal DB terrain. */
+  seedReady(id: string, mapId: string, name: string, styleId: string, webp: Buffer): void {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO map_terrains (id, map_id, name, style_id, status, webp, error, created_at, updated_at)
+         VALUES (@id, @mapId, @name, @styleId, 'ready', @webp, NULL, @now, @now)`
+      )
+      .run({ id, mapId, name, styleId, webp, now });
+  }
+
   list(mapId: string): TerrainInfo[] {
     return (
       this.db

@@ -8,6 +8,7 @@ import type { SeatId } from "@sengoku-jidai/shared";
 import { registerApiRoutes } from "./api/routes.js";
 import type { ServerConfig } from "./config.js";
 import { MapLibrary } from "./maps/library.js";
+import { readRiversInkSeed, seedRivers } from "./maps/seedRivers.js";
 import { TerrainStore } from "./maps/terrainStore.js";
 import { TerrainService } from "./maps/terrainService.js";
 import { openDatabase, runMigrations } from "./persistence/database.js";
@@ -30,6 +31,7 @@ export function buildApp(config: ServerConfig, opts?: BuildAppOptions) {
   mapLibrary.loadAll(app.log);
   const terrainStore = new TerrainStore(db);
   terrainStore.resetInterrupted();
+  seedRivers({ library: mapLibrary, store: terrainStore }, readRiversInkSeed(), app.log);
   const terrainService = new TerrainService({
     library: mapLibrary,
     store: terrainStore,

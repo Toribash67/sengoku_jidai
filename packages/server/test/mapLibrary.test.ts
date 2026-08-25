@@ -1,4 +1,4 @@
-import { FIXTURE_HEX_MAP, getMap } from "@sengoku-jidai/engine";
+import { FIXTURE_HEX_MAP, getMap, riversSource } from "@sengoku-jidai/engine";
 import { describe, expect, it } from "vitest";
 import type { SqliteDatabase } from "../src/persistence/database.js";
 import { openDatabase, runMigrations } from "../src/persistence/database.js";
@@ -38,25 +38,16 @@ describe("MapLibrary create/get/list", () => {
     expect(library.has(result.value.id)).toBe(true);
   });
 
-  it("lists built-ins first, then library maps", () => {
+  it("lists only stored maps (no automatic built-in), newest first", () => {
     const library = makeLibrary();
     const created = library.create(fixtureSource());
     expect(created.ok).toBe(true);
 
     const maps = library.list();
-    expect(maps[0]).toMatchObject({ id: "rivers", builtin: true, updatedAt: null });
-    expect(maps[0]!.tileCount).toBeGreaterThan(20);
-    const custom = maps.find((m) => !m.builtin)!;
-    expect(custom).toMatchObject({ name: "Fixture", tileCount: 5 });
-    expect(custom.updatedAt).not.toBeNull();
-  });
-
-  it("serves built-in maps through get()", () => {
-    const library = makeLibrary();
-    const rivers = library.get("rivers");
-    expect(rivers).not.toBeNull();
-    expect(rivers!.builtin).toBe(true);
-    expect(rivers!.source.tiles.length).toBeGreaterThan(20);
+    // Nothing is seeded here (seeding happens at app boot), so only the created map is listed.
+    expect(maps).toHaveLength(1);
+    expect(maps[0]).toMatchObject({ name: "Fixture", tileCount: 5, builtin: false });
+    expect(maps[0]!.updatedAt).not.toBeNull();
   });
 
   it("returns null / false for unknown ids", () => {
@@ -83,8 +74,6 @@ describe("MapLibrary create/get/list", () => {
     expect(library.get(id)?.terrains).toEqual([]);
     // with a resolver
     expect(library.get(id, () => [terrain])?.terrains).toEqual([terrain]);
-    // built-in always empty
-    expect(library.get("rivers", () => [terrain])?.terrains).toEqual([]);
   });
 
   it("rejects a structurally invalid map (disconnected tile) with the engine's message", () => {
@@ -169,13 +158,15 @@ describe("MapLibrary update/delete", () => {
     expect(library.has(created.value.id)).toBe(false);
   });
 
-  it("protects built-ins from update and delete", () => {
-    const library = new MapLibrary(makeDb());
-    expect(library.update("rivers", fixtureSource())).toMatchObject({
-      ok: false,
-      error: { code: "builtinMap" }
-    });
-    expect(library.delete("rivers")).toMatchObject({ ok: false, error: { code: "builtinMap" } });
+  it("allows update and delete of a seeded map once it is a normal row (Rivers no longer special)", () => {
+    const db = makeDb();
+    const library = new MapLibrary(db);
+    library.insertSeed(structuredClone(riversSource)); // seed Rivers as a normal row
+    expect(library.get("rivers")?.builtin).toBe(false);
+    // Rivers is now editable like any other unreferenced map.
+    const renamed = { ...structuredClone(riversSource), name: "Rivers v2" };
+    expect(library.update("rivers", renamed)).toMatchObject({ ok: true });
+    expect(library.delete("rivers")).toMatchObject({ ok: true });
   });
 
   it("returns mapNotFound for unknown ids", () => {
