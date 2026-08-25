@@ -1,57 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
-  resolveTerrain,
-  builtinTerrainOptions,
   defaultSelection,
   previewTerrainUrl,
   terrainByIdApiUrl,
   buildTerrainOptions,
   resolveTerrainOption,
   terrainByIdCacheBustedUrl,
-  FLAT_TERRAIN_KEY,
-  ORIGINAL_TERRAIN_KEY
+  FLAT_TERRAIN_KEY
 } from "../../src/components/board/terrainImages.js";
 import type { TerrainInfo } from "@sengoku-jidai/shared";
-
-const modules = {
-  "/src/assets/rivers/background.webp": "/assets/rivers.hash.webp"
-};
-
-describe("resolveTerrain", () => {
-  it("returns the asset url for a map that has terrain", () => {
-    expect(resolveTerrain(modules, "rivers")).toBe("/assets/rivers.hash.webp");
-  });
-
-  it("returns null for a map with no committed terrain", () => {
-    expect(resolveTerrain(modules, "mountains")).toBeNull();
-  });
-});
-
-describe("builtinTerrainOptions", () => {
-  const builtinModules = {
-    "/src/assets/rivers/background.webp": "/assets/rivers.bg.webp",
-    "/src/assets/rivers/terrain-ink.webp": "/assets/rivers.ink.webp",
-    "/src/assets/rivers/terrain-antique.webp": "/assets/rivers.antique.webp",
-    "/src/assets/rivers/cards/counterattack.webp": "/assets/card.webp"
-  };
-
-  it("maps terrain-<style>.webp to a capitalised, key-sorted option", () => {
-    expect(builtinTerrainOptions(builtinModules, "rivers")).toEqual([
-      { key: "builtin-antique", label: "Antique", url: "/assets/rivers.antique.webp" },
-      { key: "builtin-ink", label: "Ink", url: "/assets/rivers.ink.webp" }
-    ]);
-  });
-
-  it("ignores background.webp and nested card assets", () => {
-    const keys = builtinTerrainOptions(builtinModules, "rivers").map((o) => o.key);
-    expect(keys).not.toContain("builtin-background");
-    expect(keys).not.toContain("builtin-counterattack");
-  });
-
-  it("returns nothing for a map with no alternate built-in terrains", () => {
-    expect(builtinTerrainOptions(builtinModules, "mountains")).toEqual([]);
-  });
-});
 
 const t = (
   id: string,
@@ -106,39 +63,13 @@ describe("terrainByIdCacheBustedUrl", () => {
 });
 
 describe("buildTerrainOptions", () => {
-  it("built-in with a committed asset yields Flat + Original", () => {
-    const opts = buildTerrainOptions({
-      mapId: "rivers",
-      committed: "/a/rivers.webp",
-      terrains: []
-    });
-    expect(opts).toEqual([
-      { key: FLAT_TERRAIN_KEY, label: "Flat", url: null },
-      { key: ORIGINAL_TERRAIN_KEY, label: "Original", url: "/a/rivers.webp" }
-    ]);
-  });
-
-  it("built-in with committed asset + alternate styles yields Flat + Original + the styles", () => {
-    const opts = buildTerrainOptions({
-      mapId: "rivers",
-      committed: "/a/rivers.webp",
-      builtins: [{ key: "builtin-ink", label: "Ink", url: "/a/rivers.ink.webp" }],
-      terrains: []
-    });
-    expect(opts).toEqual([
-      { key: FLAT_TERRAIN_KEY, label: "Flat", url: null },
-      { key: ORIGINAL_TERRAIN_KEY, label: "Original", url: "/a/rivers.webp" },
-      { key: "builtin-ink", label: "Ink", url: "/a/rivers.ink.webp" }
-    ]);
-  });
-
-  it("custom map lists Flat then ready terrains oldest-first, skipping non-ready", () => {
+  it("lists Flat then ready terrains oldest-first, skipping non-ready", () => {
     const terrains = [
       t("a", "ready", "2026-01-01T00:00:00Z"),
       t("b", "pending"),
       t("c", "ready", "2026-02-02T00:00:00Z")
     ];
-    const opts = buildTerrainOptions({ mapId: "m1", committed: null, terrains });
+    const opts = buildTerrainOptions({ mapId: "m1", terrains });
     expect(opts.map((o) => o.key)).toEqual([FLAT_TERRAIN_KEY, "a", "c"]);
     expect(opts[1]).toEqual({
       key: "a",
@@ -148,14 +79,14 @@ describe("buildTerrainOptions", () => {
   });
 
   it("nothing to pick yields just Flat", () => {
-    expect(buildTerrainOptions({ mapId: "m1", committed: null, terrains: [] })).toEqual([
+    expect(buildTerrainOptions({ mapId: "m1", terrains: [] })).toEqual([
       { key: FLAT_TERRAIN_KEY, label: "Flat", url: null }
     ]);
   });
 });
 
 describe("resolveTerrainOption", () => {
-  const opts = buildTerrainOptions({ mapId: "m1", committed: null, terrains: [t("a", "ready")] });
+  const opts = buildTerrainOptions({ mapId: "m1", terrains: [t("a", "ready")] });
   it("returns the option matching the key", () => {
     expect(resolveTerrainOption(opts, "a").key).toBe("a");
   });

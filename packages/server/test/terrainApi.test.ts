@@ -65,12 +65,6 @@ describe("terrain API", () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it("403 for a built-in map", async () => {
-    const { app } = buildTestApp();
-    const res = await app.inject({ method: "POST", url: "/api/maps/rivers/terrains", payload: {} });
-    expect(res.statusCode).toBe(403);
-  });
-
   it("generates via POST /terrains, reports choosing in terrains[], and serves a candidate webp", async () => {
     const { app } = buildTestApp();
     const id = await createMap(app);

@@ -72,7 +72,7 @@ export class TerrainService {
    *  Inflight guard keyed by map id so a map generates one terrain at a time. */
   private async run(mapId: string, terrainId: string, styleId: string): Promise<void> {
     const detail = this.library.get(mapId);
-    if (!detail || detail.builtin) {
+    if (!detail) {
       return;
     }
     this.inflight.add(mapId);
@@ -116,7 +116,7 @@ export class TerrainService {
 
   private async finalize(mapId: string, terrainId: string, index: number): Promise<void> {
     const detail = this.library.get(mapId);
-    if (!detail || detail.builtin) {
+    if (!detail) {
       return;
     }
     const base = this.store.candidateWebp(terrainId, index);

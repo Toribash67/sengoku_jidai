@@ -24,7 +24,6 @@ import { withRetry } from "../ai/withRetry.js";
 
 const MAP_ERROR_STATUS: Record<MapLibraryError["code"], number> = {
   invalidMap: 400,
-  builtinMap: 403,
   mapNotFound: 404,
   mapInUse: 409
 };
@@ -155,9 +154,6 @@ export function registerApiRoutes(
     const detail = mapLibrary.get(params.data.mapId);
     if (!detail) {
       return sendError(reply, 404, "mapNotFound", "Map was not found.");
-    }
-    if (detail.builtin) {
-      return sendError(reply, 403, "builtinMap", "Built-in maps cannot generate terrain.");
     }
     if (terrainService.isGenerating(params.data.mapId)) {
       return sendError(reply, 409, "terrainInProgress", "Terrain is already generating.");

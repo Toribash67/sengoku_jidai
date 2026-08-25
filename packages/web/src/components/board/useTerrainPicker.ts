@@ -4,10 +4,8 @@ import { fetchMap } from "../../client/api.js";
 import { loadTerrainChoice, saveTerrainChoice } from "../../state/localGame.js";
 import {
   buildTerrainOptions,
-  builtinTerrains,
   FLAT_TERRAIN_KEY,
   resolveTerrainOption,
-  terrainImage,
   type TerrainOption
 } from "./terrainImages.js";
 
@@ -18,7 +16,7 @@ export interface TerrainPicker {
   select: (key: string) => void;
 }
 
-/** Fetch a map's terrains once; any error (including a built-in 404) yields []. */
+/** Fetch a map's terrains once; any error (including a 404) yields []. */
 export async function fetchTerrains(
   mapId: string,
   fetchDetail: (id: string) => Promise<MapDetail>
@@ -30,12 +28,10 @@ export async function fetchTerrains(
   }
 }
 
-/** Play-view terrain picker state: builds the option list (committed "Original" + ready
- *  terrains), resolves the persisted per-map choice (stale keys fall back to Flat), and
- *  persists on select. Terrain is purely client-side, so this is a per-viewer preference. */
+/** Play-view terrain picker state: builds the option list (Flat + ready DB terrains), resolves
+ *  the persisted per-map choice (stale keys fall back to Flat), and persists on select. Terrain is
+ *  purely client-side, so this is a per-viewer preference. */
 export function useTerrainPicker(mapId: string): TerrainPicker {
-  const committed = terrainImage(mapId);
-  const builtins = useMemo(() => builtinTerrains(mapId), [mapId]);
   const [terrains, setTerrains] = useState<TerrainInfo[]>([]);
   const [selectedKey, setSelectedKey] = useState<string>(
     () => loadTerrainChoice(mapId) ?? FLAT_TERRAIN_KEY
@@ -58,10 +54,7 @@ export function useTerrainPicker(mapId: string): TerrainPicker {
     };
   }, [mapId]);
 
-  const options = useMemo(
-    () => buildTerrainOptions({ mapId, committed, builtins, terrains }),
-    [mapId, committed, builtins, terrains]
-  );
+  const options = useMemo(() => buildTerrainOptions({ mapId, terrains }), [mapId, terrains]);
   const resolved = resolveTerrainOption(options, selectedKey);
 
   return {
