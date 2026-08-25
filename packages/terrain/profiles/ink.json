@@ -17,5 +17,8 @@
   "fortPass": {
     "inpaintPrompt": "A tiny Sengoku-era Japanese castle keep with multiple tiered roofs, drawn ONLY as fine delicate black pen-and-ink line-art on white paper, in the EXACT same hand-drawn style as the surrounding tiny trees and hatched mountains: thin black linework, sparse cross-hatching, monochrome. NO colour, NO grey fill blocks, NO bold cartoon outlines, no photo-realism. A small flat top-down map symbol that blends seamlessly and unobtrusively into the black-and-white ink map."
   },
+  "harborPass": {
+    "inpaintPrompt": "This is a small coastal patch of a black-and-white pen-and-ink map where finely hatched land meets the light grey sea. KEEP the existing coastline, terrain linework and sea within this patch — do NOT leave any blank or smoothed area, keep the same white paper and fine black hatching as the rest of the map. Onto the shoreline, gently add one very tiny fishing harbour: just two or three little rooftops and a single short jetty, drawn with fine delicate thin black pen-and-ink lines matching the surrounding linework. Small, sparse and unobtrusive. NO grey fill blocks, NO bold or heavy outlines, NO 3D or isometric perspective, NO long piers into open water, NO boats, no colour, no white box, no flat empty fill."
+  },
   "webpQuality": 82
 }

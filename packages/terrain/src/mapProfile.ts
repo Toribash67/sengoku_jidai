@@ -81,6 +81,33 @@ const MapProfileSchema = z.object({
       maskRadiusFactor: z.number().positive().default(0.7)
     })
     .default({}),
+  /** Pass that draws a small fishing-village port at each harbour tile, on the tile's coast.
+   *  Skipped entirely for maps with no harbours. Whole block defaults when omitted.
+   *
+   *  Always a true hard-mask inpainting model (`model`, e.g. FLUX Fill): it redraws ONLY each
+   *  harbour disc and preserves every other pixel, so a village cannot leak onto another tile.
+   *  Each harbour is inpainted in its own pass. Unlike the fort (drawn at the tile centre), the
+   *  disc is pushed toward the shoreline by `coastBias` so the docks meet the water. */
+  harborPass: z
+    .object({
+      /** Inpainting model id (single-image `image_url`+`mask_url` schema). */
+      model: z.string().default("fal-ai/flux-pro/v1/fill"),
+      /** Prompt describing the village and its style. The mask defines the region, so this
+       *  describes only the content. Per-style profiles override it (e.g. ink). The default is
+       *  tuned for the antique sepia look so it blends into the hand-drawn map. */
+      inpaintPrompt: z
+        .string()
+        .default(
+          "This is a small coastal patch of an antique sepia map where faded brown hills meet the pale parchment sea. KEEP the existing coastline, terrain texture and sea tone within this patch — do NOT leave any blank, lighter or smoothed area, keep the same parchment colour and fine hatching as the rest of the map. Onto the shoreline, gently add one very tiny faded fishing harbour: just two or three little rooftops and a single short jetty, drawn with thin faded light-brown sepia lines that match the exact weight and colour of the surrounding map. It must be small, faint and unobtrusive. NO black, NO bold or dark outlines, NO 3D or isometric perspective, NO long piers into open water, NO boats, no colour, no white box, no flat empty fill."
+        ),
+      /** Radius (× hex size) of the inpaint disc around each harbour. Smaller than the fort disc so
+       *  the village stays a compact mark on the shore rather than blanking a wide coastal patch. */
+      maskRadiusFactor: z.number().positive().default(0.45),
+      /** How far to push the disc from the tile centroid toward the mean coastal edge
+       *  (0 = centroid, 1 = the coastline). Keeps the village on the shore with docks over water. */
+      coastBias: z.number().min(0).max(1).default(0.5)
+    })
+    .default({}),
   webpQuality: z.number().int().min(1).max(100).default(82)
 });
 

@@ -56,3 +56,18 @@ describe("fortPass profile defaults", () => {
     expect(profile.fortPass.inpaintPrompt.toLowerCase()).toContain("pen-and-ink");
   });
 });
+
+describe("harborPass profile defaults", () => {
+  it("fills harborPass defaults when the profile omits the block", () => {
+    const profile = loadStyleProfile("antique"); // profiles/map.json has no harborPass block
+    expect(profile.harborPass.model).toBe("fal-ai/flux-pro/v1/fill");
+    expect(profile.harborPass.maskRadiusFactor).toBeCloseTo(0.45, 5);
+    expect(profile.harborPass.coastBias).toBeCloseTo(0.5, 5);
+    expect(profile.harborPass.inpaintPrompt.toLowerCase()).toContain("fishing");
+  });
+
+  it("ink profile overrides the harbour prompt for its pen-and-ink style", () => {
+    const profile = loadStyleProfile("ink");
+    expect(profile.harborPass.inpaintPrompt.toLowerCase()).toContain("pen-and-ink");
+  });
+});
