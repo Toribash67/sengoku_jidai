@@ -5,7 +5,7 @@ import type { TerrainInfo } from "@sengoku-jidai/shared";
 import {
   createFalClient,
   generateTerrainWebp,
-  inpaintFortsOnWebp,
+  inpaintFeaturesOnWebp,
   loadStyleProfile,
   type EditDeps
 } from "@sengoku-jidai/terrain";
@@ -108,7 +108,8 @@ export class TerrainService {
     void this.run(mapId, terrainId, styleId);
   }
 
-  /** Keep candidate `index`: inpaint forts onto that base and commit it as the ready terrain. */
+  /** Keep candidate `index`: inpaint forts + harbours onto that base and commit it as the ready
+   *  terrain. */
   choose(mapId: string, terrainId: string, index: number): void {
     void this.finalize(mapId, terrainId, index);
   }
@@ -129,7 +130,7 @@ export class TerrainService {
       const compiled = compileHexMap(detail.source as HexMapSource);
       const scene = buildScene(compiled);
       const deps = await this.resolveDeps();
-      const webp = await inpaintFortsOnWebp(deps, {
+      const webp = await inpaintFeaturesOnWebp(deps, {
         webp: base,
         profile: loadStyleProfile(styleId),
         scene

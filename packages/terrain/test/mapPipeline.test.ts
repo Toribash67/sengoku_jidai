@@ -36,9 +36,8 @@ describe("runMapPipeline", () => {
     const outDir = mkdtempSync(join(tmpdir(), "terrain-"));
     const res = await runMapPipeline({ fal, fetch }, { mapId: "rivers", profile, outDir });
 
-    expect(subscribe).toHaveBeenCalledTimes(1); // single edit-model call
-    expect(fal.storage.upload).toHaveBeenCalledTimes(2); // control + style reference uploaded
-    // image_urls carries both uploads, ordered [control, style].
+    // The FIRST model call is the base edit pass over [control, styleRef] (rivers also has
+    // harbours, so later inpaint passes follow — this test only asserts the base pass shape).
     const [model, opts] = subscribe.mock.calls[0]!;
     expect(model).toBe("fal-ai/gpt-image-1.5/edit");
     expect((opts.input as { image_urls: string[] }).image_urls).toHaveLength(2);

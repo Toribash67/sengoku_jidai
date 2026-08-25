@@ -34,6 +34,17 @@ const FORT_SOURCE = {
   nextTileNumber: 3
 };
 
+// A land harbour tile beside a sea tile: the sea-facing edge gives it a port so the harbour pass
+// fires.
+const HARBOR_SOURCE = {
+  ...FORT_SOURCE,
+  name: "Harbor Gen Test",
+  tiles: [
+    { id: "t1", kind: "land", hexes: [{ q: 0, r: 0 }], features: { harbor: true } },
+    { id: "t2", kind: "sea", hexes: [{ q: 1, r: 0 }], features: {} }
+  ]
+};
+
 const PROFILE: MapProfile = {
   base: {
     landColor: "#2e7d32",
@@ -58,6 +69,12 @@ const PROFILE: MapProfile = {
     markerRadiusFactor: 0.45,
     markerColor: "#ff00ff",
     maskRadiusFactor: 0.7
+  },
+  harborPass: {
+    model: "fake/fill-model",
+    inpaintPrompt: "inpaint a fishing village",
+    maskRadiusFactor: 0.7,
+    coastBias: 0.6
   },
   webpQuality: 80
 };
@@ -114,6 +131,24 @@ describe("generateTerrainWebp", () => {
     expect(out.subarray(0, 4).toString("ascii")).toBe("RIFF");
     // Base pass (control + style) + one inpaint pass for the single fort (image + mask) = 2 model
     // calls, 4 uploads.
+    expect(deps.fal.subscribe).toHaveBeenCalledTimes(2);
+    expect(deps.fal.storage.upload).toHaveBeenCalledTimes(4);
+  });
+
+  it("runs an inpaint harbour pass when the scene has a harbour", async () => {
+    const compiled = compileHexMap(HARBOR_SOURCE as never);
+    const scene = buildScene(compiled);
+    const svgMarkup = assembleBoardSvg(scene);
+    const deps = fakeDeps();
+    const out = await generateTerrainWebp(deps, {
+      svgMarkup,
+      map: compiled.definition,
+      profile: PROFILE,
+      scene
+    });
+    expect(out.subarray(0, 4).toString("ascii")).toBe("RIFF");
+    // Base pass (control + style) + one inpaint pass for the single harbour (image + mask) = 2
+    // model calls, 4 uploads.
     expect(deps.fal.subscribe).toHaveBeenCalledTimes(2);
     expect(deps.fal.storage.upload).toHaveBeenCalledTimes(4);
   });

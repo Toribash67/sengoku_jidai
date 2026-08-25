@@ -8,13 +8,18 @@ import { renderControl } from "./composite.js";
 import { editMapPass, type EditDeps } from "./editPass.js";
 import { fortMarkerOverlay } from "./fortMarkerOverlay.js";
 import { fortMarkers, type FortScene } from "./fortMarkers.js";
-import { fortFillMask, fortMaskImage } from "./fortMaskImage.js";
+import { fortFillMask, fortMaskImage, type MaskDisc } from "./fortMaskImage.js";
+import { harborMarkers, type HarborScene } from "./harborMarkers.js";
 import { inpaintPass } from "./inpaintPass.js";
 import { mapStructureScene } from "./mapSources.js";
 import { renderLandMask } from "./masks.js";
 import type { MapProfile } from "./mapProfile.js";
 import { toWebp } from "./postprocess.js";
 import { planGptImageAspect } from "./gptImageAspect.js";
+
+/** The scene slice the feature passes need: fort placement (`FortScene`) plus harbour placement
+ *  (`HarborScene`). A real board-render `BoardScene` is structurally assignable. */
+export type TerrainScene = FortScene & HarborScene;
 
 /**
  * Pad a width×height control PNG into the fixed gpt-image size, run one edit pass, and crop
@@ -136,18 +141,41 @@ export async function applyFortPass(
 }
 
 /**
- * Draw a castle at each fort tile using a TRUE-inpainting model (e.g. `fal-ai/flux-pro/v1/fill`)
- * instead of gpt-image's soft mask. A white-disc mask (`fortFillMask`) marks each fort tile as the
- * inpaint region; the model regenerates only those discs and preserves every other pixel exactly,
- * so a castle cannot leak onto non-fort tiles. No magenta marker is needed — the mask defines the
- * region and the prompt defines the content. Returns a width×height PNG. No fort tiles → the base
- * is returned unchanged. The mask disc uses `fortPass.maskRadiusFactor` (tile-sized, room for the
- * keep).
+ * Draw one feature per disc using a TRUE-inpainting model (e.g. `fal-ai/flux-pro/v1/fill`) instead
+ * of gpt-image's soft mask. A white-disc mask (`fortFillMask`) marks each disc as the inpaint
+ * region; the model regenerates only that disc and preserves every other pixel exactly, so a
+ * drawing cannot leak onto neighbouring tiles. The mask defines the region and the prompt defines
+ * the content. Returns a width×height PNG (the base resized when `discs` is empty).
  *
- * Each fort is inpainted in its OWN pass (single-disc mask, chained onto the previous result): a
- * single call over a multi-disc mask with a singular prompt unreliably fills only one disc with a
- * castle and the others with plain terrain. Per-disc guarantees one castle per fort. Cost is one
- * model call per fort tile.
+ * Each disc is inpainted in its OWN pass (single-disc mask, chained onto the previous result): a
+ * single call over a multi-disc mask with a singular prompt unreliably fills only one disc and
+ * leaves the others as plain terrain. Per-disc guarantees one drawing per disc. Cost is one model
+ * call per disc. Shared by the fort and harbour passes.
+ */
+async function applyInpaintPass(
+  deps: EditDeps,
+  args: {
+    base: Buffer;
+    width: number;
+    height: number;
+    discs: MaskDisc[];
+    model: string;
+    prompt: string;
+  }
+): Promise<Buffer> {
+  const { base, width, height, discs, model, prompt } = args;
+  let image = await sharp(base).resize(width, height, { fit: "fill" }).png().toBuffer();
+  for (const disc of discs) {
+    const mask = await fortFillMask({ width, height, discs: [disc] });
+    const edited = await inpaintPass(deps, { image, mask, model, prompt });
+    image = await sharp(edited).resize(width, height, { fit: "fill" }).png().toBuffer();
+  }
+  return image;
+}
+
+/**
+ * Draw a castle at each fort tile via `applyInpaintPass` — one disc per fort at the tile centre,
+ * sized by `fortPass.maskRadiusFactor`. No fort tiles → the base is returned unchanged.
  */
 export async function applyInpaintFortPass(
   deps: EditDeps,
@@ -163,46 +191,99 @@ export async function applyInpaintFortPass(
 ): Promise<Buffer> {
   const { base, width, height, profile, scene, model, prompt } = args;
   const discs = fortMarkers(scene, width, profile.fortPass.maskRadiusFactor);
-  let image = await sharp(base).resize(width, height, { fit: "fill" }).png().toBuffer();
-  for (const disc of discs) {
-    const mask = await fortFillMask({ width, height, discs: [disc] });
-    const edited = await inpaintPass(deps, { image, mask, model, prompt });
-    image = await sharp(edited).resize(width, height, { fit: "fill" }).png().toBuffer();
-  }
-  return image;
+  return applyInpaintPass(deps, { base, width, height, discs, model, prompt });
 }
 
 /**
- * Apply the fort pass to an EXISTING base terrain webp (used by the two-candidate flow: the base
- * is generated first, forts are inpainted only onto the chosen winner). Width/height come from the
- * webp itself. When the scene has no fort tiles this re-encodes the input unchanged (no model call).
+ * Draw a fishing-village port at each harbour tile via `applyInpaintPass` — one disc per harbour,
+ * pushed toward the tile's coastline (`harborPass.coastBias`) so the docks meet the water, sized by
+ * `harborPass.maskRadiusFactor`. No harbour tiles → the base is returned unchanged.
  */
-export async function inpaintFortsOnWebp(
+export async function applyInpaintHarborPass(
   deps: EditDeps,
-  args: { webp: Buffer; profile: MapProfile; scene: FortScene }
+  args: {
+    base: Buffer;
+    width: number;
+    height: number;
+    profile: MapProfile;
+    scene: HarborScene;
+    model: string;
+    prompt: string;
+  }
+): Promise<Buffer> {
+  const { base, width, height, profile, scene, model, prompt } = args;
+  const discs = harborMarkers(
+    scene,
+    width,
+    profile.harborPass.maskRadiusFactor,
+    profile.harborPass.coastBias
+  );
+  return applyInpaintPass(deps, { base, width, height, discs, model, prompt });
+}
+
+/**
+ * Apply every feature pass to an already-styled base terrain PNG, in order: forts, then harbours.
+ * Each pass is skipped when the scene has no tiles of that kind, so a feature-less map returns the
+ * base unchanged (no model call). Returns whatever the last applied pass produced (a width×height
+ * PNG), or the base untouched when the map has neither feature. Shared by `generateTerrainWebp`
+ * (fresh base) and `inpaintFeaturesOnWebp` (existing base).
+ */
+async function applyFeaturePasses(
+  deps: EditDeps,
+  args: { base: Buffer; width: number; height: number; profile: MapProfile; scene: TerrainScene }
+): Promise<Buffer> {
+  const { base, width, height, profile, scene } = args;
+  let terrain = base;
+  // Fort pass: "inpaint" (default) uses a true hard-mask model that preserves every non-fort
+  // pixel; "marker" uses the base gpt-image model with a magenta marker overlay.
+  if (fortMarkers(scene, width, profile.fortPass.markerRadiusFactor).length > 0) {
+    terrain =
+      profile.fortPass.method === "inpaint"
+        ? await applyInpaintFortPass(deps, {
+            base: terrain,
+            width,
+            height,
+            profile,
+            scene,
+            model: profile.fortPass.model,
+            prompt: profile.fortPass.inpaintPrompt
+          })
+        : await applyFortPass(deps, { base: terrain, width, height, profile, scene });
+  }
+  // Harbour pass: a fishing-village port inpainted on each harbour tile's coast.
+  if (
+    harborMarkers(scene, width, profile.harborPass.maskRadiusFactor, profile.harborPass.coastBias)
+      .length > 0
+  ) {
+    terrain = await applyInpaintHarborPass(deps, {
+      base: terrain,
+      width,
+      height,
+      profile,
+      scene,
+      model: profile.harborPass.model,
+      prompt: profile.harborPass.inpaintPrompt
+    });
+  }
+  return terrain;
+}
+
+/**
+ * Apply the feature passes (forts + harbours) to an EXISTING base terrain webp (used by the
+ * two-candidate flow: the base is generated first, features are inpainted only onto the chosen
+ * winner). Width/height come from the webp itself. When the scene has no forts or harbours this
+ * re-encodes the input unchanged (no model call).
+ */
+export async function inpaintFeaturesOnWebp(
+  deps: EditDeps,
+  args: { webp: Buffer; profile: MapProfile; scene: TerrainScene }
 ): Promise<Buffer> {
   const { webp, profile, scene } = args;
   const meta = await sharp(webp).metadata();
   const width = meta.width ?? profile.base.outputSize.width;
   const height = meta.height ?? width;
   const base = await sharp(webp).resize(width, height, { fit: "fill" }).png().toBuffer();
-
-  const hasForts = fortMarkers(scene, width, profile.fortPass.markerRadiusFactor).length > 0;
-  if (!hasForts) {
-    return toWebp(base, { width, height, quality: profile.webpQuality });
-  }
-  const terrain =
-    profile.fortPass.method === "inpaint"
-      ? await applyInpaintFortPass(deps, {
-          base,
-          width,
-          height,
-          profile,
-          scene,
-          model: profile.fortPass.model,
-          prompt: profile.fortPass.inpaintPrompt
-        })
-      : await applyFortPass(deps, { base, width, height, profile, scene });
+  const terrain = await applyFeaturePasses(deps, { base, width, height, profile, scene });
   return toWebp(terrain, { width, height, quality: profile.webpQuality });
 }
 
@@ -211,11 +292,12 @@ export async function inpaintFortsOnWebp(
  * `.tile` paths + a viewBox); a domain-warped land mask becomes a flat control, which a
  * multi-image edit model redraws in the style reference's hand-drawn look. Returns the
  * final webp bytes. The only file it reads is the packaged style reference. When `scene` is
- * supplied and has at least one fort tile, a second edit pass draws a castle at each fort.
+ * supplied, further passes draw a castle at each fort tile and a fishing-village port at each
+ * harbour tile.
  */
 export async function generateTerrainWebp(
   deps: EditDeps,
-  args: { svgMarkup: string; map: MapDefinition; profile: MapProfile; scene?: FortScene }
+  args: { svgMarkup: string; map: MapDefinition; profile: MapProfile; scene?: TerrainScene }
 ): Promise<Buffer> {
   const { svgMarkup, map, profile, scene } = args;
   const { base } = profile;
@@ -260,26 +342,11 @@ export async function generateTerrainWebp(
     seaColor: base.seaColor
   });
 
-  // Fort pass: draw a castle at each fort tile. Only when the caller supplied the scene and it
-  // has at least one fort — otherwise this is byte-for-byte the pre-fort behaviour. "inpaint"
-  // (default) uses a true hard-mask model that preserves every non-fort pixel; "marker" uses the
-  // base gpt-image model with a magenta marker overlay.
-  const hasForts = scene
-    ? fortMarkers(scene, width, profile.fortPass.markerRadiusFactor).length > 0
-    : false;
-  if (scene && hasForts) {
-    terrain =
-      profile.fortPass.method === "inpaint"
-        ? await applyInpaintFortPass(deps, {
-            base: terrain,
-            width,
-            height,
-            profile,
-            scene,
-            model: profile.fortPass.model,
-            prompt: profile.fortPass.inpaintPrompt
-          })
-        : await applyFortPass(deps, { base: terrain, width, height, profile, scene });
+  // Feature passes: draw forts and harbours. Only when the caller supplied the scene — otherwise
+  // this is byte-for-byte the base-only behaviour. Each pass no-ops when the scene lacks that
+  // feature.
+  if (scene) {
+    terrain = await applyFeaturePasses(deps, { base: terrain, width, height, profile, scene });
   }
 
   return toWebp(terrain, { width, height, quality: profile.webpQuality });

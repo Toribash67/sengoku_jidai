@@ -17,5 +17,8 @@
   "fortPass": {
     "inpaintPrompt": "A tiny fantasy castle keep with stone walls and stacked colourful tiered roofs and little pennant flags, drawn in the EXACT same bright playful hand-illustrated map style as the surrounding little trees and hills: clean coloured line-art on warm cream parchment, cheerful and small, no photo-realism, no heavy black cartoon outline, no grey photographic shading. A small flat top-down map symbol that blends seamlessly into the colourful fantasy map."
   },
+  "harborPass": {
+    "inpaintPrompt": "This is a small coastal patch of a bright, playful, colourful hand-illustrated fantasy map where cream illustrated land meets the teal sea. KEEP the existing coastline, terrain and sea within this patch — do NOT leave any blank or smoothed area, keep the same colours and style as the rest of the map. Onto the shoreline, gently add one small cheerful fishing harbour: a little cluster of colourful rooftops and a short wooden jetty, drawn in the same clean coloured line-art on warm cream parchment as the surrounding trees and hills. Small and tidy, matching the map's style and palette. NO heavy black cartoon outline, NO grey photographic shading, NO 3D or isometric perspective, NO long piers into open water, no white box, no flat empty fill."
+  },
   "webpQuality": 82
 }
