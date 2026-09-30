@@ -8,6 +8,8 @@ function view(over: Partial<PlayerGameView>): PlayerGameView {
     status: "active",
     activeSeat: "red",
     viewerSeat: "red",
+    pendingCombat: null,
+    pendingDecision: null,
     ...over
   } as PlayerGameView;
 }
@@ -28,6 +30,16 @@ describe("shouldPoll", () => {
 
   it("polls while it is the opponent's turn", () => {
     expect(shouldPoll(view({ activeSeat: "black", viewerSeat: "red" }), bothClaimed)).toBe(true);
+  });
+
+  it("polls on your own turn while the opponent owes a combat roll", () => {
+    const pendingCombat = { responsibleSeat: "black" } as PlayerGameView["pendingCombat"];
+    expect(shouldPoll(view({ activeSeat: "red", pendingCombat }), bothClaimed)).toBe(true);
+  });
+
+  it("does not poll on the opponent's turn while you owe the combat roll", () => {
+    const pendingCombat = { responsibleSeat: "red" } as PlayerGameView["pendingCombat"];
+    expect(shouldPoll(view({ activeSeat: "black", pendingCombat }), bothClaimed)).toBe(false);
   });
 
   it("polls while a seat is still open (waiting for the opponent to join)", () => {
