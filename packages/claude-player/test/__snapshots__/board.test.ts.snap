@@ -1,0 +1,51 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderBoard > matches the Rivers opening snapshot 1`] = `
+"You are BLACK. Round 1/4 · deploy phase · initiative: you · On the clock: you
+VP: red 0 · black 0
+Commanders left: you 5/5 · opponent 5/5
+Your hand:
+  - mobilise — Reinforce with +2 to the space's pool
+Opponent hand: 0 card(s)
+
+Areas (id kind [★stars HQ fort harbor bonus] | owner | units | supply | adjacent):
+tile1 land | red | 2 troops | supply: red | adj: tile10, tile2, tile6, tile9
+tile2 land ★1 bonus:hiddenBase | neutral | empty | supply: - | adj: tile1, tile3, tile6
+tile4 land ★1 bonus:shipyard | neutral | empty | supply: - | adj: tile3, tile5, tile8
+tile5 land | black (you) | 2 troops | supply: black | adj: tile12, tile13, tile4, tile8
+tile6 land ★1 harbor | neutral | empty | supply: - | adj: tile1, tile10, tile2, tile3, tile7
+tile8 land ★1 harbor | neutral | empty | supply: - | adj: tile12, tile3, tile4, tile5, tile7
+tile9 land HQ:red harbor | red | 3 troops | supply: red | adj: tile1, tile10, tile14, tile15
+tile10 land | red | 2 troops | supply: red | adj: tile1, tile11, tile15, tile6, tile7, tile9
+tile12 land | black (you) | 2 troops | supply: black | adj: tile11, tile13, tile17, tile5, tile7, tile8
+tile13 land HQ:black harbor | black (you) | 3 troops | supply: black | adj: tile12, tile17, tile18, tile5
+tile16 land ★2 harbor | neutral | empty | supply: - | adj: tile11, tile15, tile17, tile19, tile20, tile21
+tile19 land | red | 3 troops | supply: red | adj: tile14, tile15, tile16, tile20, tile22
+tile20 land ★2 bonus:pirateHaven | neutral | empty | supply: - | adj: tile16, tile19, tile21, tile22
+tile21 land | black (you) | 3 troops | supply: black | adj: tile16, tile17, tile18, tile20, tile22
+tile3 sea ★1 | neutral | empty | supply: - | adj: tile2, tile4, tile6, tile7, tile8
+tile7 sea ★1 | neutral | empty | supply: - | adj: tile10, tile11, tile12, tile3, tile6, tile8
+tile11 sea ★1 | neutral | empty | supply: - | adj: tile10, tile12, tile15, tile16, tile17, tile7
+tile14 sea | red | 3 ships | supply: red | adj: tile15, tile19, tile22, tile9
+tile15 sea ★1 | neutral | empty | supply: - | adj: tile10, tile11, tile14, tile16, tile19, tile9
+tile17 sea ★1 | neutral | empty | supply: - | adj: tile11, tile12, tile13, tile16, tile18, tile21
+tile18 sea | black (you) | 3 ships | supply: black | adj: tile13, tile17, tile21, tile22
+tile22 sea | neutral | empty | supply: - | adj: tile14, tile18, tile19, tile20, tile21
+
+Your orders:
+ 1. Advance into tile4 (sources: tile5 up to 1)  → play 1 --from AREA:N[,AREA:N]
+ 2. Advance into tile8 (sources: tile12 up to 1, tile5 up to 1)  → play 2 --from AREA:N[,AREA:N]
+ 3. Advance into tile16 (sources: tile21 up to 2)  → play 3 --from AREA:N[,AREA:N]
+ 4. Sail into tile17 (sources: tile18 up to 2)  → play 4 --from AREA:N[,AREA:N]
+ 5. Advance into tile20 (sources: tile21 up to 2)  → play 5 --from AREA:N[,AREA:N]
+ 6. Sail into tile22 (sources: tile18 up to 2)  → play 6 --from AREA:N[,AREA:N]
+ 7. Reinforce: place up to 6 troops (pool 6, reserve 15) into tile13, tile12, tile5, tile21  → play 7 --place AREA:N[,AREA:N]
+ 8. Reinforce: place up to 5 troops (pool 5, reserve 15) into tile13, tile12, tile5, tile21  → play 8 --place AREA:N[,AREA:N]
+ 9. Embark: place up to 3 ships (pool 3, reserve 7) into tile18, tile17  → play 9 --place AREA:N[,AREA:N]
+10. Embark: place up to 2 ships (pool 2, reserve 7) into tile18, tile17  → play 10 --place AREA:N[,AREA:N]
+11. Plan — draw 1 card and seize initiative next round  → play 11
+12. Plan — draw 2 cards  → play 12
+13. [card: mobilise] Reinforce: place up to 8 troops (pool 8, reserve 15) into tile13, tile12, tile5, tile21  → play 13 --place AREA:N[,AREA:N]
+14. [card: mobilise] Reinforce: place up to 7 troops (pool 7, reserve 15) into tile13, tile12, tile5, tile21  → play 14 --place AREA:N[,AREA:N]
+15. Pass — spend one commander without acting (you keep your remaining turns)  → play 15"
+`;
