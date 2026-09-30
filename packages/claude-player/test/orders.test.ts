@@ -101,6 +101,24 @@ describe("listOrders", () => {
     ]);
   });
 
+  it("names combat orders so they stay addressable as the numbering shifts", () => {
+    const base = emptyLegalView(openingState("cp", ["ambush", "mobilise"]));
+    const rolling = listOrders({
+      ...base,
+      pendingCombat: combat,
+      legal: { ...base.legal, canRollCombat: true, canAmbush: true }
+    });
+    expect(rolling.map((o) => o.name)).toEqual(["roll", "ambush"]);
+    const rolled = listOrders({
+      ...base,
+      pendingCombat: { ...combat, phase: "rolled" as const, rolls: [1], total: 1 },
+      legal: { ...base.legal, canRerollCombat: true, canResolveCombat: true }
+    });
+    expect(rolled.map((o) => o.name)).toEqual(["reroll:ambush", "reroll:mobilise", "accept"]);
+    expect(formatOrder(rolled.at(-1)!)).toMatch(/ 3\. Accept the roll .*→ play accept$/);
+    expect(() => buildCommand(rolled.at(-1)!, { from: "L1:1" })).toThrow(/run `play accept`/);
+  });
+
   it("turns a pending decision for this seat into one order per choice", () => {
     const base = emptyLegalView(openingState());
     const view = {

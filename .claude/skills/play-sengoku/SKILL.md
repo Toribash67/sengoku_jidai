@@ -31,6 +31,9 @@ Repeat until the game is over:
 3. Think: threats to your HQ and supply, value stars you can take or defend, commanders left
    for both sides, cards in hand (don't waste them; keep one to reroll a critical combat).
 4. `sengoku play <n> [--from A:N,...] [--place A:N,...] [--bonus K]`
+   - Combat orders have stable names — use them: `play roll`, `play ambush`, `play reroll:<card>`,
+     `play accept`. Their numbers shift between steps (a reroll appears once you hold a card), so
+     never repeat a number blindly; read the orders printed after each step.
    - exit 0 → the board after your move is printed; if it still lists orders for you
      (e.g. a combat roll, a decision), continue from step 3; otherwise back to step 1.
    - exit 1 → your arguments were wrong; the message names the limit. Fix and retry.

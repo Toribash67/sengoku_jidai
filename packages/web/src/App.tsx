@@ -888,6 +888,8 @@ export function App() {
   // The seat currently on the clock, and whether it's the AI — drives the "Computer is
   // thinking…" indicator in the PlayersPanel.
   const clockSeat = onClockSeat(game.view);
+  // Whose-turn highlights follow the clock, so a defender owing a combat roll lights up.
+  const turnSeat = clockSeat ?? game.view.activeSeat;
   const thinkingSeat =
     clockSeat && game.seatInfo.find((s) => s.seat === clockSeat)?.controller === "ai"
       ? clockSeat
@@ -946,7 +948,7 @@ export function App() {
     : null;
 
   return (
-    <main className="app-shell" data-active-seat={game.view.activeSeat}>
+    <main className="app-shell" data-active-seat={turnSeat}>
       <header className="top-bar">
         <div className="title-block">
           {/* The live instruction, promoted to the primary "general's order" line. The game
@@ -955,9 +957,7 @@ export function App() {
         </div>
         <div className="scoreboard" aria-label="Game status">
           <div className="scoreboard-main">
-            <span
-              className={`score score-red${game.view.activeSeat === "red" ? " is-active" : ""}`}
-            >
+            <span className={`score score-red${turnSeat === "red" ? " is-active" : ""}`}>
               {game.view.initiative === "red" ? <InitiativeBadge side="red" /> : null}
               <span className="score-side">Red</span>
               <span className="score-marker" aria-hidden="true" />
@@ -966,9 +966,7 @@ export function App() {
             <span className="score-dash" aria-hidden="true">
               —
             </span>
-            <span
-              className={`score score-black${game.view.activeSeat === "black" ? " is-active" : ""}`}
-            >
+            <span className={`score score-black${turnSeat === "black" ? " is-active" : ""}`}>
               <span className="score-vp">{game.view.victoryPoints.black}</span>
               <span className="score-marker" aria-hidden="true" />
               <span className="score-side">Black</span>
@@ -1128,7 +1126,7 @@ export function App() {
             seatInfo={game.seatInfo}
             heldSeats={game.heldSeats.map((held) => held.seat)}
             viewerSeat={game.view.viewerSeat}
-            activeSeat={game.view.activeSeat}
+            activeSeat={turnSeat}
             inviteLink={inviteLink}
             busy={busy}
             onSwitchSeat={handleSwitchSeat}

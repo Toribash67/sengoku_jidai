@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getMap } from "@sengoku-jidai/engine";
-import { CARD_TEXT, gameOverLine, renderBoard } from "../src/board.js";
+import { getMap, type SeatId } from "@sengoku-jidai/engine";
+import { CARD_TEXT, clockSeat, gameOverLine, renderBoard } from "../src/board.js";
 import { listOrders } from "../src/orders.js";
 import { activeView, openingState } from "./helpers.js";
 
@@ -29,6 +29,25 @@ describe("renderBoard", () => {
   it("ends with the numbered orders", () => {
     expect(text).toContain("Your orders:");
     expect(text).toMatch(/\n 1\. /);
+  });
+
+  it("puts the combat roller on the clock, not the turn holder", () => {
+    const other: SeatId = view.viewerSeat === "red" ? "black" : "red";
+    const combat = {
+      id: "pc-1",
+      kind: "advance" as const,
+      attacker: view.viewerSeat,
+      defender: other,
+      responsibleSeat: other,
+      phase: "awaiting-roll" as const,
+      area: "L7",
+      unit: "troop" as const
+    };
+    expect(clockSeat({ ...view, pendingCombat: combat })).toBe(other);
+    expect(renderBoard({ ...view, pendingCombat: combat }, map, [])).toContain(
+      `On the clock: opponent (${other})`
+    );
+    expect(clockSeat(view)).toBe(view.activeSeat);
   });
 
   it("says when it is not your turn", () => {

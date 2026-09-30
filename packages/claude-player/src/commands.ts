@@ -92,7 +92,8 @@ export function runStatus(ctx: Ctx): Promise<number> {
   });
 }
 
-export function runPlay(ctx: Ctx, n: number, args: OrderArgs): Promise<number> {
+/** `ref` is an order number or a stable order name such as `accept`. */
+export function runPlay(ctx: Ctx, ref: number | string, args: OrderArgs): Promise<number> {
   return guarded(ctx, async () => {
     const s = loadSession(ctx.sessionPath);
     const api = apiFor(ctx, s);
@@ -108,8 +109,15 @@ export function runPlay(ctx: Ctx, n: number, args: OrderArgs): Promise<number> {
       return EXIT.rejected;
     }
     const orders = listOrders(env.view);
-    const order = orders.find((o) => o.n === n);
-    if (!order) throw new OrderArgError(`There is no order ${n} (there are ${orders.length}).`);
+    const order = orders.find((o) => (typeof ref === "number" ? o.n === ref : o.name === ref));
+    if (!order) {
+      const names = orders.flatMap((o) => (o.name ? [o.name] : []));
+      throw new OrderArgError(
+        typeof ref === "number"
+          ? `There is no order ${ref} (there are ${orders.length}).`
+          : `There is no order named "${ref}" right now${names.length ? ` (try: ${names.join(", ")})` : ""}.`
+      );
+    }
     const command = buildCommand(order, args);
     const res = await api.submit(env.revision, command);
     ctx.out(`Played: ${order.label}`);
