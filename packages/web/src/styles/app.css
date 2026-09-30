@@ -387,10 +387,18 @@ button:disabled {
   background: color-mix(in srgb, var(--kin) 6%, var(--washi-raised));
 }
 
-/* The event log is reference-only: recede it. */
+/* The game log (events + chat, oldest first; the list scrolls and follows the newest line). As
+   reference material it recedes. */
 .panel-log {
+  display: flex;
+  flex-direction: column;
   background: transparent;
   border-style: dashed;
+}
+
+/* With chat in it the log is a live panel, not just reference: solid border. */
+.panel-log:has(.chat-form) {
+  border-style: solid;
 }
 
 .panel-log h2 {
@@ -469,16 +477,162 @@ button:disabled {
   color: var(--ai);
 }
 
+.log-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
 .event-log {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin: 0;
-  padding-left: 20px;
+  padding: 0 4px 0 0;
+  list-style: none;
   font-size: 0.85rem;
   color: var(--sumi-soft);
   /* Full history can run long; keep the panel bounded and scroll the log itself. */
   max-height: 260px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.log-entry {
+  padding: 1px 0 1px 8px;
+  border-left: 3px solid var(--hairline);
+  line-height: 1.35;
+}
+
+.log-entry[data-seat="red"],
+.log-chat[data-seat="red"] {
+  border-left-color: var(--shu);
+}
+
+.log-entry[data-seat="black"],
+.log-chat[data-seat="black"] {
+  border-left-color: var(--ai);
+}
+
+.log-name {
+  font-weight: 700;
+}
+
+.log-name[data-seat="red"] {
+  color: var(--shu);
+}
+
+.log-name[data-seat="black"] {
+  color: var(--ai);
+}
+
+/* A new round: a centred rule with the round number, so the history reads in chapters. */
+.log-round {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px 8px;
+  margin: 8px 0 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--hairline);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.log-round-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--sumi);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Chat lines read as speech: full-strength ink on a raised bubble with the seat stripe. */
+.log-chat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  margin: 2px 0;
+  padding: 5px 8px;
+  border-left: 3px solid var(--hairline);
+  border-radius: 0 6px 6px 0;
+  background: var(--washi-raised);
+  color: var(--sumi);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.log-chat[data-mine="true"] {
+  background: color-mix(in srgb, var(--kin) 10%, var(--washi-raised));
+}
+
+.log-chat .log-name::after {
+  content: ":";
+  color: var(--sumi-soft);
+}
+
+.log-unread {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  box-shadow: 0 2px 8px rgb(33 27 22 / 25%);
+}
+
+.chat-form {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.chat-form input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--washi-raised);
+  color: var(--sumi);
+  /* 16px stops iOS Safari zooming the page on focus. */
+  font: inherit;
+  font-size: 16px;
+}
+
+.chat-form input:focus {
+  outline: 2px solid color-mix(in srgb, var(--kin) 60%, transparent);
+  outline-offset: 1px;
+}
+
+/* Side-by-side layout: the side panel is exactly the viewport's remaining height and the log
+   stretches to fill whatever the other panels leave, scrolling on its own — no page scroll. */
+@media (min-width: 901px) {
+  .side-panel {
+    height: var(--layout-height, auto);
+    overflow-y: auto;
+  }
+
+  .side-panel > * {
+    flex-shrink: 0;
+  }
+
+  .side-panel > .panel-log {
+    flex: 1 1 auto;
+    min-height: 200px;
+  }
+
+  .side-panel .event-log {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+  }
 }
 
 .muted {
@@ -675,6 +829,18 @@ button:disabled {
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+}
+
+/* Auto-fit caps the map (and its terrain picker) so it never runs below the viewport; the width
+   is set from App. The action bar keeps the full column so it doesn't wrap to extra rows. */
+.board-column > .board {
+  max-width: var(--board-max-width, none);
+  margin-inline: auto;
+}
+
+.board-column > .terrain-picker {
+  align-self: center;
+  width: min(100%, var(--board-max-width, 100%));
 }
 
 /* Per-viewer terrain selector above the board (Flat, built-in Original, ready terrains). */

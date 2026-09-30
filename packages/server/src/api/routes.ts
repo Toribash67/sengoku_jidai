@@ -1,4 +1,6 @@
 import {
+  chatPostSchema,
+  chatQuerySchema,
   claimGameRequestSchema,
   createGameRequestSchema,
   eventQuerySchema,
@@ -432,9 +434,49 @@ export function registerApiRoutes(
       return sendError(reply, 403, "forbidden", "That seat token does not belong to this game.");
     }
 
-    return reply.send({
-      events: repository.eventsAfter(params.data.gameId, session.seat, query.data.after)
-    });
+    return reply.send(
+      repository.eventsWithRevisionsAfter(params.data.gameId, session.seat, query.data.after)
+    );
+  });
+
+  app.get("/api/games/:gameId/chat", async (request, reply) => {
+    const params = gameParamsSchema.safeParse(request.params);
+    const query = chatQuerySchema.safeParse(request.query);
+    if (!params.success || !query.success) {
+      return sendError(reply, 400, "invalidRequest", "Chat request is invalid.");
+    }
+
+    const session = authenticate(request, repository);
+    if (!session) {
+      return sendError(reply, 401, "invalidSession", "A valid seat token is required.");
+    }
+    if (session.gameId !== params.data.gameId) {
+      return sendError(reply, 403, "forbidden", "That seat token does not belong to this game.");
+    }
+
+    return reply.send({ messages: repository.chatAfter(params.data.gameId, query.data.after) });
+  });
+
+  app.post("/api/games/:gameId/chat", async (request, reply) => {
+    const params = gameParamsSchema.safeParse(request.params);
+    const body = chatPostSchema.safeParse(request.body ?? {});
+    if (!params.success || !body.success) {
+      return sendError(reply, 400, "invalidRequest", "Chat message is invalid.");
+    }
+
+    const session = authenticate(request, repository);
+    if (!session) {
+      return sendError(reply, 401, "invalidSession", "A valid seat token is required.");
+    }
+    if (session.gameId !== params.data.gameId) {
+      return sendError(reply, 403, "forbidden", "That seat token does not belong to this game.");
+    }
+
+    const message = repository.postChat(params.data.gameId, session.seat, body.data.text);
+    if (!message) {
+      return sendError(reply, 404, "gameNotFound", "Game was not found.");
+    }
+    return reply.status(201).send({ message });
   });
 
   app.get("/api/admin/games", async (request, reply) => {

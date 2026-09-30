@@ -1,6 +1,9 @@
 import type {
   ApiErrorBody,
+  ChatMessage,
+  ChatResponse,
   CreateGameResponse,
+  EventsResponse,
   ListMapsResponse,
   MapDetail,
   PlayerGameViewEnvelope,
@@ -49,9 +52,31 @@ export async function fetchEvents(
   gameId: string,
   token: string,
   after: number
-): Promise<{ events: PlayerGameEvent[] }> {
+): Promise<EventsResponse<PlayerGameEvent>> {
   return request(`/api/games/${gameId}/events?after=${after}`, {
     headers: authHeaders(token)
+  });
+}
+
+export async function fetchChat(
+  gameId: string,
+  token: string,
+  after: number
+): Promise<ChatResponse> {
+  return request(`/api/games/${gameId}/chat?after=${after}`, {
+    headers: authHeaders(token)
+  });
+}
+
+export async function postChat(
+  gameId: string,
+  token: string,
+  text: string
+): Promise<{ message: ChatMessage }> {
+  return request(`/api/games/${gameId}/chat`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ text })
   });
 }
 

@@ -8,55 +8,95 @@ export interface EventLookup {
   areaName: (tileId: string) => string;
 }
 
+/** A piece of a log line: plain text, or a player name to render in that seat's colour. */
+export type LogPart = string | { seat: SeatId; text: string };
+
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
-/** A one-line, human-readable description of an event for the "Recent events" log: player names
- *  (not seat colours) and area labels (not raw tile ids). */
-export function describeEvent(event: PlayerGameEvent, { seatName, areaName }: EventLookup): string {
+/** A human-readable description of an event for the game log, split into parts so player names
+ *  (not seat colours) can be coloured by seat; areas use their labels (not raw tile ids). */
+export function describeEventParts(
+  event: PlayerGameEvent,
+  { seatName, areaName }: EventLookup
+): LogPart[] {
+  const who = (seat: SeatId): LogPart => ({ seat, text: seatName(seat) });
   switch (event.type) {
     case "commanderDeployed":
-      return `${seatName(event.seat)} deployed a commander to ${areaName(event.spaceId)}`;
+      return [who(event.seat), ` deployed a commander to ${areaName(event.spaceId)}`];
     case "passed":
-      return `${seatName(event.seat)} passed`;
+      return [who(event.seat), " passed"];
     case "unitsMoved":
-      return `${seatName(event.seat)} moved ${plural(event.count, event.unit)} — ${areaName(
-        event.from
-      )} → ${areaName(event.to)}`;
+      return [
+        who(event.seat),
+        ` moved ${plural(event.count, event.unit)} — ${areaName(event.from)} → ${areaName(
+          event.to
+        )}`
+      ];
     case "unitsPlaced":
-      return `${seatName(event.seat)} placed ${plural(event.count, event.unit)} on ${areaName(
-        event.area
-      )}`;
+      return [
+        who(event.seat),
+        ` placed ${plural(event.count, event.unit)} on ${areaName(event.area)}`
+      ];
     case "unitsRemoved":
-      return `${seatName(event.seat)} lost ${plural(event.count, event.unit)} at ${areaName(
-        event.area
-      )}`;
+      return [
+        who(event.seat),
+        ` lost ${plural(event.count, event.unit)} at ${areaName(event.area)}`
+      ];
     case "bonusApplied":
-      return `${seatName(event.seat)} used a bonus at ${areaName(event.area)}`;
+      return [who(event.seat), ` used a bonus at ${areaName(event.area)}`];
     case "diceRolled":
-      return `${seatName(event.seat)} rolled [${event.rolls.join(", ")}] = ${event.total} (${
-        event.purpose
-      }${event.fort ? " +fort" : ""})`;
+      return [
+        who(event.seat),
+        ` rolled [${event.rolls.join(", ")}] = ${event.total} (${event.purpose}${
+          event.fort ? " +fort" : ""
+        })`
+      ];
     case "cardsDrawn":
-      return `${seatName(event.seat)} drew ${plural(event.count, "card")}`;
+      return [who(event.seat), ` drew ${plural(event.count, "card")}`];
     case "cardDiscarded":
-      return `${seatName(event.seat)} discarded a card to reroll`;
+      return [who(event.seat), " discarded a card to reroll"];
     case "cardPlayed":
-      return `${seatName(event.seat)} played ${cardLabel(event.card)}`;
+      return [who(event.seat), ` played ${cardLabel(event.card)}`];
     case "areaCaptured": {
-      const base = `${seatName(event.seat)} captured ${areaName(event.area)}`;
-      return event.previousOwner ? `${base} from ${seatName(event.previousOwner)}` : base;
+      const base: LogPart[] = [who(event.seat), ` captured ${areaName(event.area)}`];
+      return event.previousOwner ? [...base, " from ", who(event.previousOwner)] : base;
     }
     case "capExceeded":
-      return `${plural(event.returned, event.unit)} returned from ${areaName(event.area)} (over cap)`;
+      return [
+        `${plural(event.returned, event.unit)} returned from ${areaName(event.area)} (over cap)`
+      ];
     case "turnAdvanced":
-      return `${seatName(event.activeSeat)}'s turn`;
+      return [who(event.activeSeat), "'s turn"];
     case "recalled":
-      return `Round ${event.round} — ${seatName(event.initiative)} has initiative`;
+      return [`Round ${event.round} — `, who(event.initiative), " has initiative"];
     case "initiativeSeized":
-      return `${seatName(event.seat)} seized the initiative`;
+      return [who(event.seat), " seized the initiative"];
     case "gameEnded":
-      return event.winner ? `${seatName(event.winner)} won the game` : "The game ended in a draw";
+      return event.winner ? [who(event.winner), " won the game"] : ["The game ended in a draw"];
+  }
+}
+
+/** A one-line, plain-text description of an event (the parts joined). */
+export function describeEvent(event: PlayerGameEvent, lookup: EventLookup): string {
+  return describeEventParts(event, lookup)
+    .map((part) => (typeof part === "string" ? part : part.text))
+    .join("");
+}
+
+/** The seat an event belongs to (colours its log stripe), or null for neutral events. */
+export function eventSeat(event: PlayerGameEvent): SeatId | null {
+  switch (event.type) {
+    case "turnAdvanced":
+      return event.activeSeat;
+    case "recalled":
+      return event.initiative;
+    case "gameEnded":
+      return event.winner ?? null;
+    case "capExceeded":
+      return event.owner;
+    default:
+      return event.seat;
   }
 }

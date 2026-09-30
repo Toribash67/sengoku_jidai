@@ -52,20 +52,30 @@ export function forgetGame(gameId: string): void {
   writeSeatStore(store);
 }
 
-const panelWidthKey = "sengoku-jidai.panelWidth";
+// The width the player dragged the side panel to. Only a drag persists it; without one the panel
+// auto-fits so the board needs no page scroll. (The old "panelWidth" key was written on every
+// mount, so it no longer reflects a choice — it is dropped on read.)
+const manualPanelWidthKey = "sengoku-jidai.panelWidthManual";
+const legacyPanelWidthKey = "sengoku-jidai.panelWidth";
 
-/** Persisted side-panel width in px, or null if unset/invalid. */
-export function loadPanelWidth(): number | null {
-  const raw = localStorage.getItem(panelWidthKey);
+/** The player's dragged side-panel width in px, or null for auto-fit. */
+export function loadManualPanelWidth(): number | null {
+  localStorage.removeItem(legacyPanelWidthKey);
+  const raw = localStorage.getItem(manualPanelWidthKey);
   if (raw === null) {
     return null;
   }
   const value = Number(raw);
-  return Number.isFinite(value) ? value : null;
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
-export function savePanelWidth(width: number): void {
-  localStorage.setItem(panelWidthKey, String(Math.round(width)));
+/** Persist a dragged width, or clear it (null) to return to auto-fit. */
+export function saveManualPanelWidth(width: number | null): void {
+  if (width === null) {
+    localStorage.removeItem(manualPanelWidthKey);
+  } else {
+    localStorage.setItem(manualPanelWidthKey, String(Math.round(width)));
+  }
 }
 
 // --- Per-map terrain choice (the play-view picker's per-viewer preference) ---

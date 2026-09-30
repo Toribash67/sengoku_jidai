@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerGameEvent } from "@sengoku-jidai/engine/client";
-import { describeEvent, type EventLookup } from "./eventLog.js";
+import { describeEvent, describeEventParts, eventSeat, type EventLookup } from "./eventLog.js";
 
 // Stub lookups: player names per seat, and an area label that echoes the tile id so tests can
 // assert the id was resolved through areaName.
@@ -136,5 +136,41 @@ describe("describeEvent", () => {
   it("uses player names for a pass", () => {
     const event: PlayerGameEvent = { type: "passed", seat: "red" };
     expect(describeEvent(event, lookup)).toBe("Nobunaga passed");
+  });
+});
+
+describe("describeEventParts", () => {
+  it("marks every player name with its seat so it can be coloured", () => {
+    const event: PlayerGameEvent = {
+      type: "areaCaptured",
+      seat: "red",
+      area: "t1",
+      previousOwner: "black"
+    };
+    expect(describeEventParts(event, lookup)).toEqual([
+      { seat: "red", text: "Nobunaga" },
+      " captured «t1»",
+      " from ",
+      { seat: "black", text: "Ieyasu" }
+    ]);
+  });
+});
+
+describe("eventSeat", () => {
+  it("attributes events to their acting seat", () => {
+    expect(eventSeat({ type: "passed", seat: "black" })).toBe("black");
+    expect(eventSeat({ type: "turnAdvanced", activeSeat: "red" } as PlayerGameEvent)).toBe("red");
+  });
+
+  it("attributes over-cap returns to the units' owner and a draw to nobody", () => {
+    const capped: PlayerGameEvent = {
+      type: "capExceeded",
+      area: "t1",
+      unit: "troop",
+      returned: 1,
+      owner: "black"
+    };
+    expect(eventSeat(capped)).toBe("black");
+    expect(eventSeat({ type: "gameEnded", winner: null } as PlayerGameEvent)).toBeNull();
   });
 });

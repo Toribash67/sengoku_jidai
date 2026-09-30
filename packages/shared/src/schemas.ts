@@ -164,6 +164,18 @@ export const eventQuerySchema = z.object({
   after: z.coerce.number().int().nonnegative().default(0)
 });
 
+/** Max length of one chat message (after trimming). */
+export const MAX_CHAT_LENGTH = 500;
+
+export const chatPostSchema = z.object({
+  text: z.string().trim().min(1).max(MAX_CHAT_LENGTH)
+});
+
+/** `after` is a chat message id: return only messages newer than it. */
+export const chatQuerySchema = z.object({
+  after: z.coerce.number().int().nonnegative().default(0)
+});
+
 export const gameParamsSchema = z.object({
   gameId: z.string().min(1)
 });
@@ -177,5 +189,6 @@ export type GameModeDto = z.infer<typeof gameModeSchema>;
 export type CommandDto = z.infer<typeof commandSchema>;
 export type CreateGameRequest = z.infer<typeof createGameRequestSchema>;
 export type SubmitCommandRequest = z.infer<typeof submitCommandRequestSchema>;
+export type ChatPostRequest = z.infer<typeof chatPostSchema>;
 export type ClaimGameRequest = z.infer<typeof claimGameRequestSchema>;
 export type HexMapSourceDto = z.infer<typeof hexMapSourceSchema>;

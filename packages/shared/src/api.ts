@@ -61,6 +61,26 @@ export interface SubmitCommandResponse<View = unknown, Event = unknown> {
   error?: ApiErrorBody["error"];
 }
 
+export interface EventsResponse<Event = unknown> {
+  events: Event[];
+  /** The game revision each event was produced at, parallel to `events` (same length). */
+  revisions: number[];
+}
+
+/** One in-game chat line. `revision` is the game revision when it was sent, so the client can
+ *  interleave chat with the event log. */
+export interface ChatMessage {
+  id: number;
+  seat: SeatId;
+  revision: number;
+  text: string;
+  createdAt: string;
+}
+
+export interface ChatResponse {
+  messages: ChatMessage[];
+}
+
 export interface ApiErrorBody {
   error: {
     code: string;
