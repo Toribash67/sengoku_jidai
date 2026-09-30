@@ -153,15 +153,20 @@ describe("claude-player commands against a real server", () => {
     expect(idle.lines.join("\n")).toMatch(/Your turn/);
   });
 
-  it("wait prints the opponent's chat", async () => {
+  it("wait wakes with exit 6 on the opponent's chat even off-turn, once per message", async () => {
     const game = await newGame("chat");
     const red = ctxFor("red");
     const black = ctxFor("black");
     await runJoin(red, game.red, "Human");
     await runJoin(black, game.black, "Claude");
-    expect(await runSay(red, "good luck")).toBe(EXIT.ok);
-    await runWait(black, { timeoutSec: 0, intervalMs: 1 });
-    expect(black.lines.join("\n")).toContain("💬 red: good luck");
+    const idle = (await ordersFor(red)).orders.length ? black : red;
+    const speaker = idle === red ? black : red;
+    expect(await runSay(speaker, "good luck")).toBe(EXIT.ok);
+    expect(await runWait(idle, { timeoutSec: 0, intervalMs: 1 })).toBe(EXIT.chat);
+    expect(idle.lines.join("\n")).toMatch(/💬 (red|black): good luck/);
+    // Already shown, and our own lines never wake us: back to plain waiting.
+    expect(await runSay(idle, "thanks")).toBe(EXIT.ok);
+    expect(await runWait(idle, { timeoutSec: 0, intervalMs: 1 })).toBe(EXIT.waiting);
   });
 
   it("an invalid token exits 5", async () => {

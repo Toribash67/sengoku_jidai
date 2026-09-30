@@ -11,7 +11,15 @@ import { LinkError, parseInviteLink } from "./link.js";
 import { OrderArgError, buildCommand, listOrders, type OrderArgs } from "./orders.js";
 import { SessionError, loadSession, saveSession, type Session } from "./session.js";
 
-export const EXIT = { ok: 0, local: 1, over: 2, waiting: 3, rejected: 4, auth: 5 } as const;
+export const EXIT = {
+  ok: 0,
+  local: 1,
+  over: 2,
+  waiting: 3,
+  rejected: 4,
+  auth: 5,
+  chat: 6
+} as const;
 
 export interface Ctx {
   sessionPath: string;
@@ -142,6 +150,7 @@ export function runWait(
     let reportedOutage = false;
     for (;;) {
       let view: PlayerGameView;
+      let heardOpponent = false;
       try {
         const env = await api.view();
         view = env.view;
@@ -153,7 +162,10 @@ export function runWait(
         }
         const chat = await api.chatAfter(s.lastChatId);
         for (const m of chat.messages) {
-          if (m.seat !== s.seat) ctx.out(`💬 ${m.seat}: ${m.text}`);
+          if (m.seat !== s.seat) {
+            ctx.out(`💬 ${m.seat}: ${m.text}`);
+            heardOpponent = true;
+          }
           s.lastChatId = m.id;
         }
         if (chat.messages.length) saveSession(ctx.sessionPath, s);
@@ -174,6 +186,13 @@ export function runWait(
       if (listOrders(view).length) {
         ctx.out("Your turn. Run `sengoku status`.");
         return EXIT.ok;
+      }
+      // Wake on chat so a reply needn't wait for our turn; the caller replies, then waits again.
+      if (heardOpponent) {
+        ctx.out(
+          "The opponent said something — reply with `sengoku say`, then `sengoku wait` again."
+        );
+        return EXIT.chat;
       }
       if (now() >= deadline) {
         ctx.out("Still the opponent's turn — run `sengoku wait` again.");
