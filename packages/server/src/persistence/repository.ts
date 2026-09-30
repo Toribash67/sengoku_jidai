@@ -13,7 +13,12 @@ import {
   type PlayerGameView,
   type SeatId
 } from "@sengoku-jidai/engine";
-import type { AdminGameSummary, GameSeatInfo, SeatStatus } from "@sengoku-jidai/shared";
+import type {
+  AdminGameSummary,
+  ChatMessage,
+  GameSeatInfo,
+  SeatStatus
+} from "@sengoku-jidai/shared";
 import { randomUUID } from "node:crypto";
 import { issueToken } from "../sessions/tokens.js";
 import type { SqliteDatabase } from "./database.js";
@@ -465,19 +470,83 @@ export class GameRepository {
   }
 
   eventsAfter(gameId: string, seat: SeatId, afterRevision: number): PlayerGameEvent[] {
+    return this.eventsWithRevisionsAfter(gameId, seat, afterRevision).events;
+  }
+
+  /** The seat's visible events after `afterRevision`, plus the revision each was produced at
+   *  (parallel arrays), so the client can interleave chat messages by revision. */
+  eventsWithRevisionsAfter(
+    gameId: string,
+    seat: SeatId,
+    afterRevision: number
+  ): { events: PlayerGameEvent[]; revisions: number[] } {
     const rows = this.db
       .prepare(
-        `SELECT event_json
+        `SELECT revision, event_json
          FROM game_events
          WHERE game_id = ? AND revision > ?
          ORDER BY revision ASC, sequence ASC`
       )
-      .all(gameId, afterRevision) as { event_json: string }[];
+      .all(gameId, afterRevision) as { revision: number; event_json: string }[];
 
-    return playerEvents(
-      rows.map((row) => JSON.parse(row.event_json) as GameEvent),
-      seat
-    );
+    const events: PlayerGameEvent[] = [];
+    const revisions: number[] = [];
+    for (const row of rows) {
+      // Filter one row at a time so each visible event keeps its own revision.
+      for (const event of playerEvents([JSON.parse(row.event_json) as GameEvent], seat)) {
+        events.push(event);
+        revisions.push(row.revision);
+      }
+    }
+    return { events, revisions };
+  }
+
+  /** Store a chat line from `seat`, stamped with the game's current revision. Null if the game
+   *  does not exist. */
+  postChat(gameId: string, seat: SeatId, text: string): ChatMessage | null {
+    const game = this.getGameRow(gameId);
+    if (!game) {
+      return null;
+    }
+    const createdAt = new Date().toISOString();
+    const result = this.db
+      .prepare(
+        `INSERT INTO chat_messages (game_id, seat, revision, body, created_at)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+      .run(gameId, seat, game.current_revision, text, createdAt);
+    return {
+      id: Number(result.lastInsertRowid),
+      seat,
+      revision: game.current_revision,
+      text,
+      createdAt
+    };
+  }
+
+  /** Chat lines for a game with id > `afterId`, oldest first. */
+  chatAfter(gameId: string, afterId: number): ChatMessage[] {
+    const rows = this.db
+      .prepare(
+        `SELECT id, seat, revision, body, created_at
+         FROM chat_messages
+         WHERE game_id = ? AND id > ?
+         ORDER BY id ASC`
+      )
+      .all(gameId, afterId) as {
+      id: number;
+      seat: SeatId;
+      revision: number;
+      body: string;
+      created_at: string;
+    }[];
+    return rows.map((row) => ({
+      id: row.id,
+      seat: row.seat,
+      revision: row.revision,
+      text: row.body,
+      createdAt: row.created_at
+    }));
   }
 
   private duplicateCommandResult(

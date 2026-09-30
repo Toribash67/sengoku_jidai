@@ -21,6 +21,7 @@ import {
 } from "./components/board/orders.js";
 import { getMap } from "@sengoku-jidai/engine/client";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import type { ChatMessage } from "@sengoku-jidai/shared";
 import { ActionBar } from "./components/board/ActionBar.js";
 import { AreaDetails } from "./components/board/AreaDetails.js";
 import { CardPreview } from "./components/board/CardPreview.js";
@@ -29,7 +30,9 @@ import { CombatPanel } from "./components/board/CombatPanel.js";
 import { PendingDecisionPanel } from "./components/board/PendingDecisionPanel.js";
 import { Hand } from "./components/board/Hand.js";
 import { describeArea } from "./components/board/areaLabel.js";
-import { describeEvent, type EventLookup } from "./components/board/eventLog.js";
+import type { EventLookup } from "./components/board/eventLog.js";
+import { GameLog } from "./components/board/GameLog.js";
+import { buildLogEntries, mergeChat, type LoggedEvent } from "./components/board/gameLog.js";
 import { capitalizeSeat, seatDisplayName } from "./components/board/gameOver.js";
 import { CommanderPips } from "./components/CommanderPips.js";
 import { GameOverOverlay } from "./components/GameOverOverlay.js";
@@ -48,17 +51,16 @@ import {
   apiErrorMessage,
   claimSeat,
   createGame,
+  fetchChat,
   fetchEvents,
   fetchGameView,
+  postChat,
   submitCommand
 } from "./client/api.js";
-import {
-  forgetGame,
-  loadPanelWidth,
-  loadSeatTokens,
-  rememberSeatTokens,
-  savePanelWidth
-} from "./state/localGame.js";
+import { forgetGame, loadSeatTokens, rememberSeatTokens } from "./state/localGame.js";
+import { chatEnabled } from "./state/chat.js";
+import { useChatAlert } from "./state/chatAlert.js";
+import { MIN_MAP_WIDTH, MIN_PANEL_WIDTH, usePanelFit } from "./state/panelFit.js";
 import { onClockSeat } from "./state/onClock.js";
 import { gameUrl, inviteUrl, navigateTo, useRoute } from "./state/route.js";
 import { shouldPoll } from "./state/polling.js";
@@ -71,9 +73,6 @@ import { MapLibraryScreen } from "./components/MapLibraryScreen.js";
 import { AdminScreen } from "./components/AdminScreen.js";
 import { PlayersPanel } from "./components/PlayersPanel.js";
 
-const MIN_PANEL_WIDTH = 260;
-const MIN_MAP_WIDTH = 360;
-const DEFAULT_PANEL_WIDTH = 340;
 /** How long the opponent's changed tiles pulse before the highlight clears. */
 const FLASH_MS = 1500;
 
@@ -98,7 +97,11 @@ export function App() {
   // A move/strike order being targeted: the player armed a verb (or played a move/strike card)
   // and now picks a candidate tile on the map. Placement/Plan open their composer directly.
   const [armedOrder, setArmedOrder] = useState<ArmedOrder | null>(null);
-  const [events, setEvents] = useState<PlayerGameEvent[]>([]);
+  // The seat's event history, oldest first, each tagged with its revision (to interleave chat).
+  const [events, setEvents] = useState<LoggedEvent[]>([]);
+  // Chat lines, oldest first; null until the history has loaded (so the unread alert has a
+  // baseline and does not fire for old messages).
+  const [chat, setChat] = useState<ChatMessage[] | null>(null);
   // Tiles the opponent changed on their last turn, pulsed briefly on the board then cleared.
   const [flashAreaIds, setFlashAreaIds] = useState<ReadonlySet<string>>(() => new Set());
   const flashTimerRef = useRef<number | null>(null);
@@ -107,15 +110,16 @@ export function App() {
   // The gameId whose game-over overlay has been dismissed (to view the final board). Keyed by
   // gameId so it auto-resets for a different game and survives the 3s poll replacing the view.
   const [dismissedEndFor, setDismissedEndFor] = useState<string | null>(null);
-  const [panelWidth, setPanelWidth] = useState(() => loadPanelWidth() ?? DEFAULT_PANEL_WIDTH);
   const layoutRef = useRef<HTMLElement>(null);
   const draggingRef = useRef(false);
   const route = useRoute();
   const loadedKeyRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    savePanelWidth(panelWidth);
-  }, [panelWidth]);
+  // Re-fit when the game/map changes, and when the terrain picker appears above the map (its
+  // options load asynchronously and it adds height to the board column).
+  const panelFit = usePanelFit(
+    layoutRef,
+    game ? `${game.gameId}:${game.view.mapId}:${terrain.options.length > 1}` : ""
+  );
 
   // Forget the active source whenever the composed order changes or clears.
   useEffect(() => {
@@ -134,10 +138,13 @@ export function App() {
     const rect = layoutRef.current.getBoundingClientRect();
     const max = Math.max(MIN_PANEL_WIDTH, rect.width - MIN_MAP_WIDTH);
     const next = Math.min(Math.max(rect.right - event.clientX, MIN_PANEL_WIDTH), max);
-    setPanelWidth(next);
+    panelFit.dragTo(next);
   }
 
   function handleDividerPointerUp(event: PointerEvent<HTMLDivElement>) {
+    if (draggingRef.current) {
+      panelFit.commit();
+    }
     draggingRef.current = false;
     event.currentTarget.releasePointerCapture(event.pointerId);
   }
@@ -186,7 +193,16 @@ export function App() {
         setSelectedAreaId(null);
         setComposer(null);
         setArmedOrder(null);
-        setEvents(await loadHistory(gameId, token));
+        setChat(null);
+        const [history, chatHistory] = await Promise.all([
+          loadHistory(gameId, token),
+          loadChat(gameId, token)
+        ]);
+        if (cancelled) {
+          return;
+        }
+        setEvents(history);
+        setChat(chatHistory);
       })
       .catch((caught) => {
         if (!cancelled) {
@@ -232,8 +248,11 @@ export function App() {
             return; // seat switched mid-poll; drop this result
           }
           let newEvents: PlayerGameEvent[] = [];
+          let newRevisions: number[] = [];
           if (envelope.revision > current.revision) {
-            newEvents = (await fetchEvents(current.gameId, current.token, current.revision)).events;
+            const fetched = await fetchEvents(current.gameId, current.token, current.revision);
+            newEvents = fetched.events;
+            newRevisions = fetched.revisions;
           }
           // Drop a stale tick whose revision is older than what we already hold (overlapping
           // out-of-order polls); >= still lets an unchanged-revision seatInfo update through
@@ -249,7 +268,7 @@ export function App() {
               : prev
           );
           if (newEvents.length > 0) {
-            // Pulse the tiles the opponent just changed (compute before the in-place reverse).
+            // Pulse the tiles the opponent just changed.
             const touched = affectedTileIds(newEvents);
             if (touched.length > 0) {
               if (flashTimerRef.current !== null) {
@@ -261,7 +280,13 @@ export function App() {
                 flashTimerRef.current = null;
               }, FLASH_MS);
             }
-            setEvents((previous) => [...newEvents.reverse(), ...previous]);
+            setEvents((previous) => [
+              ...previous,
+              ...newEvents.map((event, index) => ({
+                event,
+                revision: newRevisions[index] ?? envelope.revision
+              }))
+            ]);
           }
         })
         .catch(() => {
@@ -279,6 +304,40 @@ export function App() {
       flashTimerRef.current = null;
     }
   }, [game?.gameId]);
+
+  // Chat can arrive at any moment (your own turn, after the game ends), so it has its own light
+  // poll, independent of the game-view poll, whenever chat is on and its history has loaded.
+  const chatOn = game != null && chatEnabled(game.seatInfo, game.view.viewerSeat);
+  const chatLoaded = chat !== null;
+  const lastChatIdRef = useRef(0);
+  useEffect(() => {
+    lastChatIdRef.current = chat?.at(-1)?.id ?? 0;
+  }, [chat]);
+  useEffect(() => {
+    if (!game || !chatOn || !chatLoaded) {
+      return;
+    }
+    const { gameId, token } = game;
+    const interval = window.setInterval(() => {
+      void fetchChat(gameId, token, lastChatIdRef.current)
+        .then(({ messages }) => {
+          if (messages.length > 0 && gameRef.current?.token === token) {
+            setChat((previous) => (previous ? mergeChat(previous, messages) : previous));
+          }
+        })
+        .catch(() => {
+          // transient poll failure: the next tick retries
+        });
+    }, 3000);
+    return () => window.clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the seat, not every view
+  }, [game?.gameId, game?.token, chatOn, chatLoaded]);
+
+  const logEntries = useMemo(() => buildLogEntries(events, chat ?? []), [events, chat]);
+
+  // Flash the tab title when the opponent chats while the tab is in the background.
+  const opponentChat = chat?.filter((m) => m.seat !== game?.view.viewerSeat);
+  useChatAlert(chat === null ? null : (opponentChat?.at(-1)?.id ?? 0));
 
   // Flash the tab title when it becomes the viewer's turn while the tab is backgrounded. Called
   // unconditionally (above the early returns) so the hook order stays stable.
@@ -373,6 +432,7 @@ export function App() {
       setComposer(null);
       setArmedOrder(null);
       setEvents([]);
+      setChat([]);
       navigateTo(gameUrl(created.gameId, myToken));
     } catch (caught) {
       setError(apiErrorMessage(caught));
@@ -381,15 +441,38 @@ export function App() {
     }
   }
 
-  // The full per-seat event history, newest-first. The server keeps it from revision 0, so a
+  // The full per-seat event history, oldest first. The server keeps it from revision 0, so a
   // reload or seat switch restores the whole log instead of starting empty. Resilient: a failed
   // history fetch yields an empty log rather than failing the surrounding view load.
-  async function loadHistory(gameId: string, token: string): Promise<PlayerGameEvent[]> {
+  async function loadHistory(gameId: string, token: string): Promise<LoggedEvent[]> {
     try {
-      const { events } = await fetchEvents(gameId, token, 0);
-      return events.reverse();
+      const { events, revisions } = await fetchEvents(gameId, token, 0);
+      return events.map((event, index) => ({ event, revision: revisions[index] ?? 0 }));
     } catch {
       return [];
+    }
+  }
+
+  // The game's chat so far (same resilience as loadHistory).
+  async function loadChat(gameId: string, token: string): Promise<ChatMessage[]> {
+    try {
+      return (await fetchChat(gameId, token, 0)).messages;
+    } catch {
+      return [];
+    }
+  }
+
+  async function handleSendChat(text: string) {
+    if (!game) {
+      return;
+    }
+    setError(null);
+    try {
+      const { message } = await postChat(game.gameId, game.token, text);
+      setChat((previous) => mergeChat(previous ?? [], [message]));
+    } catch (caught) {
+      setError(apiErrorMessage(caught));
+      throw caught;
     }
   }
 
@@ -441,6 +524,7 @@ export function App() {
       // The event log is per-seat (each seat's view redacts the opponent's hidden actions), so
       // reload the new seat's own history rather than showing the previous seat's tail.
       setEvents(await loadHistory(game.gameId, token));
+      setChat(await loadChat(game.gameId, token));
     } catch (caught) {
       setError(apiErrorMessage(caught));
     } finally {
@@ -652,7 +736,7 @@ export function App() {
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
       }
-      setEvents((previous) => [...[...(response.events ?? [])].reverse(), ...previous]);
+      setEvents((previous) => appendEvents(previous, response.events, response.revision));
       setComposer(null);
       setArmedOrder(null);
       setSelectedAreaId(null);
@@ -676,7 +760,7 @@ export function App() {
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
       }
-      setEvents((previous) => [...[...(response.events ?? [])].reverse(), ...previous]);
+      setEvents((previous) => appendEvents(previous, response.events, response.revision));
     } catch (caught) {
       setError(apiErrorMessage(caught));
     } finally {
@@ -708,7 +792,7 @@ export function App() {
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
       }
-      setEvents((previous) => [...[...(response.events ?? [])].reverse(), ...previous]);
+      setEvents((previous) => appendEvents(previous, response.events, response.revision));
     } catch (caught) {
       setError(apiErrorMessage(caught));
     } finally {
@@ -734,7 +818,7 @@ export function App() {
       if (response.view) {
         setGame({ ...game, revision: response.revision, view: response.view });
       }
-      setEvents((previous) => [...[...(response.events ?? [])].reverse(), ...previous]);
+      setEvents((previous) => appendEvents(previous, response.events, response.revision));
     } catch (caught) {
       setError(apiErrorMessage(caught));
     } finally {
@@ -920,7 +1004,17 @@ export function App() {
       <section
         className="game-layout"
         ref={layoutRef}
-        style={{ "--panel-width": `${panelWidth}px` } as CSSProperties}
+        style={
+          {
+            "--panel-width": `${panelFit.panelWidth}px`,
+            ...(panelFit.layoutHeight !== null
+              ? { "--layout-height": `${panelFit.layoutHeight}px` }
+              : {}),
+            ...(panelFit.boardMaxWidth !== null
+              ? { "--board-max-width": `${panelFit.boardMaxWidth}px` }
+              : {})
+          } as CSSProperties
+        }
       >
         <div className="board-column">
           <TerrainPicker
@@ -1025,6 +1119,8 @@ export function App() {
           onPointerDown={handleDividerPointerDown}
           onPointerMove={handleDividerPointerMove}
           onPointerUp={handleDividerPointerUp}
+          onDoubleClick={panelFit.reset}
+          title="Drag to resize · double-click to fit the map"
         />
 
         <aside className="side-panel" aria-label="Command panel">
@@ -1058,18 +1154,13 @@ export function App() {
             )}
           </section>
 
-          <section className="panel-section panel-log">
-            <h2>Recent events</h2>
-            {events.length === 0 ? (
-              <p className="muted">No commands submitted yet.</p>
-            ) : (
-              <ol className="event-log">
-                {events.map((event, index) => (
-                  <li key={`${event.type}-${index}`}>{describeEvent(event, eventLookup)}</li>
-                ))}
-              </ol>
-            )}
-          </section>
+          <GameLog
+            entries={logEntries}
+            lookup={eventLookup}
+            viewerSeat={game.view.viewerSeat}
+            chatEnabled={chatOn}
+            onSend={handleSendChat}
+          />
 
           <button
             type="button"
@@ -1168,6 +1259,17 @@ function buildCommand(composer: ComposerState): Command | null {
     case "plan":
       return { type: "plan", spaceId: composer.spaceId };
   }
+}
+
+/** Append a command response's events (all produced at `revision`) to the chronological log. */
+function appendEvents(
+  previous: LoggedEvent[],
+  events: PlayerGameEvent[] | undefined,
+  revision: number
+): LoggedEvent[] {
+  return events && events.length > 0
+    ? [...previous, ...events.map((event) => ({ event, revision }))]
+    : previous;
 }
 
 function clamp(value: number, min: number, max: number): number {
