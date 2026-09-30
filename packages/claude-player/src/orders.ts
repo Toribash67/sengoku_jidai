@@ -32,6 +32,8 @@ export type OrderTemplate =
 
 export interface Order {
   n: number;
+  /** Stable alias for orders whose number shifts as a combat unfolds (`roll`, `accept`, …). */
+  name?: string;
   label: string;
   template: OrderTemplate;
 }
@@ -49,7 +51,7 @@ const MOVE_VERB = { advance: "Advance into", sail: "Sail into" } as const;
 
 /** Every order the viewer can give right now, numbered from 1. Empty when not on the clock. */
 export function listOrders(view: PlayerGameView): Order[] {
-  const drafts: { label: string; template: OrderTemplate }[] = [];
+  const drafts: { name?: string; label: string; template: OrderTemplate }[] = [];
   const legal = view.legal;
 
   const decision = view.pendingDecision;
@@ -70,12 +72,14 @@ export function listOrders(view: PlayerGameView): Order[] {
     const where = `combat at ${combat.area}`;
     if (legal.canRollCombat) {
       drafts.push({
+        name: "roll",
         label: `Roll the dice (${where})`,
         template: { kind: "fixed", command: { type: "combatRoll", pendingId: combat.id } }
       });
     }
     if (legal.canAmbush) {
       drafts.push({
+        name: "ambush",
         label: `Roll with Ambush — discard ambush for +2 defence dice (${where})`,
         template: {
           kind: "fixed",
@@ -86,6 +90,7 @@ export function listOrders(view: PlayerGameView): Order[] {
     if (legal.canRerollCombat) {
       for (const card of new Set(view.hand)) {
         drafts.push({
+          name: `reroll:${card}`,
           label: `Reroll — discard ${card} (${where})`,
           template: { kind: "fixed", command: { type: "combatReroll", pendingId: combat.id, card } }
         });
@@ -93,6 +98,7 @@ export function listOrders(view: PlayerGameView): Order[] {
     }
     if (legal.canResolveCombat) {
       drafts.push({
+        name: "accept",
         label: `Accept the roll and apply casualties (${where})`,
         template: { kind: "fixed", command: { type: "combatResolve", pendingId: combat.id } }
       });
@@ -186,10 +192,11 @@ function placementDraft(placement: LegalPlacement, card?: OperationCard) {
   };
 }
 
-/** One order line with its usage hint, e.g. ` 4. Advance into L7 (…)  → play 4 --from AREA:N`. */
+/** One order line with its usage hint, e.g. ` 4. Advance into L7 (…)  → play 4 --from AREA:N`.
+ *  Named orders advertise their name (`→ play accept`), which stays valid as numbers shift. */
 export function formatOrder(order: Order): string {
   const t = order.template;
-  let usage = `play ${order.n}`;
+  let usage = `play ${order.name ?? order.n}`;
   if (t.kind === "move") {
     usage += " --from AREA:N[,AREA:N]";
     if (t.bonusMax !== undefined) usage += ` [--bonus 0-${t.bonusMax}]`;
@@ -219,7 +226,7 @@ export function parseAllocation(raw: string): Map<string, number> {
 /** Validate `args` against the order's limits and build the engine command. */
 export function buildCommand(order: Order, args: OrderArgs): Command {
   const t = order.template;
-  const n = order.n;
+  const n = order.name ?? order.n;
   if (t.kind === "fixed") {
     if (args.from !== undefined || args.place !== undefined || args.bonus !== undefined) {
       throw new OrderArgError(`Order ${n} takes no arguments — run \`play ${n}\`.`);

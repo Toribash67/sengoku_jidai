@@ -50,6 +50,11 @@ function areaLine(area: PlayerAreaView, view: PlayerGameView, map: MapDefinition
   ].join(" | ");
 }
 
+/** Who has to act now: a combat roller or decision seat outranks the turn holder (web: onClockSeat). */
+export function clockSeat(view: PlayerGameView): SeatId {
+  return view.pendingCombat?.responsibleSeat ?? view.pendingDecision?.seat ?? view.activeSeat;
+}
+
 export function gameOverLine(view: PlayerGameView): string {
   return `GAME OVER — winner: ${view.winner ?? "none"} (${view.endReason ?? "?"}) — VP red ${view.victoryPoints.red} · black ${view.victoryPoints.black}`;
 }
@@ -61,7 +66,7 @@ export function renderBoard(view: PlayerGameView, map: MapDefinition, orders: Or
   const out: string[] = [];
 
   out.push(
-    `You are ${me.toUpperCase()}. Round ${view.round}/${view.maxRounds} · ${view.phase} phase · initiative: ${seatLabel(view.initiative, me)} · On the clock: ${seatLabel(view.activeSeat, me)}`
+    `You are ${me.toUpperCase()}. Round ${view.round}/${view.maxRounds} · ${view.phase} phase · initiative: ${seatLabel(view.initiative, me)} · On the clock: ${seatLabel(clockSeat(view), me)}`
   );
   out.push(`VP: red ${view.victoryPoints.red} · black ${view.victoryPoints.black}`);
   out.push(

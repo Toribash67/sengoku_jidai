@@ -184,6 +184,7 @@ describe("claude-player commands against a real server", () => {
     );
     expect(await main(["status", "--session", session], io)).toBe(EXIT.ok);
     expect(await main(["play", "abc", "--session", session], io)).toBe(EXIT.local);
+    expect(lines.at(-1)).toMatch(/no order named "abc"/);
     expect(await main(["bogus"], io)).toBe(EXIT.local);
   });
 
@@ -236,6 +237,7 @@ describe("claude-player commands against a real server", () => {
     await runJoin(red, game.red, "Bot A");
     await runJoin(black, game.black, "Bot B");
     let over = false;
+    let namedPlays = 0;
     for (let step = 0; step < 5000 && !over; step++) {
       let acted = false;
       for (const seat of [red, black]) {
@@ -246,7 +248,10 @@ describe("claude-player commands against a real server", () => {
         }
         if (!orders.length) continue;
         expect(await runStatus(seat)).toBe(EXIT.ok);
-        const code = await runPlay(seat, orders[0]!.n, minimalArgs(orders[0]!));
+        // Combat orders go by name (as the skill advises) to cover that path end to end.
+        const first = orders[0]!;
+        if (first.name) namedPlays++;
+        const code = await runPlay(seat, first.name ?? first.n, minimalArgs(first));
         expect([EXIT.ok, EXIT.over], seat.lines.slice(-5).join("\n")).toContain(code);
         acted = true;
         if (code === EXIT.over) over = true;
@@ -255,6 +260,7 @@ describe("claude-player commands against a real server", () => {
       expect(acted || over, "nobody could act but the game is not over").toBe(true);
     }
     expect(over).toBe(true);
+    expect(namedPlays).toBeGreaterThan(0);
     for (const seat of [red, black]) {
       expect(await runStatus(seat)).toBe(EXIT.over);
       expect(await runWait(seat, { timeoutSec: 0, intervalMs: 1 })).toBe(EXIT.over);
