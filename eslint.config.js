@@ -106,6 +106,13 @@ export default tseslint.config(
       ]
     }
   },
+  boundary("packages/claude-player/src", [
+    {
+      regex: "^@sengoku-jidai/(?!shared$|engine/client$)",
+      message:
+        "claude-player is an API client: import only @sengoku-jidai/shared and @sengoku-jidai/engine/client."
+    }
+  ]),
   boundary("packages/server/src", [
     {
       group: ["@sengoku-jidai/web", "@sengoku-jidai/web/*"],

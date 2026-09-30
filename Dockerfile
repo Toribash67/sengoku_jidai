@@ -34,6 +34,7 @@ COPY packages/web/package.json ./packages/web/package.json
 COPY packages/terrain/package.json ./packages/terrain/package.json
 COPY packages/board-render/package.json ./packages/board-render/package.json
 COPY packages/ai/package.json ./packages/ai/package.json
+COPY packages/claude-player/package.json ./packages/claude-player/package.json
 RUN corepack enable
 RUN corepack pnpm install --prod --frozen-lockfile
 
