@@ -187,6 +187,48 @@ describe("claude-player commands against a real server", () => {
     expect(await main(["bogus"], io)).toBe(EXIT.local);
   });
 
+  it("wait retries through 5xx responses and non-JSON error pages", async () => {
+    const game = await newGame("wait-5xx");
+    const red = ctxFor("red");
+    const black = ctxFor("black");
+    await runJoin(red, game.red, "Human");
+    await runJoin(black, game.black, "Claude");
+    const idle = (await ordersFor(red)).orders.length ? black : red;
+    const busy = idle === red ? black : red;
+    await runStatus(busy);
+    expect(await runPlay(busy, (await ordersFor(busy)).orders.at(-1)!.n, {})).toBe(EXIT.ok);
+    const failures = [
+      new Response("", { status: 502 }),
+      new Response(JSON.stringify({ error: { code: "down", message: "down", requestId: "r" } }), {
+        status: 503
+      }),
+      new Response("<html>Bad Gateway</html>", { status: 502 })
+    ];
+    const flaky: typeof fetch = async (input, init) => failures.shift() ?? fetch(input, init);
+    expect(await runWait({ ...idle, fetch: flaky }, { timeoutSec: 30, intervalMs: 1 })).toBe(
+      EXIT.ok
+    );
+    expect(failures).toHaveLength(0);
+  });
+
+  it("say rejects over-long chat locally with exit 1", async () => {
+    const game = await newGame("say-long");
+    const red = ctxFor("red");
+    await runJoin(red, game.red, "Human");
+    expect(await runSay(red, "x".repeat(501))).toBe(EXIT.local);
+    expect(red.lines.join("\n")).toMatch(/500 characters/);
+    const s = loadSession(red.sessionPath);
+    expect((await createApi(s).chatAfter(0)).messages).toHaveLength(0);
+  });
+
+  it("wait rejects a non-numeric timeout", async () => {
+    const lines: string[] = [];
+    const io = { out: (l: string) => lines.push(l), err: (l: string) => lines.push(l) };
+    const session = join(dir, "none.json");
+    expect(await main(["wait", "--timeout", "abc", "--session", session], io)).toBe(EXIT.local);
+    expect(lines.join("\n")).toMatch(/--timeout/);
+  });
+
   it("plays a whole game through the CLI with no rejected commands, then reports game over", async () => {
     const game = await newGame("full-game");
     const red = ctxFor("red");

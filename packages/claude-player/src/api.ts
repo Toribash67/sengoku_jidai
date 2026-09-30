@@ -47,7 +47,14 @@ export function createApi(
       headers: { ...auth, ...(init.body ? { "content-type": "application/json" } : {}) }
     });
     const text = await res.text();
-    const body = text ? (JSON.parse(text) as unknown) : {};
+    let body: unknown = {};
+    try {
+      body = text ? JSON.parse(text) : {};
+    } catch {
+      // A proxy error page (HTML) during a redeploy: keep the status, drop the body.
+      if (res.ok)
+        throw new ApiError(res.status, "badResponse", "The server sent a non-JSON reply.");
+    }
     if (!res.ok) {
       const error = (body as Partial<ApiErrorBody>).error;
       throw new ApiError(

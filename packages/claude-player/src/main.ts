@@ -52,8 +52,15 @@ export async function main(
       }
       return runPlay(ctx, n, { from: values.from, place: values.place, bonus });
     }
-    case "wait":
-      return runWait(ctx, { timeoutSec: Number(values.timeout ?? 540), intervalMs: 2000 });
+    case "wait": {
+      const timeoutSec = Number(values.timeout ?? 540);
+      if (!Number.isFinite(timeoutSec) || timeoutSec < 0) {
+        io.err("--timeout must be a number of seconds.");
+        return EXIT.local;
+      }
+      // Stay under Claude Code's 10-minute Bash limit.
+      return runWait(ctx, { timeoutSec: Math.min(timeoutSec, 590), intervalMs: 2000 });
+    }
     case "say":
       if (!arg) break;
       return runSay(ctx, positionals.slice(1).join(" "));

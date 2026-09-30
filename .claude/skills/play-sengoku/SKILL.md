@@ -40,6 +40,11 @@ Repeat until the game is over:
 Combat rolls you owe (e.g. defending when the human advances) show up as orders on the
 human's turn — `wait` returns 0 for them too.
 
+If any command prints "Could not reach the game server" (exit 1), or `wait`/`status` exits with a
+code not listed above, wait a moment and run it once more; if it fails again, stop and tell the
+human (the server may be redeploying). `wait` itself already retries through brief outages.
+`say` accepts at most 500 characters.
+
 ## Chat etiquette
 
 - Reply when the human speaks to you; otherwise at most one short line every few turns.

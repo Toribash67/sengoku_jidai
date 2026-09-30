@@ -167,6 +167,26 @@ describe("listOrders", () => {
       targetAreaId: "L8"
     });
   });
+
+  it("labels plan draws and pass the way the engine resolves them", () => {
+    const base = emptyLegalView(openingState());
+    const view = {
+      ...base,
+      legal: {
+        ...base.legal,
+        canPass: true,
+        plans: [
+          { spaceId: "plan-a", initiative: true },
+          { spaceId: "plan-b", initiative: false }
+        ]
+      }
+    };
+    expect(listOrders(view).map((o) => o.label)).toEqual([
+      "Plan — draw 1 card and seize initiative next round",
+      "Plan — draw 2 cards",
+      "Pass — spend one commander without acting (you keep your remaining turns)"
+    ]);
+  });
 });
 
 describe("buildCommand for moves", () => {

@@ -43,9 +43,9 @@ Your orders:
  8. Reinforce: place up to 5 troops (pool 5, reserve 15) into tile13, tile12, tile5, tile21  → play 8 --place AREA:N[,AREA:N]
  9. Embark: place up to 3 ships (pool 3, reserve 7) into tile18, tile17  → play 9 --place AREA:N[,AREA:N]
 10. Embark: place up to 2 ships (pool 2, reserve 7) into tile18, tile17  → play 10 --place AREA:N[,AREA:N]
-11. Plan — draw a card and seize initiative next round  → play 11
-12. Plan — draw a card  → play 12
+11. Plan — draw 1 card and seize initiative next round  → play 11
+12. Plan — draw 2 cards  → play 12
 13. [card: mobilise] Reinforce: place up to 8 troops (pool 8, reserve 15) into tile13, tile12, tile5, tile21  → play 13 --place AREA:N[,AREA:N]
 14. [card: mobilise] Reinforce: place up to 7 troops (pool 7, reserve 15) into tile13, tile12, tile5, tile21  → play 14 --place AREA:N[,AREA:N]
-15. Pass — done deploying this round  → play 15"
+15. Pass — spend one commander without acting (you keep your remaining turns)  → play 15"
 `;

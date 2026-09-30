@@ -3,6 +3,7 @@ import {
   type HexMapSource,
   type PlayerGameView
 } from "@sengoku-jidai/engine/client";
+import { MAX_CHAT_LENGTH } from "@sengoku-jidai/shared";
 import { ApiError, createApi, type GameApi } from "./api.js";
 import { gameOverLine, renderBoard } from "./board.js";
 import { formatEvent } from "./events.js";
@@ -150,7 +151,8 @@ export function runWait(
         if (chat.messages.length) saveSession(ctx.sessionPath, s);
         reportedOutage = false;
       } catch (e) {
-        if (e instanceof ApiError) throw e;
+        // 5xx/429 (e.g. a proxy 502 while prod redeploys) are transient like network errors.
+        if (e instanceof ApiError && e.status < 500 && e.status !== 429) throw e;
         if (!reportedOutage) ctx.err(`Server unreachable (${(e as Error).message}) — retrying…`);
         reportedOutage = true;
         if (now() >= deadline) return EXIT.waiting;
@@ -176,6 +178,10 @@ export function runWait(
 
 export function runSay(ctx: Ctx, text: string): Promise<number> {
   return guarded(ctx, async () => {
+    if (text.trim().length > MAX_CHAT_LENGTH) {
+      ctx.err(`Chat messages are limited to ${MAX_CHAT_LENGTH} characters — shorten it.`);
+      return EXIT.local;
+    }
     const s = loadSession(ctx.sessionPath);
     await apiFor(ctx, s).say(text);
     ctx.out("Sent.");

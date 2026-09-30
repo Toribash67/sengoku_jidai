@@ -105,8 +105,8 @@ export function listOrders(view: PlayerGameView): Order[] {
   for (const plan of legal.plans) {
     drafts.push({
       label: plan.initiative
-        ? "Plan — draw a card and seize initiative next round"
-        : "Plan — draw a card",
+        ? "Plan — draw 1 card and seize initiative next round"
+        : "Plan — draw 2 cards",
       template: { kind: "fixed", command: { type: "plan", spaceId: plan.spaceId } }
     });
   }
@@ -118,7 +118,7 @@ export function listOrders(view: PlayerGameView): Order[] {
   }
   if (legal.canPass) {
     drafts.push({
-      label: "Pass — done deploying this round",
+      label: "Pass — spend one commander without acting (you keep your remaining turns)",
       template: { kind: "fixed", command: { type: "pass" } }
     });
   }
