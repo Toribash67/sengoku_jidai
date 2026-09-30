@@ -9,7 +9,7 @@ export const USAGE = `Usage: sengoku <command> [--session <path>]
                                        combat orders also have names: roll, ambush, reroll:<card>, accept
   wait [--timeout 540]                 block until it is your turn (exit 3: still waiting)
   say "<text>"                         post to the game chat
-Exit codes: 0 ok/your turn · 1 local error · 2 game over · 3 still waiting · 4 rejected/stale · 5 bad token`;
+Exit codes: 0 ok/your turn · 1 local error · 2 game over · 3 still waiting · 4 rejected/stale · 5 bad token · 6 opponent chatted (wait only)`;
 
 export async function main(
   argv: string[],

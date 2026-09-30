@@ -27,6 +27,8 @@ Repeat until the game is over:
 1. `sengoku wait` — blocks up to ~9 min (give the Bash call a 600000 ms timeout). Prints the
    opponent's moves and chat.
    - exit 0 → your turn, go on. exit 3 → still waiting, run `wait` again. exit 2 → game over.
+   - exit 6 → the human sent a chat message (printed above). Reply right away with `say` if it
+     calls for an answer, then run `wait` again.
 2. `sengoku status` — board + numbered orders.
 3. Think: threats to your HQ and supply, value stars you can take or defend, commanders left
    for both sides, cards in hand (don't waste them; keep one to reroll a critical combat).
