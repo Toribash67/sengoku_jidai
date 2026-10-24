@@ -42,6 +42,18 @@ describe("buildActionSpaces (rivers)", () => {
     expect(byId["plan-b"]!.initiative).toBeUndefined();
   });
 
+  it("caches one frozen catalog per map object", () => {
+    expect(buildActionSpaces(riversMap)).toBe(spaces);
+    expect(actionSpaceMap(riversMap)).toBe(byId);
+    expect(Object.isFrozen(spaces)).toBe(true);
+    expect(Object.isFrozen(spaces[0])).toBe(true);
+    // A different definition (e.g. a re-registered custom map) gets its own catalog.
+    const lands = Object.entries(riversMap.areas).filter(([, a]) => a.kind === "land");
+    const landOnly = { ...riversMap, areas: Object.fromEntries(lands) };
+    expect(buildActionSpaces(landOnly).some((s) => s.type === "sail")).toBe(false);
+    expect(buildActionSpaces(riversMap)).toBe(spaces);
+  });
+
   it("emptyActionSpaceOccupancy maps every space id to null", () => {
     const occ = emptyActionSpaceOccupancy(riversMap);
     expect(Object.keys(occ).sort()).toEqual(spaces.map((s) => s.id).sort());

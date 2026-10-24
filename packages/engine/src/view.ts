@@ -271,15 +271,21 @@ export function legalCommandsForState(state: GameState, seat: SeatId): LegalComm
     legal: canDeploy && state.actionSpaces[space.id] === null
   }));
 
+  // The seat's supply, walked once and shared by every enumerator below (the state is fixed for
+  // the whole summary, so per-target re-walks would all produce this same set).
+  const supplied: ReadonlySet<string> = canDeploy
+    ? suppliedAreas(map, gameBoard(state), seat)
+    : new Set<string>();
+
   return {
     activeSeat: state.activeSeat,
     spaces,
     canPass: canDeploy,
-    moves: canDeploy ? enumerateMoves(state, seat, map, catalog) : [],
-    strikes: canDeploy ? enumerateStrikes(state, seat, map, catalog) : [],
-    placements: canDeploy ? enumeratePlacements(state, seat, map, catalog) : [],
+    moves: canDeploy ? enumerateMoves(state, seat, map, catalog, supplied) : [],
+    strikes: canDeploy ? enumerateStrikes(state, seat, map, catalog, supplied) : [],
+    placements: canDeploy ? enumeratePlacements(state, seat, map, catalog, supplied) : [],
     plans: canDeploy ? enumeratePlans(state, seat, map, catalog) : [],
-    cardPlays: canDeploy ? enumerateCardPlays(state, seat, map, catalog) : [],
+    cardPlays: canDeploy ? enumerateCardPlays(state, seat, map, catalog, supplied) : [],
     canRollCombat:
       state.pendingCombat !== null &&
       state.pendingCombat.responsibleSeat === seat &&
@@ -308,7 +314,8 @@ function enumerateMoves(
   state: GameState,
   seat: SeatId,
   map: MapDefinition,
-  catalog: ActionSpace[]
+  catalog: readonly ActionSpace[],
+  supplied: ReadonlySet<string>
 ): LegalMove[] {
   const board = gameBoard(state);
   const moves: LegalMove[] = [];
@@ -321,8 +328,8 @@ function enumerateMoves(
     const unit = space.type === "advance" ? "troop" : "ship";
     const reachable =
       space.type === "advance"
-        ? advanceSources(map, board, seat, target)
-        : sailReachable(map, board, seat, target);
+        ? advanceSources(map, board, seat, target, supplied)
+        : sailReachable(map, board, seat, target, supplied);
     const sources = [...reachable]
       .map((areaId) => ({ areaId, max: (state.areas[areaId]?.units[unit] ?? 0) - 1 }))
       .filter((s) => s.max >= 1);
@@ -339,10 +346,9 @@ function enumerateStrikes(
   state: GameState,
   seat: SeatId,
   map: MapDefinition,
-  catalog: ActionSpace[]
+  catalog: readonly ActionSpace[],
+  supplied: ReadonlySet<string>
 ): LegalStrike[] {
-  const board = gameBoard(state);
-  const supplied = suppliedAreas(map, board, seat);
   const enemy: SeatId = seat === "red" ? "black" : "red";
   const strikes: LegalStrike[] = [];
   for (const space of catalog) {
@@ -359,7 +365,8 @@ function enumerateStrikes(
     if (targets.length === 0) continue;
     const dice =
       space.type === "bombard"
-        ? state.areas[linked]!.units.ship + (suppliesBonus(state, seat, "pirateHaven") ? 1 : 0)
+        ? state.areas[linked]!.units.ship +
+          (suppliesBonus(state, seat, "pirateHaven", supplied) ? 1 : 0)
         : 2;
     if (dice < 1) continue;
     strikes.push({ spaceId: space.id, type: space.type, linkedAreaId: linked, targets, dice });
@@ -373,7 +380,8 @@ function enumeratePlacements(
   state: GameState,
   seat: SeatId,
   map: MapDefinition,
-  catalog: ActionSpace[]
+  catalog: readonly ActionSpace[],
+  supplied: ReadonlySet<string>
 ): LegalPlacement[] {
   const board = gameBoard(state);
   const placements: LegalPlacement[] = [];
@@ -387,10 +395,10 @@ function enumeratePlacements(
     if (reserve <= 0) continue;
     const targets =
       space.type === "reinforce"
-        ? [...reinforceTargets(map, board, seat)]
-        : [...embarkTargets(map, state, seat)];
+        ? [...reinforceTargets(map, board, seat, supplied)]
+        : [...embarkTargets(map, state, seat, false, supplied)];
     if (targets.length === 0) continue;
-    const barracks = space.type === "reinforce" && suppliesBonus(state, seat, "barracks");
+    const barracks = space.type === "reinforce" && suppliesBonus(state, seat, "barracks", supplied);
     const pool = space.amount! + (barracks ? 2 : 0);
     placements.push({ spaceId: space.id, type: space.type, unit, targets, pool, reserve });
   }
@@ -403,7 +411,7 @@ function enumeratePlans(
   state: GameState,
   seat: SeatId,
   map: MapDefinition,
-  catalog: ActionSpace[]
+  catalog: readonly ActionSpace[]
 ): LegalPlan[] {
   if (supportTypeOccupied(map, state, seat, "plan")) return [];
   const plans: LegalPlan[] = [];
@@ -423,14 +431,17 @@ function enumerateCardPlays(
   state: GameState,
   seat: SeatId,
   map: MapDefinition,
-  catalog: ActionSpace[]
+  catalog: readonly ActionSpace[],
+  supplied: ReadonlySet<string>
 ): LegalCardPlay[] {
   const hand = new Set(state.players[seat].hand);
   const plays: LegalCardPlay[] = [];
   const reserve = state.players[seat].reserve;
 
   if (hand.has("ground_assault") && reserve.troop > 0) {
-    const moves = enumerateMoves(state, seat, map, catalog).filter((m) => m.type === "advance");
+    const moves = enumerateMoves(state, seat, map, catalog, supplied).filter(
+      (m) => m.type === "advance"
+    );
     if (moves.length > 0) {
       plays.push({
         card: "ground_assault",
@@ -441,7 +452,9 @@ function enumerateCardPlays(
     }
   }
   if (hand.has("river_assault") && reserve.ship > 0) {
-    const moves = enumerateMoves(state, seat, map, catalog).filter((m) => m.type === "sail");
+    const moves = enumerateMoves(state, seat, map, catalog, supplied).filter(
+      (m) => m.type === "sail"
+    );
     if (moves.length > 0) {
       plays.push({
         card: "river_assault",
@@ -452,23 +465,23 @@ function enumerateCardPlays(
     }
   }
   if (hand.has("shore_strike")) {
-    const strikes = enumerateStrikes(state, seat, map, catalog)
+    const strikes = enumerateStrikes(state, seat, map, catalog, supplied)
       .filter((s) => s.type === "bombard")
       .map((s) => ({ ...s, dice: s.dice + 2 }));
     if (strikes.length > 0) plays.push({ card: "shore_strike", action: "bombard", strikes });
   }
   if (hand.has("mobilise")) {
-    const placements = enumeratePlacements(state, seat, map, catalog)
+    const placements = enumeratePlacements(state, seat, map, catalog, supplied)
       .filter((p) => p.type === "reinforce")
       .map((p) => ({ ...p, pool: p.pool + 2 }));
     if (placements.length > 0) plays.push({ card: "mobilise", action: "reinforce", placements });
   }
   if (hand.has("commandeer")) {
-    const placements = enumerateCommandeerPlacements(state, seat, map, catalog);
+    const placements = enumerateCommandeerPlacements(state, seat, map, catalog, supplied);
     if (placements.length > 0) plays.push({ card: "commandeer", action: "embark", placements });
   }
   if (hand.has("counterattack")) {
-    const moves = enumerateCounterattackMoves(state, seat, map, catalog);
+    const moves = enumerateCounterattackMoves(state, seat, map, catalog, supplied);
     if (moves.length > 0) plays.push({ card: "counterattack", action: "advance", moves });
   }
   return plays;
@@ -480,12 +493,13 @@ function enumerateCommandeerPlacements(
   state: GameState,
   seat: SeatId,
   map: MapDefinition,
-  catalog: ActionSpace[]
+  catalog: readonly ActionSpace[],
+  supplied: ReadonlySet<string>
 ): LegalPlacement[] {
   const reserve = state.players[seat].reserve.ship;
   if (reserve <= 0) return [];
   if (supportTypeOccupied(map, state, seat, "embark")) return [];
-  const targets = [...embarkTargets(map, state, seat, true)];
+  const targets = [...embarkTargets(map, state, seat, true, supplied)];
   if (targets.length === 0) return [];
   const out: LegalPlacement[] = [];
   for (const space of catalog) {
@@ -510,7 +524,8 @@ function enumerateCounterattackMoves(
   state: GameState,
   seat: SeatId,
   map: MapDefinition,
-  catalog: ActionSpace[]
+  catalog: readonly ActionSpace[],
+  supplied: ReadonlySet<string>
 ): LegalMove[] {
   const board = gameBoard(state);
   const enemy: SeatId = seat === "red" ? "black" : "red";
@@ -521,7 +536,7 @@ function enumerateCounterattackMoves(
     if (!state.rules.enabledActions.includes("advance")) continue;
     const target = space.areaId!;
     if (state.areas[target]?.owner === seat) continue;
-    const sources = [...advanceSources(map, board, seat, target)]
+    const sources = [...advanceSources(map, board, seat, target, supplied)]
       .map((areaId) => ({ areaId, max: (state.areas[areaId]?.units.troop ?? 0) - 1 }))
       .filter((s) => s.max >= 1);
     if (sources.length > 0) {

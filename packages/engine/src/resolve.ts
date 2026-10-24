@@ -23,8 +23,27 @@ import {
 
 const other = (seat: SeatId): SeatId => (seat === "red" ? "black" : "red");
 
+/** Deep copy of JSON-compatible data. Same result as a JSON round-trip (including dropping
+ *  `undefined` object properties) but several times faster — this runs once per resolved
+ *  command, which makes it the hottest path in AI search. Shape-agnostic on purpose, so new
+ *  state fields are copied without touching this. */
+function cloneJson<T>(value: T): T {
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    const out = new Array<unknown>(value.length);
+    for (let i = 0; i < value.length; i++) out[i] = cloneJson(value[i]);
+    return out as T;
+  }
+  const out: Record<string, unknown> = {};
+  for (const key in value) {
+    const v = (value as Record<string, unknown>)[key];
+    if (v !== undefined) out[key] = cloneJson(v);
+  }
+  return out as T;
+}
+
 function clone(state: GameState): GameState {
-  return JSON.parse(JSON.stringify(state)) as GameState;
+  return cloneJson(state);
 }
 
 /** Options for a single resolution. `expectedCombat` makes a `combatRoll` land on the dice
