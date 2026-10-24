@@ -57,7 +57,7 @@ Each space holds one commander per round (the only exception is Counterattack).
   total is at most the space amount (+1 with Commandeer) and at most your reserve.
 - **Plan:** draw 1 card (`plan-a`, which also takes initiative) or 2 cards (`plan-b`). War Room
   adds +1 card to either.
-- **Siege** is not enabled in Rivers.
+- **Siege** exists only under the Fortress ruleset (see §9).
 
 ## 4. Supply
 
@@ -112,15 +112,16 @@ Each command can carry at most one card. A played card is revealed and then disc
 
 ## 7. Bonuses
 
-- At setup, 3 bonuses are drawn at random from 5 (barracks, warRoom, pirateHaven, shipyard,
-  hiddenBase) and placed on the map's bonus-slot areas. You hold a bonus while you **supply** its
+- At setup, 3 bonuses are drawn at random from 5 (Rivers: barracks, warRoom, pirateHaven,
+  shipyard, hiddenBase; Fortress swaps hiddenBase for armoury) and placed on the map's bonus-slot
+  areas. You hold a bonus while you **supply** its
   area. The effects are automatic.
 - **barracks:** Reinforce +2 limit.
 - **warRoom:** Plan draws +1 card.
 - **pirateHaven:** Bombard +1 die.
 - **shipyard:** every Sail adds +1 ship from your reserve to the moving force (if you have one).
 - **hiddenBase:** every Advance adds +1 troop from your reserve to the moving force (if you have one).
-- **armoury** only aids Siege, so it is not in Rivers.
+- **armoury** (Fortress only): Siege +1 die.
 - The shipyard and hiddenBase units join before combat, so they are also added on peaceful moves.
 
 ## 8. Stacking caps / other limits
@@ -134,6 +135,33 @@ Each command can carry at most one card. A played card is revealed and then disc
 - **Command gates:** while a combat or pending decision is open, no other command is legal.
   Each Advance/Sail/Bombard/Shell space is used at most once per round in total
   (Counterattack excepted).
+
+## 9. Fortress ruleset
+
+A map may be authored for the **Fortress** ruleset (the board header shows it; your view's
+`rulesetId` is `"fortress"`). It is Rivers plus:
+
+- **Catapults.** Each seat has 5 catapults besides its 25 troops. A catapult **is a troop** in
+  every respect: it holds land, counts toward the 5-per-land cap, moves with Advance and fights
+  in combat. It can also Siege. In `units`, `troop` counts ALL land units and `siege` says how
+  many of them are catapults. Losses always take foot troops first; catapults go last.
+- **Reinforce with catapults.** Up to 2 of the placed troops may be catapults on `reinforce-a`
+  (6), and 1 on `reinforce-b` (5). The order's `--siege AREA:N` says how many of the troops
+  placed into an area are catapults.
+- **Advance with catapults.** `--siege AREA:N` says how many of the troops moved from a source
+  are catapults (default: none; they stay behind).
+- **Siege** (every land has a Siege space). It is like Bombard, but from a land you supply that
+  holds ≥1 catapult. Target one adjacent enemy-held land. Roll 1 die per catapult there (+1 with
+  Armoury, +2 with Volley), and the target loses that many units.
+- **Fortress deck** (27 cards, 3 of each): ambush, commandeer, counterattack, ground_assault,
+  mobilise, river_assault, plus:
+  - **volley:** played with Siege. +2 dice.
+  - **take_cover:** when the opponent's Siege roll is accepted, the defender (if holding any card)
+    gets a `cover` / `accept` step. `cover` discards take_cover and ignores 2 damage.
+  - **siege_assault:** after your Siege resolves, you may Advance into the sieged area without
+    spending a commander. It ignores whether the Advance space is occupied, and normal Advance
+    rules apply. The order is named `assault`; or decline.
+  - Ship Strike and Shore Strike are not in this deck.
 
 ## Strategy notes (heuristics, not rules)
 

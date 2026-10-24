@@ -1,6 +1,7 @@
 import type { SeatId } from "../../types.js";
 import type { Axial, HexLayout } from "./coords.js";
 import type { StartingUnits } from "../riversMap.js";
+import type { RulesetId } from "../../rules.js";
 
 export type { StartingUnits };
 
@@ -38,4 +39,7 @@ export interface HexMapSource {
   bonusSlots: string[];
   /** Commanders each player deploys per round. Overrides the ruleset default (5) when set. */
   commandersPerRound?: number;
+  /** Ruleset new games on this map use; absent means Rivers. Fortress adds catapults, the
+   *  Siege action, the Armoury bonus and the Fortress card deck. */
+  ruleset?: RulesetId;
 }

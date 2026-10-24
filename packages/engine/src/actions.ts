@@ -5,11 +5,13 @@ import { getMap } from "./maps/registry.js";
 import { actionSpaceMap } from "./actionSpaces.js";
 import { suppliesBonus } from "./validate.js";
 import { gameBoard } from "./board.js";
-import { shellTargets } from "./legality.js";
+import { advanceSources, shellTargets } from "./legality.js";
 import { suppliedAreas } from "./supply.js";
 import { conflictOutcome, expectedRollTotal } from "./conflict.js";
 import { rollDie } from "./rng.js";
+import { footTroops } from "./state.js";
 import type { OperationCard, PendingCombat } from "./state.js";
+import type { Move, Placement } from "./commands.js";
 
 /** Pass: deploy a commander to standby (unavailable until next round). */
 export function applyPass(state: GameState, seat: SeatId): GameEvent[] {
@@ -23,20 +25,32 @@ export function applyPass(state: GameState, seat: SeatId): GameEvent[] {
 // produced. Dispatch lives in resolve.ts.
 export type ActionDispatch = (state: GameState, seat: SeatId, command: Command) => GameEvent[];
 
-/** Reinforce: place troops from reserve into supplied land areas (validated upstream). */
+/** Reinforce: place troops from reserve into supplied land areas (validated upstream). Up to
+ *  the space's `siegeAmount` of them may be catapults (Siege rulesets). */
 export function applyReinforce(
   state: GameState,
   seat: SeatId,
-  placements: { area: string; count: number }[],
+  placements: Placement[],
   card?: OperationCard
 ): GameEvent[] {
   const events: GameEvent[] = [];
+  const reserve = state.players[seat].reserve;
   for (const p of placements) {
     const rt = state.areas[p.area]!;
+    const siege = p.siege ?? 0;
     rt.units.troop += p.count;
+    rt.units.siege += siege;
     rt.owner = seat;
-    state.players[seat].reserve.troop -= p.count;
-    events.push({ type: "unitsPlaced", seat, area: p.area, unit: "troop", count: p.count });
+    reserve.troop -= p.count;
+    reserve.siege -= siege;
+    events.push({
+      type: "unitsPlaced",
+      seat,
+      area: p.area,
+      unit: "troop",
+      count: p.count,
+      ...(siege > 0 ? { siege } : {})
+    });
   }
   if (suppliesBonus(state, seat, "barracks")) {
     events.push({
@@ -58,7 +72,7 @@ export function applyReinforce(
  */
 export function applyPlan(state: GameState, seat: SeatId, spaceId: string): GameEvent[] {
   const map = getMap(state.mapId);
-  const space = actionSpaceMap(map)[spaceId]!;
+  const space = actionSpaceMap(map, state.rules)[spaceId]!;
   const events: GameEvent[] = [];
   if (space.initiative) {
     state.initiative = seat;
@@ -81,7 +95,7 @@ export function applyPlan(state: GameState, seat: SeatId, spaceId: string): Game
 /** Move a played operation card from the seat's hand to its discard pile. A played card's
  *  effect is public (extra units/dice/occupancy show on the board), so its id is revealed —
  *  unlike the face-down `cardDiscarded` of a combat reroll. */
-function playCard(state: GameState, seat: SeatId, card: OperationCard): GameEvent[] {
+export function playCard(state: GameState, seat: SeatId, card: OperationCard): GameEvent[] {
   const player = state.players[seat];
   const i = player.hand.indexOf(card);
   if (i !== -1) {
@@ -176,39 +190,47 @@ function bonusArea(state: GameState, bonus: string): string | undefined {
 }
 
 /**
- * Advance: move troops into the linked land (validated upstream), apply Hidden Base,
- * then resolve conflict if the target is enemy-controlled. Returns the events.
+ * Advance: move troops (catapults among them, per `Move.siege`) into the linked land
+ * (validated upstream), apply Hidden Base, then resolve conflict if the target is
+ * enemy-controlled. Returns the events. Also the Siege Assault follow-up, which arrives here
+ * with the `siege_assault` card and no commander deployed.
  */
 export function applyAdvance(
   state: GameState,
   seat: SeatId,
   spaceId: string,
-  moves: { from: string; count: number }[],
+  moves: Move[],
   card?: OperationCard,
   cardBonus?: number
 ): GameEvent[] {
   const map = getMap(state.mapId);
-  const target = actionSpaceMap(map)[spaceId]!.areaId!;
+  const target = actionSpaceMap(map, state.rules)[spaceId]!.areaId!;
   const events: GameEvent[] = [];
 
   let attackers = 0;
+  let attackerSiege = 0;
   for (const m of moves) {
-    state.areas[m.from]!.units.troop -= m.count;
+    const siege = m.siege ?? 0;
+    const from = state.areas[m.from]!;
+    from.units.troop -= m.count;
+    from.units.siege -= siege;
     attackers += m.count;
+    attackerSiege += siege;
     events.push({
       type: "unitsMoved",
       seat,
       from: m.from,
       to: target,
       unit: "troop",
-      count: m.count
+      count: m.count,
+      ...(siege > 0 ? { siege } : {})
     });
   }
 
-  // Hidden Base: +1 troop from reserve at move-in (before conflict), if supplied and
-  // reserve has a troop. Cannot apply on the advance that first gains the bonus area,
+  // Hidden Base: +1 foot troop from reserve at move-in (before conflict), if supplied and
+  // reserve has one. Cannot apply on the advance that first gains the bonus area,
   // which is impossible here because you cannot advance into an area you supply.
-  if (suppliesBonus(state, seat, "hiddenBase") && state.players[seat].reserve.troop > 0) {
+  if (suppliesBonus(state, seat, "hiddenBase") && footTroops(state.players[seat].reserve) > 0) {
     state.players[seat].reserve.troop -= 1;
     attackers += 1;
     events.push({
@@ -219,13 +241,13 @@ export function applyAdvance(
     });
   }
 
-  // Ground Assault: up to 2 extra troops from reserve join the move-in (validated upstream).
+  // Ground Assault: up to 2 extra foot troops from reserve join the move-in (validated upstream).
   if (card === "ground_assault" && cardBonus) {
     state.players[seat].reserve.troop -= cardBonus;
     attackers += cardBonus;
   }
 
-  events.push(...resolveMoveIn(state, seat, "advance", target, "troop", attackers));
+  events.push(...resolveMoveIn(state, seat, "advance", target, "troop", attackers, attackerSiege));
   if (card) events.push(...playCard(state, seat, card));
   return events;
 }
@@ -240,7 +262,7 @@ export function applySail(
   cardBonus?: number
 ): GameEvent[] {
   const map = getMap(state.mapId);
-  const target = actionSpaceMap(map)[spaceId]!.areaId!;
+  const target = actionSpaceMap(map, state.rules)[spaceId]!.areaId!;
   const events: GameEvent[] = [];
 
   let attackers = 0;
@@ -291,7 +313,7 @@ export function applyBombard(
   card?: OperationCard
 ): GameEvent[] {
   const map = getMap(state.mapId);
-  const water = actionSpaceMap(map)[spaceId]!.areaId!;
+  const water = actionSpaceMap(map, state.rules)[spaceId]!.areaId!;
   const events: GameEvent[] = [];
   let dice = state.areas[water]!.units.ship;
   if (suppliesBonus(state, seat, "pirateHaven")) {
@@ -342,6 +364,46 @@ export function applyShell(
   return [];
 }
 
+/** Siege: stage an attacker dice roll — one die per catapult in the linked land (+1 for
+ *  Armoury, +2 for Volley). The roll is triggered later by the attacker via combatRoll. */
+export function applySiege(
+  state: GameState,
+  seat: SeatId,
+  spaceId: string,
+  targetAreaId: string,
+  card?: OperationCard
+): GameEvent[] {
+  const map = getMap(state.mapId);
+  const land = actionSpaceMap(map, state.rules)[spaceId]!.areaId!;
+  const events: GameEvent[] = [];
+  let dice = state.areas[land]!.units.siege;
+  if (suppliesBonus(state, seat, "armoury")) {
+    dice += 1;
+    events.push({
+      type: "bonusApplied",
+      seat,
+      bonus: "armoury",
+      area: bonusArea(state, "armoury")!
+    });
+  }
+  // Volley: two extra dice (validated upstream).
+  if (card === "volley") dice += 2;
+  if (card) events.push(...playCard(state, seat, card));
+  state.pendingCombat = {
+    id: `combat-${targetAreaId}`,
+    kind: "siege",
+    attacker: seat,
+    defender: enemyOf(seat),
+    responsibleSeat: seat,
+    phase: "awaiting-roll",
+    area: targetAreaId,
+    spaceId,
+    unit: "troop",
+    dice
+  };
+  return events;
+}
+
 /** Ship Strike: a second Shell from the same space, with no new commander. Discards the card,
  *  then stages the shell exactly as the first one (which pauses for the attacker to roll). */
 export function applyShipStrike(
@@ -356,7 +418,8 @@ export function applyShipStrike(
   ];
 }
 
-/** Remove up to `count` units of `unit` from `area`, returning them to the owner's reserve. */
+/** Remove up to `count` units of `unit` from `area`, returning them to the owner's reserve.
+ *  Land losses take foot troops first; catapults go last. */
 function removeUnits(
   state: GameState,
   area: string,
@@ -367,12 +430,36 @@ function removeUnits(
   if (rt.owner == null || count <= 0) return [];
   const removed = Math.min(count, rt.units[unit]);
   rt.units[unit] -= removed;
-  state.players[rt.owner].reserve[unit] += removed;
+  const reserve = state.players[rt.owner].reserve;
+  reserve[unit] += removed;
+  const siege = unit === "troop" ? trimSiege(rt.units, reserve) : 0;
   const events: GameEvent[] = [
-    { type: "unitsRemoved", seat: rt.owner, area, unit, count: removed }
+    {
+      type: "unitsRemoved",
+      seat: rt.owner,
+      area,
+      unit,
+      count: removed,
+      ...(siege > 0 ? { siege } : {})
+    }
   ];
   if (rt.units.troop === 0 && rt.units.ship === 0) rt.owner = null;
   return events;
+}
+
+/**
+ * After an area's `troop` count drops (the removed units already returned to `reserve.troop`),
+ * keep `siege <= troop` by returning the catapults that could no longer be covered by foot
+ * troops — catapults are lost last. Returns how many catapults went back to reserve.
+ */
+export function trimSiege(
+  units: { troop: number; siege: number },
+  reserve: { siege: number }
+): number {
+  const lost = Math.max(0, units.siege - units.troop);
+  units.siege -= lost;
+  reserve.siege += lost;
+  return lost;
 }
 
 /**
@@ -387,13 +474,15 @@ export function resolveMoveIn(
   kind: "advance" | "sail",
   target: string,
   unit: "troop" | "ship",
-  attackers: number
+  attackers: number,
+  attackerSiege = 0
 ): GameEvent[] {
   const rt = state.areas[target]!;
   const events: GameEvent[] = [];
 
   if (rt.owner == null || rt.owner === seat) {
     rt.units[unit] += attackers;
+    rt.units.siege += attackerSiege;
     const previousOwner = rt.owner;
     rt.owner = seat;
     if (previousOwner !== seat)
@@ -413,6 +502,7 @@ export function resolveMoveIn(
     area: target,
     unit,
     attackers,
+    ...(attackerSiege > 0 ? { attackerSiege } : {}),
     defenders: rt.units[unit]
   };
   return events;
@@ -534,16 +624,27 @@ export function applyPendingCombat(state: GameState): GameEvent[] {
   if (pc.kind === "advance" || pc.kind === "sail") {
     // The defence removes its total pips (one die normally; three with Ambush).
     const outcome = conflictOutcome(pc.total!, pc.attackers!, pc.defenders!);
+    const attackerReserve = state.players[pc.attacker].reserve;
+    const defenderReserve = state.players[pc.defender].reserve;
 
-    state.players[pc.attacker].reserve[pc.unit] += outcome.attackerLosses;
-    state.players[pc.defender].reserve[pc.unit] += outcome.defenderLosses;
+    // Catapults are lost last on both sides: survivors keep as many as they can cover.
+    const attackerSiege = Math.min(pc.attackerSiege ?? 0, outcome.attackersLeft);
+    const attackerSiegeLost = (pc.attackerSiege ?? 0) - attackerSiege;
+    const defenderSiege = Math.min(rt.units.siege, outcome.defendersLeft);
+    const defenderSiegeLost = rt.units.siege - defenderSiege;
+
+    attackerReserve[pc.unit] += outcome.attackerLosses;
+    defenderReserve[pc.unit] += outcome.defenderLosses;
+    attackerReserve.siege += attackerSiegeLost;
+    defenderReserve.siege += defenderSiegeLost;
     if (outcome.attackerLosses > 0)
       events.push({
         type: "unitsRemoved",
         seat: pc.attacker,
         area: pc.area,
         unit: pc.unit,
-        count: outcome.attackerLosses
+        count: outcome.attackerLosses,
+        ...(attackerSiegeLost > 0 ? { siege: attackerSiegeLost } : {})
       });
     if (outcome.defenderLosses > 0)
       events.push({
@@ -551,12 +652,14 @@ export function applyPendingCombat(state: GameState): GameEvent[] {
         seat: pc.defender,
         area: pc.area,
         unit: pc.unit,
-        count: outcome.defenderLosses
+        count: outcome.defenderLosses,
+        ...(defenderSiegeLost > 0 ? { siege: defenderSiegeLost } : {})
       });
 
     if (outcome.attackersLeft > 0) {
       rt.owner = pc.attacker;
       rt.units[pc.unit] = outcome.attackersLeft;
+      rt.units.siege = attackerSiege;
       events.push({
         type: "areaCaptured",
         seat: pc.attacker,
@@ -565,12 +668,16 @@ export function applyPendingCombat(state: GameState): GameEvent[] {
       });
     } else if (outcome.defendersLeft > 0) {
       rt.units[pc.unit] = outcome.defendersLeft; // defender holds
+      rt.units.siege = defenderSiege;
     } else {
       rt.owner = null; // mutual annihilation
       rt.units[pc.unit] = 0;
+      rt.units.siege = 0;
     }
   } else {
-    events.push(...removeUnits(state, pc.area, pc.unit, pc.total!));
+    // Take Cover ignores two points of a siege's damage.
+    const damage = Math.max(0, pc.total! - (pc.covered ? 2 : 0));
+    events.push(...removeUnits(state, pc.area, pc.unit, damage));
   }
 
   // Ship Strike: "Take a second Shell action from the same space ... without deploying a
@@ -584,7 +691,7 @@ export function applyPendingCombat(state: GameState): GameEvent[] {
     state.players[pc.attacker].hand.includes("ship_strike")
   ) {
     const map = getMap(state.mapId);
-    const land = actionSpaceMap(map)[pc.spaceId]?.areaId;
+    const land = actionSpaceMap(map, state.rules)[pc.spaceId]?.areaId;
     const supplied = land != null && suppliedAreas(map, gameBoard(state), pc.attacker).has(land);
     const targets =
       supplied && land != null
@@ -607,8 +714,65 @@ export function applyPendingCombat(state: GameState): GameEvent[] {
     }
   }
 
+  // Siege Assault: "Resolve an Advance action in the same area that was targeted by a Siege
+  // action, without deploying a commander." Offered after a Siege resolves when the attacker
+  // holds the card and a legal Advance into the sieged land exists (it never occupies the
+  // Advance space, so an occupied space does not block it).
+  if (pc.kind === "siege" && state.players[pc.attacker].hand.includes("siege_assault")) {
+    if (siegeAssaultMoves(state, pc.attacker, pc.area).length > 0) {
+      state.pendingDecision = {
+        id: `siege-assault-${pc.area}`,
+        seat: pc.attacker,
+        prompt: "Siege Assault: advance into the sieged area?",
+        choices: [{ id: "decline", label: "Decline" }],
+        kind: "siegeAssault",
+        spaceId: `advance-${pc.area}`
+      };
+    }
+  }
+
   state.pendingCombat = null;
   // Drain the next queued Commandeer battle, if any (no-op for normal single combats).
   advanceCombatQueue(state);
   return events;
+}
+
+/**
+ * Accept a siege's roll: if it deals damage and the defender holds any card, hand the combat
+ * to the defender (`awaiting-cover`) to answer with Take Cover or decline. Gating on a
+ * non-empty hand (public) rather than on holding Take Cover keeps the defender's hand hidden.
+ * Returns true when the combat paused for the defender; false means apply it now.
+ */
+export function offerTakeCover(state: GameState): boolean {
+  const pc = state.pendingCombat!;
+  if (pc.kind !== "siege" || pc.phase !== "rolled" || (pc.total ?? 0) <= 0) return false;
+  if (state.players[pc.defender].hand.length === 0) return false;
+  pc.phase = "awaiting-cover";
+  pc.responsibleSeat = pc.defender;
+  return true;
+}
+
+/** The defender plays Take Cover on the paused siege (validated upstream). */
+export function applyTakeCover(state: GameState): GameEvent[] {
+  const pc = state.pendingCombat!;
+  pc.covered = true;
+  return playCard(state, pc.defender, "take_cover");
+}
+
+/** Legal Siege Assault advance sources into `target`: each supplied Advance source with a unit
+ *  to spare (a source keeps one unit). Empty when the target is the seat's own land. */
+export function siegeAssaultMoves(
+  state: GameState,
+  seat: SeatId,
+  target: string
+): { areaId: string; max: number; siegeMax: number }[] {
+  if (!state.rules.enabledActions.includes("advance")) return [];
+  if (state.areas[target]?.owner === seat) return [];
+  const map = getMap(state.mapId);
+  return [...advanceSources(map, gameBoard(state), seat, target)]
+    .map((areaId) => {
+      const units = state.areas[areaId]!.units;
+      return { areaId, max: units.troop - 1, siegeMax: Math.min(units.siege, units.troop - 1) };
+    })
+    .filter((s) => s.max >= 1);
 }

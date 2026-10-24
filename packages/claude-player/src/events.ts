@@ -8,6 +8,11 @@ function units(count: number, unit: string): string {
   return `${count} ${unit}${count === 1 ? "" : "s"}`;
 }
 
+/** Catapults among a land-unit event's troops, e.g. " (incl. 2 catapults)". */
+function siegeNote(siege: number | undefined): string {
+  return siege ? ` (incl. ${units(siege, "catapult")})` : "";
+}
+
 /** One human-readable line per engine event. */
 export function formatEvent(event: PlayerGameEvent, viewer: SeatId): string {
   switch (event.type) {
@@ -16,9 +21,9 @@ export function formatEvent(event: PlayerGameEvent, viewer: SeatId): string {
     case "passed":
       return `${who(event.seat, viewer)} passed`;
     case "unitsMoved":
-      return `${who(event.seat, viewer)} moved ${units(event.count, event.unit)} ${event.from} → ${event.to}`;
+      return `${who(event.seat, viewer)} moved ${units(event.count, event.unit)}${siegeNote(event.siege)} ${event.from} → ${event.to}`;
     case "unitsPlaced":
-      return `${who(event.seat, viewer)} placed ${units(event.count, event.unit)} in ${event.area}`;
+      return `${who(event.seat, viewer)} placed ${units(event.count, event.unit)}${siegeNote(event.siege)} in ${event.area}`;
     case "bonusApplied":
       return `${who(event.seat, viewer)} got the ${event.bonus} bonus at ${event.area}`;
     case "diceRolled":
@@ -30,11 +35,11 @@ export function formatEvent(event: PlayerGameEvent, viewer: SeatId): string {
     case "cardPlayed":
       return `${who(event.seat, viewer)} played ${event.card}`;
     case "unitsRemoved":
-      return `${who(event.seat, viewer)} lost ${units(event.count, event.unit)} in ${event.area}`;
+      return `${who(event.seat, viewer)} lost ${units(event.count, event.unit)}${siegeNote(event.siege)} in ${event.area}`;
     case "areaCaptured":
       return `${who(event.seat, viewer)} captured ${event.area}${event.previousOwner ? ` from ${event.previousOwner}` : ""}`;
     case "capExceeded":
-      return `${event.owner}: ${units(event.returned, event.unit)} over the cap in ${event.area} returned to reserve`;
+      return `${event.owner}: ${units(event.returned, event.unit)}${siegeNote(event.siege)} over the cap in ${event.area} returned to reserve`;
     case "turnAdvanced":
       return `— ${event.activeSeat}${event.activeSeat === viewer ? " (you)" : " (opponent)"} to act —`;
     case "recalled":

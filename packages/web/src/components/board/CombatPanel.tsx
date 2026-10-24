@@ -14,10 +14,13 @@ interface CombatPanelProps {
   canReroll: boolean;
   /** True when the viewer may play Ambush (+2 dice) before this defence roll. */
   canAmbush: boolean;
+  /** True when the viewer defends this siege and may play Take Cover (ignore 2 damage). */
+  canTakeCover: boolean;
   busy: boolean;
   onRoll: () => void;
   onRollAmbush: () => void;
   onResolve: () => void;
+  onTakeCover: () => void;
 }
 
 /** Headline + sub-text describing a pending combat, with no tile ids. Pure + exported for
@@ -34,10 +37,14 @@ export function describeCombat(
       diceCount: 1
     };
   }
-  const verb = kind === "bombard" ? "Bombard" : "Shell";
+  const verb = kind === "bombard" ? "Bombard" : kind === "shell" ? "Shell" : "Siege";
+  const cover =
+    pendingCombat.phase === "awaiting-cover"
+      ? ` — ${defender} may Take Cover to ignore 2 damage`
+      : "";
   return {
     headline: `${verb} on ${areaLabel}`,
-    detail: `${attacker} rolls ${dice} ${dice === 1 ? "die" : "dice"}`,
+    detail: `${attacker} rolls ${dice} ${dice === 1 ? "die" : "dice"}${cover}`,
     diceCount: dice ?? 0
   };
 }
@@ -120,7 +127,8 @@ function DiceRow({ count, values }: { count: number; values?: number[] }) {
 
 /** The interactive combat step. Phase `awaiting-roll`: show the matchup and let the
  *  responsible seat roll. Phase `rolled`: show the dice and let them continue (apply
- *  casualties) — the disabled "Reroll" control is the seam for future card-driven rerolls. */
+ *  casualties) or reroll with a card. Phase `awaiting-cover` (siege): the dice stay shown and
+ *  the defender answers with Take Cover or accepts the damage. */
 export function CombatPanel({
   pendingCombat,
   areaLabel,
@@ -128,13 +136,16 @@ export function CombatPanel({
   canResolve,
   canReroll,
   canAmbush,
+  canTakeCover,
   busy,
   onRoll,
   onRollAmbush,
-  onResolve
+  onResolve,
+  onTakeCover
 }: CombatPanelProps) {
   const { headline, detail, diceCount } = describeCombat(pendingCombat, areaLabel);
-  const rolled = pendingCombat.phase === "rolled";
+  const rolled = pendingCombat.phase !== "awaiting-roll";
+  const awaitingCover = pendingCombat.phase === "awaiting-cover";
   const responsible = canRoll || canResolve;
   return (
     <div className="combat-panel" aria-label="Combat">
@@ -147,8 +158,25 @@ export function CombatPanel({
       <span className="combat-buttons">
         {!responsible ? (
           <span className="action-bar-hint">
-            Waiting for {pendingCombat.responsibleSeat} to {rolled ? "continue" : "roll"}…
+            Waiting for {pendingCombat.responsibleSeat} to{" "}
+            {awaitingCover ? "answer the siege" : rolled ? "continue" : "roll"}…
           </span>
+        ) : awaitingCover ? (
+          <>
+            {canTakeCover ? (
+              <button type="button" onClick={onTakeCover} disabled={busy}>
+                Take Cover (ignore 2 damage)
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={canTakeCover ? "secondary-action" : undefined}
+              onClick={onResolve}
+              disabled={busy || !canResolve}
+            >
+              Accept damage
+            </button>
+          </>
         ) : rolled ? (
           <>
             <button type="button" onClick={onResolve} disabled={busy || !canResolve}>

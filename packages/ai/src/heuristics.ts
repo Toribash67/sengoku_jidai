@@ -1,5 +1,6 @@
 import {
   getMap,
+  legalCommandsForState,
   resolveCommand,
   type Command,
   type GameState,
@@ -8,6 +9,7 @@ import {
 } from "@sengoku-jidai/engine";
 import { rollTotalDistribution } from "./combatOdds.js";
 import { evaluate, DEFAULT_WEIGHTS, type EvalWeights } from "./eval.js";
+import { moveArchetypes } from "./candidates.js";
 
 /**
  * Fixed (non-searched) policy for the combat/decision nodes, used for the search's INTERNAL
@@ -20,7 +22,8 @@ export function resolvePending(state: GameState, seat: SeatId): Command | null {
   const pc = state.pendingCombat;
   if (pc && pc.responsibleSeat === seat) {
     if (pc.phase === "awaiting-roll") return { type: "combatRoll", pendingId: pc.id };
-    if (pc.phase === "rolled") return { type: "combatResolve", pendingId: pc.id };
+    // `rolled` (attacker accepts) and `awaiting-cover` (defender takes the damage) both resolve.
+    return { type: "combatResolve", pendingId: pc.id };
   }
   const pd = state.pendingDecision;
   if (pd && pd.seat === seat) {
@@ -92,6 +95,28 @@ export function combatResponse(
       }
       return { type: "combatResolve", pendingId: pc.id };
     }
+    if (pc.phase === "awaiting-cover" && state.players[seat].hand.includes("take_cover")) {
+      // Take Cover: ignore two points of the siege's damage, at the cost of the card.
+      const options: Command[] = [
+        { type: "combatResolve", pendingId: pc.id, card: "take_cover" },
+        { type: "combatResolve", pendingId: pc.id }
+      ];
+      return bestByEval(state, seat, options, weights) ?? options[1]!;
+    }
+  }
+
+  // Siege Assault: after a Siege, the attacker may Advance into the sieged land without spending
+  // a commander (spending the card). Weigh each move archetype against declining.
+  if (pd0(state, seat)?.kind === "siegeAssault") {
+    const pd = state.pendingDecision!;
+    const offer = legalCommandsForState(state, seat).siegeAssault;
+    const decline: Command = {
+      type: "choosePendingDecision",
+      pendingId: pd.id,
+      choice: pd.choices.find((c) => c.id === "decline") ?? pd.choices[0]!
+    };
+    const assaults = offer ? moveArchetypes(state, seat, offer, "siege_assault") : [];
+    return bestByEval(state, seat, [decline, ...assaults], weights) ?? decline;
   }
 
   // Ship Strike: after a Shell, the attacker may take a second Shell from the same space (spending
@@ -121,6 +146,33 @@ export function combatResponse(
   }
 
   return resolvePending(state, seat);
+}
+
+/** The pending decision when `seat` must answer it, else null. */
+function pd0(state: GameState, seat: SeatId) {
+  const pd = state.pendingDecision;
+  return pd && pd.seat === seat ? pd : null;
+}
+
+/** The option with the best one-ply eval for `seat` (null when none is accepted). */
+function bestByEval(
+  state: GameState,
+  seat: SeatId,
+  options: Command[],
+  weights: EvalWeights
+): Command | null {
+  let best: Command | null = null;
+  let bestV = -Infinity;
+  for (const option of options) {
+    const r = resolveCommand(state, { seat }, option);
+    if (r.status !== "accepted") continue;
+    const v = evaluate(r.nextState, seat, weights);
+    if (v > bestV) {
+      bestV = v;
+      best = option;
+    }
+  }
+  return best;
 }
 
 /** A copy of `state` with one `card` removed from `seat`'s hand (models the discard on play). */

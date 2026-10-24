@@ -1,13 +1,13 @@
 import { emptyActionSpaceOccupancy } from "./actionSpaces.js";
-import { RIVERS_DECK } from "./cards.js";
+import { deckFor } from "./cards.js";
 import { getMap } from "./maps/registry.js";
 import { riversMapId } from "./maps/riversMap.js";
 import { createRngState, nextFloat, shuffle } from "./rng.js";
-import { riversRuleset } from "./rules.js";
+import { rulesetFor } from "./rules.js";
 import type { BonusType, RulesConfig } from "./rules.js";
 import type { GameMode, SeatId } from "./types.js";
 import {
-  RIVERS_UNIT_POOL,
+  unitPool,
   zeroUnits,
   type AreaRuntime,
   type GameState,
@@ -56,8 +56,9 @@ export interface GameSetupOptions {
  */
 export function createInitialState(options: GameSetupOptions): GameState {
   const mapId = options.mapId ?? riversMapId;
-  const rules = options.rules ?? riversRuleset;
   const map = getMap(mapId);
+  // The map selects its ruleset (Rivers unless authored otherwise); tests may override it.
+  const rules = options.rules ?? rulesetFor(map.ruleset);
   // Effective per-round commander count: the map value overrides the ruleset default.
   // `commanders.total` (set below) is the source of truth at runtime — `rules.commandersPerPlayer`
   // is not re-read after setup.
@@ -94,7 +95,7 @@ export function createInitialState(options: GameSetupOptions): GameState {
   // Appended AFTER the bonus + initiative draws so those outcomes are unchanged.
   let deck: OperationCard[] = [];
   if (rules.cards) {
-    const shuffledDeck = shuffle(rngState, RIVERS_DECK);
+    const shuffledDeck = shuffle(rngState, deckFor(rules.rulesetId));
     rngState = shuffledDeck.state;
     deck = shuffledDeck.value;
   }
@@ -124,14 +125,15 @@ export function createInitialState(options: GameSetupOptions): GameState {
     return total;
   };
 
+  const pool = unitPool(rules);
   const makePlayer = (seat: SeatId): PlayerState => {
     const placed = deployed(seat);
     return {
       seat,
       reserve: {
-        troop: RIVERS_UNIT_POOL.troop - placed.troop,
-        ship: RIVERS_UNIT_POOL.ship - placed.ship,
-        siege: RIVERS_UNIT_POOL.siege - placed.siege
+        troop: pool.troop - placed.troop,
+        ship: pool.ship - placed.ship,
+        siege: pool.siege - placed.siege
       },
       commanders: { total: commandersPerRound, standby: 0, counterattacks: 0 },
       hand: [],
@@ -155,7 +157,7 @@ export function createInitialState(options: GameSetupOptions): GameState {
     deck,
     discard: [],
     areas,
-    actionSpaces: emptyActionSpaceOccupancy(map),
+    actionSpaces: emptyActionSpaceOccupancy(map, rules),
     bonuses,
     revision: 0,
     pendingDecision: null,

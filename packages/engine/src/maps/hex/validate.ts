@@ -2,6 +2,7 @@ import type { SeatId } from "../../types.js";
 import { areNeighbors, axialKey } from "./coords.js";
 import type { Axial } from "./coords.js";
 import type { HexMapSource } from "./source.js";
+import { RULESETS } from "../../rules.js";
 
 const SEATS: readonly SeatId[] = ["red", "black"];
 
@@ -54,6 +55,10 @@ export function validateHexMap(source: HexMapSource): void {
     if (t.features.fort && t.kind !== "land") {
       throw new Error(`fort tile ${t.id} must be land`);
     }
+  }
+
+  if (source.ruleset !== undefined && !Object.hasOwn(RULESETS, source.ruleset)) {
+    throw new Error(`unknown ruleset ${String(source.ruleset)}`);
   }
 
   for (const id of source.bonusSlots) {

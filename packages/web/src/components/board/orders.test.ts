@@ -43,6 +43,8 @@ function legal(over: Partial<LegalCommandSummary>): LegalCommandSummary {
     canResolveCombat: false,
     canRerollCombat: false,
     canAmbush: false,
+    canTakeCover: false,
+    siegeAssault: null,
     ...over
   };
 }
@@ -72,6 +74,7 @@ describe("verbAvailability", () => {
       sail: false,
       bombard: true,
       shell: false,
+      siege: false,
       reinforce: true,
       embark: false,
       plan: true,
@@ -85,6 +88,7 @@ describe("verbAvailability", () => {
       sail: false,
       bombard: false,
       shell: false,
+      siege: false,
       reinforce: false,
       embark: false,
       plan: false,

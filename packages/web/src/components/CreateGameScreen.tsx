@@ -92,11 +92,19 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
             >
               {(
                 maps ?? [
-                  { id: riversMapId, name: "Rivers", tileCount: 22, builtin: true, updatedAt: null }
+                  {
+                    id: riversMapId,
+                    name: "Rivers",
+                    tileCount: 22,
+                    ruleset: "rivers",
+                    builtin: true,
+                    updatedAt: null
+                  }
                 ]
               ).map((map) => (
                 <option key={map.id} value={map.id}>
-                  {map.name} ({map.tileCount} tiles)
+                  {map.name} ({map.tileCount} tiles
+                  {map.ruleset === "fortress" ? " · Fortress rules" : ""})
                 </option>
               ))}
             </select>

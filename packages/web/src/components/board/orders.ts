@@ -7,7 +7,7 @@ import type {
 
 /** A base order (or operation-card play) that has been "armed": the player picked a verb and
  *  now chooses one of its candidate tiles. A move arms advance/sail destinations; a strike arms
- *  bombard/shell enemy targets. `card`/`bonusMax` carry an operation card played as the
+ *  the bombard/shell/siege linked areas. `card`/`bonusMax` carry an operation card played as the
  *  commander deploys (set only for card plays). */
 export type ArmedOrder =
   | {
@@ -19,16 +19,19 @@ export type ArmedOrder =
     }
   | {
       kind: "strike";
-      type: "bombard" | "shell";
+      type: StrikeType;
       strikes: LegalStrike[];
       card?: OperationCard;
     };
+
+export type StrikeType = LegalStrike["type"];
 
 export type OrderVerb =
   | "advance"
   | "sail"
   | "bombard"
   | "shell"
+  | "siege"
   | "reinforce"
   | "embark"
   | "plan"
@@ -47,6 +50,7 @@ export function verbAvailability(legal: LegalCommandSummary): VerbAvailability {
     sail: legal.moves.some((m) => m.type === "sail"),
     bombard: legal.strikes.some((s) => s.type === "bombard"),
     shell: legal.strikes.some((s) => s.type === "shell"),
+    siege: legal.strikes.some((s) => s.type === "siege"),
     reinforce: legal.placements.some((p) => p.type === "reinforce"),
     embark: legal.placements.some((p) => p.type === "embark"),
     plan: legal.plans.length > 0,
@@ -60,11 +64,8 @@ export function armMove(legal: LegalCommandSummary, type: "advance" | "sail"): A
   return moves.length > 0 ? { kind: "move", type, moves } : null;
 }
 
-/** Arm a strike verb (bombard/shell) from the base legal strikes. Null when none are legal. */
-export function armStrike(
-  legal: LegalCommandSummary,
-  type: "bombard" | "shell"
-): ArmedOrder | null {
+/** Arm a strike verb (bombard/shell/siege) from the base legal strikes. Null when none are legal. */
+export function armStrike(legal: LegalCommandSummary, type: StrikeType): ArmedOrder | null {
   const strikes = legal.strikes.filter((s) => s.type === type);
   return strikes.length > 0 ? { kind: "strike", type, strikes } : null;
 }

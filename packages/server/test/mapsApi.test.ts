@@ -165,6 +165,42 @@ describe("games on custom maps", () => {
     await app.close();
   });
 
+  it("starts Fortress games on a map authored with the Fortress ruleset", async () => {
+    const app = buildApp(testConfig());
+
+    const uploaded = await app.inject({
+      method: "POST",
+      url: "/api/maps",
+      payload: { ...fixturePayload(), ruleset: "fortress" }
+    });
+    expect(uploaded.statusCode).toBe(201);
+    const mapId = uploaded.json().id as string;
+
+    const listed = await app.inject({ method: "GET", url: "/api/maps" });
+    expect(listed.json().maps.find((m: { id: string }) => m.id === mapId)).toMatchObject({
+      ruleset: "fortress"
+    });
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      payload: { mode: "hotseat", seed: "fortress-map-seed", mapId }
+    });
+    expect(created.statusCode).toBe(200);
+    const view = created.json().view;
+    expect(view.rulesetId).toBe("fortress");
+    expect(view.legal.spaces.some((s: { type: string }) => s.type === "siege")).toBe(true);
+
+    const bad = await app.inject({
+      method: "POST",
+      url: "/api/maps",
+      payload: { ...fixturePayload(), ruleset: "no-such-rules" }
+    });
+    expect(bad.statusCode).toBe(400);
+
+    await app.close();
+  });
+
   it("404s game creation on an unknown mapId without creating anything", async () => {
     const db = openDatabase(":memory:");
     runMigrations(db);

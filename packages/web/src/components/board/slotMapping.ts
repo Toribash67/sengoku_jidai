@@ -5,7 +5,8 @@ const SLOT_PREFIX: Partial<Record<ActionType, string>> = {
   advance: "move",
   sail: "sail",
   bombard: "bombard",
-  shell: "shell"
+  shell: "shell",
+  siege: "siege"
 };
 
 /**

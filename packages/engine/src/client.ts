@@ -25,16 +25,24 @@ export {
 } from "./maps/hex/coords.js";
 export type { Axial, HexLayout, Pixel } from "./maps/hex/coords.js";
 export type { HexTileSource } from "./maps/hex/source.js";
-export { riversRuleset } from "./rules.js";
+export { riversRuleset, fortressRuleset, RULESETS, rulesetFor, hasSiege } from "./rules.js";
 
 // The public card list (identities in hands and the deck stay hidden; the set of
 // cards that exists is open information).
-export { RIVERS_CARDS, RIVERS_CARD_COPIES, RIVERS_DECK } from "./cards.js";
+export {
+  RIVERS_CARDS,
+  RIVERS_CARD_COPIES,
+  RIVERS_DECK,
+  FORTRESS_CARDS,
+  FORTRESS_CARD_COPIES,
+  FORTRESS_DECK,
+  deckFor
+} from "./cards.js";
 
 // Player intent and the per-seat projections the server sends to clients.
 export type { Command } from "./commands.js";
 export type { GameMode, GameStatus, PlayerId, SeatId } from "./types.js";
-export type { ActionType, BonusType } from "./rules.js";
+export type { ActionType, BonusType, RulesetId } from "./rules.js";
 export type {
   EndReason,
   OperationCard,

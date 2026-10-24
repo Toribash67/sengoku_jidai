@@ -2,6 +2,7 @@ import type {
   HexLayout,
   HexMapSource,
   HexTileSource,
+  RulesetId,
   StartingUnits
 } from "@sengoku-jidai/engine/client";
 
@@ -18,6 +19,8 @@ export interface EditorDoc {
   bonusSlots: string[];
   /** Commanders each player deploys per round; undefined means "use the ruleset default (5)". */
   commandersPerRound?: number;
+  /** Ruleset new games on this map use; undefined means Rivers. */
+  ruleset?: RulesetId;
   /** Monotonic counter behind generated tile ids (t1, t2, …). */
   nextTileNumber: number;
 }
@@ -50,6 +53,7 @@ export function docFromSource(source: HexMapSource, options: { asCopy: boolean }
     startingDeployment: structuredClone(source.startingDeployment),
     bonusSlots: [...source.bonusSlots],
     commandersPerRound: source.commandersPerRound,
+    ruleset: source.ruleset,
     nextTileNumber: max + 1
   };
 }
@@ -62,6 +66,7 @@ export function docToSource(doc: EditorDoc, id?: string): HexMapSource {
     tiles: doc.tiles,
     startingDeployment: doc.startingDeployment,
     bonusSlots: doc.bonusSlots,
-    commandersPerRound: doc.commandersPerRound
+    commandersPerRound: doc.commandersPerRound,
+    ...(doc.ruleset && doc.ruleset !== "rivers" ? { ruleset: doc.ruleset } : {})
   };
 }

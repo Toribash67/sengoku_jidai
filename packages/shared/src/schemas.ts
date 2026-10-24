@@ -3,7 +3,7 @@ import { z } from "zod";
 export const seatIdSchema = z.enum(["red", "black"]);
 export const gameModeSchema = z.enum(["hotseat", "private_multiplayer", "async_multiplayer"]);
 
-/** The Rivers operation-card ids (must match the engine's OperationCard union). */
+/** The operation-card ids across all decks (must match the engine's OperationCard union). */
 export const operationCardSchema = z.enum([
   "ambush",
   "commandeer",
@@ -12,7 +12,10 @@ export const operationCardSchema = z.enum([
   "mobilise",
   "river_assault",
   "ship_strike",
-  "shore_strike"
+  "shore_strike",
+  "siege_assault",
+  "take_cover",
+  "volley"
 ]);
 
 export const pendingChoiceSchema = z.object({
@@ -20,14 +23,17 @@ export const pendingChoiceSchema = z.object({
   label: z.string().min(1)
 });
 
+/** `siege`: how many of the `count` land units are catapults (Fortress). */
 const moveSchema = z.object({
   from: z.string().min(1),
-  count: z.number().int().positive()
+  count: z.number().int().positive(),
+  siege: z.number().int().nonnegative().optional()
 });
 
 const placementSchema = z.object({
   area: z.string().min(1),
-  count: z.number().int().positive()
+  count: z.number().int().positive(),
+  siege: z.number().int().nonnegative().optional()
 });
 
 /** Optional operation card played as a commander deploys (modifies the action, then discarded). */
@@ -60,6 +66,12 @@ export const commandSchema = z.discriminatedUnion("type", [
     targetAreaId: z.string().min(1)
   }),
   z.object({
+    type: z.literal("siege"),
+    spaceId: z.string().min(1),
+    targetAreaId: z.string().min(1),
+    card: operationCardSchema.optional()
+  }),
+  z.object({
     type: z.literal("reinforce"),
     spaceId: z.string().min(1),
     placements: z.array(placementSchema),
@@ -83,7 +95,11 @@ export const commandSchema = z.discriminatedUnion("type", [
     pendingId: z.string().min(1),
     card: operationCardSchema
   }),
-  z.object({ type: z.literal("combatResolve"), pendingId: z.string().min(1) }),
+  z.object({
+    type: z.literal("combatResolve"),
+    pendingId: z.string().min(1),
+    card: operationCardSchema.optional()
+  }),
   z.object({
     type: z.literal("choosePendingDecision"),
     pendingId: z.string().min(1),
@@ -134,7 +150,8 @@ export const hexMapSourceSchema = z.object({
   tiles: z.array(hexTileSourceSchema).min(1),
   startingDeployment: z.record(startingUnitsSchema),
   bonusSlots: z.array(z.string().min(1)),
-  commandersPerRound: z.number().int().min(1).max(8).optional()
+  commandersPerRound: z.number().int().min(1).max(8).optional(),
+  ruleset: z.enum(["rivers", "fortress"]).optional()
 });
 
 export const mapParamsSchema = z.object({

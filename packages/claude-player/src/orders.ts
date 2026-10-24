@@ -13,7 +13,7 @@ export type OrderTemplate =
       type: "advance" | "sail";
       spaceId: string;
       targetAreaId: string;
-      sources: { areaId: string; max: number }[];
+      sources: { areaId: string; max: number; siegeMax?: number }[];
       card?: OperationCard;
       bonusMax?: number;
     }
@@ -26,6 +26,8 @@ export type OrderTemplate =
       limit: number;
       pool: number;
       reserve: number;
+      /** Reinforce (Fortress): how many placed troops may be catapults. */
+      siegeMax?: number;
       card?: OperationCard;
     }
   | { kind: "fixed"; command: Command };
@@ -42,6 +44,8 @@ export interface OrderArgs {
   from?: string;
   place?: string;
   bonus?: number;
+  /** `AREA:N[,...]`: how many of the units moved from / placed into each area are catapults. */
+  siege?: string;
 }
 
 /** A mistake in `play` arguments, caught locally — nothing is submitted. */
@@ -53,6 +57,10 @@ const MOVE_VERB = { advance: "Advance into", sail: "Sail into" } as const;
 export function listOrders(view: PlayerGameView): Order[] {
   const drafts: { name?: string; label: string; template: OrderTemplate }[] = [];
   const legal = view.legal;
+
+  if (legal.siegeAssault) {
+    drafts.push({ name: "assault", ...moveDraft(legal.siegeAssault, "siege_assault") });
+  }
 
   const decision = view.pendingDecision;
   if (decision && decision.seat === view.viewerSeat) {
@@ -96,10 +104,23 @@ export function listOrders(view: PlayerGameView): Order[] {
         });
       }
     }
+    if (legal.canTakeCover) {
+      drafts.push({
+        name: "cover",
+        label: `Take Cover — discard take_cover to ignore 2 damage (${where})`,
+        template: {
+          kind: "fixed",
+          command: { type: "combatResolve", pendingId: combat.id, card: "take_cover" }
+        }
+      });
+    }
     if (legal.canResolveCombat) {
       drafts.push({
         name: "accept",
-        label: `Accept the roll and apply casualties (${where})`,
+        label:
+          combat.phase === "awaiting-cover"
+            ? `Accept the siege damage without Take Cover (${where})`
+            : `Accept the roll and apply casualties (${where})`,
         template: { kind: "fixed", command: { type: "combatResolve", pendingId: combat.id } }
       });
     }
@@ -137,7 +158,9 @@ function cardTag(card: OperationCard | undefined): string {
 }
 
 function moveDraft(move: LegalMove, card?: OperationCard, bonusMax?: number) {
-  const sources = move.sources.map((s) => `${s.areaId} up to ${s.max}`).join(", ");
+  const sources = move.sources
+    .map((s) => `${s.areaId} up to ${s.max}${s.siegeMax ? ` (≤${s.siegeMax} catapults)` : ""}`)
+    .join(", ");
   const bonus =
     bonusMax !== undefined
       ? `; +up to ${bonusMax} reserve ${move.type === "advance" ? "troops" : "ships"}`
@@ -157,7 +180,7 @@ function moveDraft(move: LegalMove, card?: OperationCard, bonusMax?: number) {
 }
 
 function strikeDrafts(strike: LegalStrike, card?: OperationCard) {
-  const verb = strike.type === "bombard" ? "Bombard" : "Shell";
+  const verb = { bombard: "Bombard", shell: "Shell", siege: "Siege" }[strike.type];
   return strike.targets.map((target) => ({
     label: `${cardTag(card)}${verb} from ${strike.linkedAreaId} → ${target} (${strike.dice} dice)`,
     template: {
@@ -176,8 +199,9 @@ function placementDraft(placement: LegalPlacement, card?: OperationCard) {
   const limit = Math.min(placement.pool, placement.reserve);
   const verb = placement.type === "reinforce" ? "Reinforce" : "Embark";
   const units = placement.unit === "troop" ? "troops" : "ships";
+  const catapults = placement.siegeMax ? `, up to ${placement.siegeMax} may be catapults` : "";
   return {
-    label: `${cardTag(card)}${verb}: place up to ${limit} ${units} (pool ${placement.pool}, reserve ${placement.reserve}) into ${placement.targets.join(", ")}`,
+    label: `${cardTag(card)}${verb}: place up to ${limit} ${units}${catapults} (pool ${placement.pool}, reserve ${placement.reserve}) into ${placement.targets.join(", ")}`,
     template: {
       kind: "placement" as const,
       type: placement.type,
@@ -187,6 +211,7 @@ function placementDraft(placement: LegalPlacement, card?: OperationCard) {
       limit,
       pool: placement.pool,
       reserve: placement.reserve,
+      ...(placement.siegeMax ? { siegeMax: placement.siegeMax } : {}),
       ...(card ? { card } : {})
     }
   };
@@ -199,9 +224,11 @@ export function formatOrder(order: Order): string {
   let usage = `play ${order.name ?? order.n}`;
   if (t.kind === "move") {
     usage += " --from AREA:N[,AREA:N]";
+    if (t.sources.some((s) => s.siegeMax)) usage += " [--siege AREA:N]";
     if (t.bonusMax !== undefined) usage += ` [--bonus 0-${t.bonusMax}]`;
   } else if (t.kind === "placement") {
     usage += " --place AREA:N[,AREA:N]";
+    if (t.siegeMax) usage += " [--siege AREA:N]";
   }
   return `${String(order.n).padStart(2)}. ${order.label}  → ${usage}`;
 }
@@ -223,12 +250,34 @@ export function parseAllocation(raw: string): Map<string, number> {
   return out;
 }
 
+/** Parse `--siege A:N` (catapults among the units moved from / placed into each area). Every
+ *  area must also appear in the unit allocation, with no more catapults than units there. */
+function parseSiege(
+  raw: string | undefined,
+  n: number | string,
+  units: Map<string, number>
+): Map<string, number> {
+  if (raw === undefined) return new Map();
+  const catapults = parseAllocation(raw);
+  for (const [area, count] of catapults) {
+    const of = units.get(area);
+    if (of === undefined) throw new OrderArgError(`--siege ${area} is not in this order (${n}).`);
+    if (count > of) throw new OrderArgError(`--siege ${area}: only ${of} units go there.`);
+  }
+  return catapults;
+}
+
 /** Validate `args` against the order's limits and build the engine command. */
 export function buildCommand(order: Order, args: OrderArgs): Command {
   const t = order.template;
   const n = order.name ?? order.n;
   if (t.kind === "fixed") {
-    if (args.from !== undefined || args.place !== undefined || args.bonus !== undefined) {
+    if (
+      args.from !== undefined ||
+      args.place !== undefined ||
+      args.bonus !== undefined ||
+      args.siege !== undefined
+    ) {
       throw new OrderArgError(`Order ${n} takes no arguments — run \`play ${n}\`.`);
     }
     return t.command;
@@ -245,9 +294,18 @@ export function buildCommand(order: Order, args: OrderArgs): Command {
       if (!source) throw new OrderArgError(`${area} is not a legal source for order ${n}.`);
       if (count > source.max) throw new OrderArgError(`${area} allows at most ${source.max}.`);
     }
+    const catapults = parseSiege(args.siege, n, wanted);
+    for (const [area, count] of catapults) {
+      const max = t.sources.find((s) => s.areaId === area)?.siegeMax ?? 0;
+      if (count > max) throw new OrderArgError(`${area} can move at most ${max} catapults.`);
+    }
     const moves = t.sources
       .filter((s) => wanted.has(s.areaId))
-      .map((s) => ({ from: s.areaId, count: wanted.get(s.areaId)! }));
+      .map((s) => ({
+        from: s.areaId,
+        count: wanted.get(s.areaId)!,
+        ...(catapults.has(s.areaId) ? { siege: catapults.get(s.areaId)! } : {})
+      }));
     if (args.bonus !== undefined) {
       if (t.bonusMax === undefined) throw new OrderArgError(`Order ${n} takes no --bonus.`);
       if (!Number.isInteger(args.bonus) || args.bonus < 0 || args.bonus > t.bonusMax) {
@@ -274,9 +332,18 @@ export function buildCommand(order: Order, args: OrderArgs): Command {
     total += count;
   }
   if (total > t.limit) throw new OrderArgError(`Order ${n} places at most ${t.limit} in total.`);
+  const catapults = parseSiege(args.siege, n, wanted);
+  const catapultTotal = [...catapults.values()].reduce((a, b) => a + b, 0);
+  if (catapultTotal > (t.siegeMax ?? 0)) {
+    throw new OrderArgError(`Order ${n} places at most ${t.siegeMax ?? 0} catapults.`);
+  }
   const placements = t.targets
     .filter((a) => wanted.has(a))
-    .map((area) => ({ area, count: wanted.get(area)! }));
+    .map((area) => ({
+      area,
+      count: wanted.get(area)!,
+      ...(catapults.has(area) ? { siege: catapults.get(area)! } : {})
+    }));
   return {
     type: t.type,
     spaceId: t.spaceId,

@@ -16,9 +16,13 @@ import {
   applyBombard,
   applyShell,
   applyShipStrike,
+  applySiege,
   rollPendingCombat,
   rerollPendingCombat,
-  applyPendingCombat
+  applyPendingCombat,
+  offerTakeCover,
+  applyTakeCover,
+  trimSiege
 } from "./actions.js";
 
 const other = (seat: SeatId): SeatId => (seat === "red" ? "black" : "red");
@@ -80,8 +84,25 @@ export function resolveCommand(
     // Discard a card to re-throw; stays on the `rolled` phase for another review.
     events.push(...rerollPendingCombat(next, command.card));
   } else if (command.type === "combatResolve") {
-    // Apply the reviewed roll, then fall through to the turn tail.
-    events.push(...applyPendingCombat(next));
+    // Apply the reviewed roll, then fall through to the turn tail. A siege first pauses for
+    // the defender's Take Cover answer (see offerTakeCover); the defender's own combatResolve
+    // then lands the damage, less two if it carries Take Cover.
+    const pc = next.pendingCombat!;
+    if (pc.phase === "awaiting-cover") {
+      if (command.card === "take_cover") events.push(...applyTakeCover(next));
+      events.push(...applyPendingCombat(next));
+    } else if (!offerTakeCover(next)) {
+      events.push(...applyPendingCombat(next));
+    }
+  } else if (
+    command.type === "advance" &&
+    command.card === "siege_assault" &&
+    next.pendingDecision?.kind === "siegeAssault"
+  ) {
+    // Siege Assault follow-up: an Advance on the offered space with no commander deployed and
+    // no space occupied. Clears the offer, then resolves like any Advance.
+    next.pendingDecision = null;
+    events.push(...dispatchAction(next, seat, command));
   } else if (command.type === "choosePendingDecision") {
     // Ship Strike: a non-decline choice stages a second Shell from the same space (no commander
     // spent) at the chosen sea (the choice id IS the target area); Decline just clears the
@@ -171,12 +192,14 @@ function dispatchAction(state: GameState, seat: SeatId, command: Command): GameE
       return applyBombard(state, seat, command.spaceId, command.targetAreaId, command.card);
     case "shell":
       return applyShell(state, seat, command.spaceId, command.targetAreaId);
+    case "siege":
+      return applySiege(state, seat, command.spaceId, command.targetAreaId, command.card);
     default:
       throw new Error(`No resolver for action ${command.type}`);
   }
 }
 
-/** Reduce each area to its cap; excess returns to the owner's reserve. */
+/** Reduce each area to its cap; excess returns to the owner's reserve (catapults last). */
 export function enforceCaps(state: GameState): GameEvent[] {
   const map = getMap(state.mapId);
   const events: GameEvent[] = [];
@@ -188,8 +211,17 @@ export function enforceCaps(state: GameState): GameEvent[] {
     if (rt.units[unit] > cap) {
       const returned = rt.units[unit] - cap;
       rt.units[unit] = cap;
-      state.players[rt.owner].reserve[unit] += returned;
-      events.push({ type: "capExceeded", area: id, unit, returned, owner: rt.owner });
+      const reserve = state.players[rt.owner].reserve;
+      reserve[unit] += returned;
+      const siege = unit === "troop" ? trimSiege(rt.units, reserve) : 0;
+      events.push({
+        type: "capExceeded",
+        area: id,
+        unit,
+        returned,
+        owner: rt.owner,
+        ...(siege > 0 ? { siege } : {})
+      });
     }
   }
   return events;

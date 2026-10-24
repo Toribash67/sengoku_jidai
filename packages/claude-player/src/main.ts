@@ -5,8 +5,9 @@ import { defaultSessionPath } from "./session.js";
 export const USAGE = `Usage: sengoku <command> [--session <path>]
   join <invite-link> [--name Claude]   claim the seat and show the board
   status                               board + numbered orders
-  play <n|name> [--from A:N,...] [--place A:N,...] [--bonus K]
-                                       combat orders also have names: roll, ambush, reroll:<card>, accept
+  play <n|name> [--from A:N,...] [--place A:N,...] [--bonus K] [--siege A:N,...]
+                                       --siege: how many of those units are catapults (Fortress)
+                                       named orders: roll, ambush, reroll:<card>, cover, accept, assault
   wait [--timeout 540]                 block until it is your turn (exit 3: still waiting)
   say "<text>"                         post to the game chat
 Exit codes: 0 ok/your turn · 1 local error · 2 game over · 3 still waiting · 4 rejected/stale · 5 bad token · 6 opponent chatted (wait only)`;
@@ -27,6 +28,7 @@ export async function main(
         from: { type: "string" },
         place: { type: "string" },
         bonus: { type: "string" },
+        siege: { type: "string" },
         timeout: { type: "string" }
       }
     });
@@ -51,7 +53,12 @@ export async function main(
         io.err("play needs an order number or name (and an integer --bonus if given).");
         return EXIT.local;
       }
-      return runPlay(ctx, ref, { from: values.from, place: values.place, bonus });
+      return runPlay(ctx, ref, {
+        from: values.from,
+        place: values.place,
+        bonus,
+        siege: values.siege
+      });
     }
     case "wait": {
       const timeoutSec = Number(values.timeout ?? 540);

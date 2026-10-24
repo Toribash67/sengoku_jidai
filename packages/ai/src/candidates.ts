@@ -39,12 +39,10 @@ export function deployCandidates(state: GameState, seat: SeatId): Command[] {
   // Reinforce / Embark: place into targets that actually have free capacity (see the helper).
   for (const pl of legal.placements) out.push(...placementCandidates(state, seat, map, pl));
 
-  // Bombard / Shell: one candidate per enemy target.
+  // Bombard / Shell / Siege: one candidate per enemy target.
   for (const st of legal.strikes) {
     for (const target of st.targets) {
-      if (st.type === "bombard")
-        out.push({ type: "bombard", spaceId: st.spaceId, targetAreaId: target });
-      else out.push({ type: "shell", spaceId: st.spaceId, targetAreaId: target });
+      out.push({ type: st.type, spaceId: st.spaceId, targetAreaId: target });
     }
   }
 
@@ -53,10 +51,11 @@ export function deployCandidates(state: GameState, seat: SeatId): Command[] {
 
   // Deploy-time operation cards: attach each currently-playable card to the actions it modifies,
   // reusing the SAME archetypes as the no-card variants. `cardPlays` already carries the
-  // card-modified options (extra reinforce/embark pool, enemy-sea embark targets, +2 bombard dice,
-  // bonus reserve units on a move). The eval's `card` term prices the opportunity cost of spending
-  // a card, so the search itself decides when a play is worth it. Combat-time cards (ambush,
-  // ship_strike, reroll) are out of scope here — they live in the combat-response policy.
+  // card-modified options (extra reinforce/embark pool, enemy-sea embark targets, +2 bombard/siege
+  // dice, bonus reserve units on a move). The eval's `card` term prices the opportunity cost of
+  // spending a card, so the search itself decides when a play is worth it. Combat-time and
+  // follow-up cards (ambush, ship_strike, take_cover, siege_assault, reroll) are out of scope
+  // here — they live in the combat-response policy.
   for (const play of legal.cardPlays) {
     if (play.action === "reinforce" || play.action === "embark") {
       for (const pl of play.placements ?? [])
@@ -67,15 +66,15 @@ export function deployCandidates(state: GameState, seat: SeatId): Command[] {
       const cardBonus = play.bonusMax && play.bonusMax > 0 ? play.bonusMax : undefined;
       for (const mv of play.moves ?? [])
         out.push(...moveArchetypes(state, seat, mv, play.card, cardBonus));
-    } else if (play.action === "bombard") {
+    } else if (play.action === "bombard" || play.action === "siege") {
       for (const st of play.strikes ?? [])
         for (const target of st.targets)
           out.push({
-            type: "bombard",
+            type: st.type,
             spaceId: st.spaceId,
             targetAreaId: target,
             card: play.card
-          });
+          } as Command);
     }
   }
 
@@ -117,12 +116,18 @@ function placementCandidates(
     .sort((a, b) => (map.areas[b.area]?.valueStars ?? 0) - (map.areas[a.area]?.valueStars ?? 0));
   const withCard = card ? { card } : {};
   for (const { area, free } of withRoom.slice(0, PLACEMENT_TARGETS)) {
-    out.push({
-      type: pl.type,
-      spaceId: pl.spaceId,
-      placements: [{ area, count: Math.min(placeable, free) }],
-      ...withCard
-    });
+    const count = Math.min(placeable, free);
+    out.push({ type: pl.type, spaceId: pl.spaceId, placements: [{ area, count }], ...withCard });
+    // Reinforce (Fortress): the same placement with as many catapults as the space allows.
+    const siege = Math.min(pl.siegeMax ?? 0, count);
+    if (siege > 0) {
+      out.push({
+        type: pl.type,
+        spaceId: pl.spaceId,
+        placements: [{ area, count, siege }],
+        ...withCard
+      });
+    }
   }
   // Spread across the top free-capacity tiles until the pool is spent (>1 tile only, else it
   // duplicates the single-target candidate above).
@@ -134,12 +139,25 @@ function placementCandidates(
     spread.push({ area, count });
     remaining -= count;
   }
-  if (spread.length > 1)
+  if (spread.length > 1) {
     out.push({ type: pl.type, spaceId: pl.spaceId, placements: spread, ...withCard });
+    // …and the same spread with the space's catapults on its best tiles (Fortress).
+    let catapults = pl.siegeMax ?? 0;
+    if (catapults > 0) {
+      const withSiege = spread.map((p) => {
+        const siege = Math.min(catapults, p.count);
+        catapults -= siege;
+        return siege > 0 ? { ...p, siege } : p;
+      });
+      out.push({ type: pl.type, spaceId: pl.spaceId, placements: withSiege, ...withCard });
+    }
+  }
   return out;
 }
 
-function moveArchetypes(
+/** Advance/Sail allocations over a move's legal sources (all-in, solo per source, minimum
+ *  viable). Catapults stay behind except in an extra all-in variant that brings them along. */
+export function moveArchetypes(
   state: GameState,
   seat: SeatId,
   mv: LegalMove,
@@ -154,7 +172,7 @@ function moveArchetypes(
 
   const extra = { ...(card ? { card } : {}), ...(cardBonus !== undefined ? { cardBonus } : {}) };
   const commands: Command[] = [];
-  const build = (moves: { from: string; count: number }[]): Command | null => {
+  const build = (moves: { from: string; count: number; siege?: number }[]): Command | null => {
     const nonzero = moves.filter((m) => m.count > 0);
     const total = nonzero.reduce((n, m) => n + m.count, 0);
     if (total < 1) return null;
@@ -164,6 +182,17 @@ function moveArchetypes(
   // All-in: every source contributes its max.
   const allIn = build(sources.map((s) => ({ from: s.areaId, count: s.max })));
   if (allIn) commands.push(allIn);
+  // All-in with the catapults too, so siege engines can follow the front (Fortress).
+  if (sources.some((s) => (s.siegeMax ?? 0) > 0)) {
+    const withSiege = build(
+      sources.map((s) => ({
+        from: s.areaId,
+        count: s.max,
+        ...(s.siegeMax ? { siege: s.siegeMax } : {})
+      }))
+    );
+    if (withSiege) commands.push(withSiege);
+  }
 
   // Solo from each source at its max. Attacking from a weaker source can beat pulling from the
   // strongest one: eval rewards per-tile presence concavely, so draining your strongest stack to

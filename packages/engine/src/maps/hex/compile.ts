@@ -47,7 +47,8 @@ export function compileHexMap(source: HexMapSource): CompiledMap {
     areas,
     bonusSlots: [...source.bonusSlots],
     startingDeployment: { ...source.startingDeployment },
-    commandersPerRound: source.commandersPerRound
+    commandersPerRound: source.commandersPerRound,
+    ...(source.ruleset !== undefined ? { ruleset: source.ruleset } : {})
   };
 
   return { definition, layout: buildLayout(source) };

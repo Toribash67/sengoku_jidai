@@ -128,6 +128,11 @@ export function bombardTargets(map: MapDefinition, waterId: string): string[] {
   return map.areas[waterId]!.adjacent.filter((id) => map.areas[id]!.kind === "land");
 }
 
+/** Land areas adjacent to a land area (Siege targets). */
+export function siegeTargets(map: MapDefinition, landId: string): string[] {
+  return map.areas[landId]!.adjacent.filter((id) => map.areas[id]!.kind === "land");
+}
+
 /** Water areas adjacent to a land area (Shell targets). */
 export function shellTargets(map: MapDefinition, landId: string): string[] {
   return map.areas[landId]!.adjacent.filter((id) => map.areas[id]!.kind === "sea");
@@ -157,6 +162,6 @@ export function supportTypeOccupied(
   seat: SeatId,
   type: "reinforce" | "embark" | "plan"
 ): boolean {
-  const catalog = buildActionSpaces(map);
+  const catalog = buildActionSpaces(map, state.rules);
   return catalog.some((sp) => sp.type === type && state.actionSpaces[sp.id] === seat);
 }

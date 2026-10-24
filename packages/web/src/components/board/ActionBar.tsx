@@ -2,7 +2,7 @@ import type { LegalPlacement, LegalPlan, SeatId } from "@sengoku-jidai/engine/cl
 import { ActionGlyph } from "./ActionGlyph.js";
 import { cardLabel } from "./cardImages.js";
 import { UNIT_NOUN, VERB, sumCounts, type ComposerState } from "./composer.js";
-import type { VerbAvailability } from "./orders.js";
+import type { StrikeType, VerbAvailability } from "./orders.js";
 
 interface ActionBarProps {
   composer: ComposerState | null;
@@ -19,7 +19,9 @@ interface ActionBarProps {
   armedLabel: string | null;
   placements: LegalPlacement[];
   plans: LegalPlan[];
-  onArmVerb: (verb: "advance" | "sail" | "bombard" | "shell") => void;
+  /** Whether the ruleset has the Siege action (shows its palette button). */
+  showSiege: boolean;
+  onArmVerb: (verb: "advance" | "sail" | StrikeType) => void;
   onStartPlacement: (placement: LegalPlacement) => void;
   onStartPlan: (plan: LegalPlan) => void;
   onPass: () => void;
@@ -28,6 +30,8 @@ interface ActionBarProps {
   onAdjust: (areaId: string, delta: number) => void;
   /** Adjust the assault-card bonus (ground/river_assault) on a move composer. */
   onAdjustBonus: (delta: number) => void;
+  /** Adjust how many of an area's staged troops are catapults (move source / placement). */
+  onAdjustSiege: (areaId: string, delta: number) => void;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -97,24 +101,38 @@ function ComposerActions({
   );
 }
 
+/** " (incl. N catapults)" for a staged total that carries catapults, else nothing. */
+function catapultNote(siege: number): string {
+  return siege > 0 ? ` (incl. ${siege} catapult${siege === 1 ? "" : "s"})` : "";
+}
+
 function MoveBar({
   composer,
   selectedAreaId,
   busy,
   onAdjust,
   onAdjustBonus,
+  onAdjustSiege,
   onConfirm,
   onCancel
 }: {
   composer: Extract<ComposerState, { kind: "move" }>;
 } & Pick<
   ActionBarProps,
-  "selectedAreaId" | "busy" | "onAdjust" | "onAdjustBonus" | "onConfirm" | "onCancel"
+  | "selectedAreaId"
+  | "busy"
+  | "onAdjust"
+  | "onAdjustBonus"
+  | "onAdjustSiege"
+  | "onConfirm"
+  | "onCancel"
 >) {
   const noun = UNIT_NOUN[composer.type === "advance" ? "troop" : "ship"];
   const total = sumCounts(composer.counts);
+  const siegeTotal = sumCounts(composer.siegeCounts);
   const source = composer.sources.find((s) => s.areaId === selectedAreaId) ?? null;
   const count = source ? (composer.counts[source.areaId] ?? 0) : 0;
+  const siege = source ? (composer.siegeCounts[source.areaId] ?? 0) : 0;
   const bonus = composer.bonus ?? 0;
   return (
     <>
@@ -123,6 +141,7 @@ function MoveBar({
         {composer.card ? <span className="action-bar-card">{cardLabel(composer.card)}</span> : null}
         <span className="action-bar-total">
           Moving {total + bonus} {noun}
+          {catapultNote(siegeTotal)}
         </span>
       </span>
       {source ? (
@@ -136,6 +155,15 @@ function MoveBar({
       ) : (
         <span className="action-bar-hint">Tap a glowing area to add {noun} (each keeps one).</span>
       )}
+      {source?.siegeMax ? (
+        <Stepper
+          label="Of which catapults"
+          count={siege}
+          canDecrement={!busy && siege > 0}
+          canIncrement={!busy && siege < Math.min(source.siegeMax, count)}
+          onAdjust={(delta) => onAdjustSiege(source.areaId, delta)}
+        />
+      ) : null}
       {composer.bonusMax !== undefined ? (
         <Stepper
           label="From reserve"
@@ -161,16 +189,23 @@ function PlacementBar({
   selectedAreaId,
   busy,
   onAdjust,
+  onAdjustSiege,
   onConfirm,
   onCancel
 }: {
   composer: Extract<ComposerState, { kind: "placement" }>;
-} & Pick<ActionBarProps, "selectedAreaId" | "busy" | "onAdjust" | "onConfirm" | "onCancel">) {
+} & Pick<
+  ActionBarProps,
+  "selectedAreaId" | "busy" | "onAdjust" | "onAdjustSiege" | "onConfirm" | "onCancel"
+>) {
   const noun = UNIT_NOUN[composer.unit];
   const cap = Math.min(composer.pool, composer.reserve);
   const total = sumCounts(composer.counts);
+  const siegeTotal = sumCounts(composer.siegeCounts);
   const isTarget = selectedAreaId !== null && composer.targets.includes(selectedAreaId);
   const count = isTarget ? (composer.counts[selectedAreaId] ?? 0) : 0;
+  const siege = isTarget ? (composer.siegeCounts[selectedAreaId] ?? 0) : 0;
+  const siegeMax = composer.siegeMax ?? 0;
   return (
     <>
       <span className="action-bar-info">
@@ -178,6 +213,7 @@ function PlacementBar({
         {composer.card ? <span className="action-bar-card">{cardLabel(composer.card)}</span> : null}
         <span className="action-bar-total">
           Placing {total} / {cap} {noun}
+          {catapultNote(siegeTotal)}
         </span>
       </span>
       {isTarget && selectedAreaId ? (
@@ -191,6 +227,15 @@ function PlacementBar({
       ) : (
         <span className="action-bar-hint">Tap a glowing area to place {noun}.</span>
       )}
+      {isTarget && selectedAreaId && siegeMax > 0 ? (
+        <Stepper
+          label={`Of which catapults (max ${siegeMax})`}
+          count={siege}
+          canDecrement={!busy && siege > 0}
+          canIncrement={!busy && siege < count && siegeTotal < siegeMax}
+          onAdjust={(delta) => onAdjustSiege(selectedAreaId, delta)}
+        />
+      ) : null}
       <ComposerActions
         busy={busy}
         confirmLabel={`Confirm ${VERB[composer.type]}`}
@@ -262,12 +307,14 @@ function PlanBar({
   );
 }
 
-/** A move/strike verb in the palette. Placement/Plan/Pass have their own handlers below. */
-const MOVE_STRIKE_VERBS: { verb: "advance" | "sail" | "bombard" | "shell" }[] = [
+/** A move/strike verb in the palette. Placement/Plan/Pass have their own handlers below.
+ *  Siege only appears under a ruleset that has it. */
+const MOVE_STRIKE_VERBS: { verb: "advance" | "sail" | StrikeType }[] = [
   { verb: "advance" },
   { verb: "sail" },
   { verb: "bombard" },
-  { verb: "shell" }
+  { verb: "shell" },
+  { verb: "siege" }
 ];
 
 function IdleBar(props: ActionBarProps) {
@@ -279,6 +326,7 @@ function IdleBar(props: ActionBarProps) {
     armedLabel,
     placements,
     plans,
+    showSiege,
     onArmVerb,
     onStartPlacement,
     onStartPlan,
@@ -311,7 +359,7 @@ function IdleBar(props: ActionBarProps) {
   return (
     <>
       <span className="action-bar-group order-palette">
-        {MOVE_STRIKE_VERBS.map(({ verb }) => (
+        {MOVE_STRIKE_VERBS.filter(({ verb }) => verb !== "siege" || showSiege).map(({ verb }) => (
           <button
             key={verb}
             type="button"
@@ -380,7 +428,16 @@ function IdleBar(props: ActionBarProps) {
 /** The bottom command bar: contextual + support actions when idle, or the active order's
  *  compose controls. All tile reference is via the map (glow + selection), never an id. */
 export function ActionBar(props: ActionBarProps) {
-  const { composer, selectedAreaId, busy, onAdjust, onAdjustBonus, onConfirm, onCancel } = props;
+  const {
+    composer,
+    selectedAreaId,
+    busy,
+    onAdjust,
+    onAdjustBonus,
+    onAdjustSiege,
+    onConfirm,
+    onCancel
+  } = props;
 
   if (!composer) {
     return (
@@ -399,6 +456,7 @@ export function ActionBar(props: ActionBarProps) {
           busy={busy}
           onAdjust={onAdjust}
           onAdjustBonus={onAdjustBonus}
+          onAdjustSiege={onAdjustSiege}
           onConfirm={onConfirm}
           onCancel={onCancel}
         />
@@ -409,6 +467,7 @@ export function ActionBar(props: ActionBarProps) {
           selectedAreaId={selectedAreaId}
           busy={busy}
           onAdjust={onAdjust}
+          onAdjustSiege={onAdjustSiege}
           onConfirm={onConfirm}
           onCancel={onCancel}
         />

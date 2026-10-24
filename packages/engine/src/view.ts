@@ -10,9 +10,12 @@ import {
   embarkTargets,
   bombardTargets,
   shellTargets,
+  siegeTargets,
   supportTypeOccupied
 } from "./legality.js";
 import { suppliesBonus } from "./validate.js";
+import { siegeAssaultMoves } from "./actions.js";
+import { footTroops } from "./state.js";
 import { buildActionSpaces } from "./actionSpaces.js";
 import type { ActionSpace } from "./actionSpaces.js";
 import type { AreaKind, MapDefinition } from "./maps/riversMap.js";
@@ -49,23 +52,26 @@ export interface LegalMove {
   type: "advance" | "sail";
   /** Linked land (advance) or sea (sail) the units move INTO. */
   targetAreaId: string;
-  /** Legal source areas; `max` is the units there minus one (a source keeps one unit). */
-  sources: { areaId: string; max: number }[];
+  /** Legal source areas; `max` is the units there minus one (a source keeps one unit).
+   *  `siegeMax` (advance, Siege rulesets): catapults there that may move with them. */
+  sources: { areaId: string; max: number; siegeMax?: number }[];
 }
 
-/** An offered Bombard or Shell: deploy into the linked space, then pick one enemy target.
- *  Bombard is linked to a supplied water and hits adjacent enemy land; Shell is linked to
- *  a supplied land and hits adjacent enemy water. */
+/** An offered Bombard, Shell or Siege: deploy into the linked space, then pick one enemy
+ *  target. Bombard is linked to a supplied water and hits adjacent enemy land; Shell is linked
+ *  to a supplied land and hits adjacent enemy water; Siege is linked to a supplied land holding
+ *  catapults and hits adjacent enemy land. */
 export interface LegalStrike {
-  /** Linked action space: "bombard-<sea>" | "shell-<land>". */
+  /** Linked action space: "bombard-<sea>" | "shell-<land>" | "siege-<land>". */
   spaceId: string;
-  type: "bombard" | "shell";
+  type: "bombard" | "shell" | "siege";
   /** The supplied water (bombard) or land (shell) the space is linked to. */
   linkedAreaId: string;
   /** Enemy-held areas that may be targeted. */
   targets: string[];
   /** Dice that would be rolled: ships in the linked water (+1 with Pirate Haven) for
-   *  bombard; always two for shell. Informational for the UI. */
+   *  bombard; always two for shell; catapults in the linked land (+1 with Armoury) for siege.
+   *  Informational for the UI. */
   dice: number;
 }
 
@@ -80,8 +86,11 @@ export interface LegalPlacement {
   targets: string[];
   /** Units this space allows placing (its amount, +2 for Reinforce with Barracks). */
   pool: number;
-  /** Units the seat has in reserve; the placeable total is `min(pool, reserve)`. */
+  /** Units the seat can place from reserve; the placeable total is `min(pool, reserve)`. */
   reserve: number;
+  /** Reinforce (Siege rulesets): how many of the placed troops may be catapults — the
+   *  space's catapult allowance capped by catapults in reserve. Absent when none. */
+  siegeMax?: number;
 }
 
 /** An offered Plan: a support space (no linked tile) that yields a card and, for the one
@@ -110,12 +119,12 @@ export interface LegalSpace {
  *  the command. Only cards in hand with at least one legal option appear. */
 export interface LegalCardPlay {
   card: OperationCard;
-  action: "advance" | "sail" | "reinforce" | "embark" | "bombard";
+  action: "advance" | "sail" | "reinforce" | "embark" | "bombard" | "siege";
   /** advance/sail (ground_assault, river_assault, counterattack). */
   moves?: LegalMove[];
   /** reinforce (mobilise: +2 pool) / embark (commandeer: +1 pool, contested targets). */
   placements?: LegalPlacement[];
-  /** bombard (shore_strike: +2 dice). */
+  /** bombard (shore_strike: +2 dice) / siege (volley: +2 dice). */
   strikes?: LegalStrike[];
   /** ground_assault/river_assault: max reserve units (0–2) addable to the move-in. */
   bonusMax?: number;
@@ -137,18 +146,26 @@ export interface LegalCommandSummary {
   cardPlays: LegalCardPlay[];
   /** True when a combat is paused awaiting its roll and this seat is the one who rolls. */
   canRollCombat: boolean;
-  /** True when the dice are rolled and this seat may continue (apply the casualties). */
+  /** True when the dice are rolled and this seat may continue (apply the casualties) — or,
+   *  for a siege's defender in `awaiting-cover`, accept the damage without Take Cover. */
   canResolveCombat: boolean;
   /** True when this seat may discard a card to reroll (dice rolled and hand non-empty). */
   canRerollCombat: boolean;
   /** True when this seat may play Ambush (+2 dice) on the pending defence roll. */
   canAmbush: boolean;
+  /** True when this seat defends a siege in `awaiting-cover` and holds Take Cover. */
+  canTakeCover: boolean;
+  /** The Advance a pending Siege Assault offer allows (answered by an `advance` on its space
+   *  with the `siege_assault` card), or null when no such offer is open for this seat. */
+  siegeAssault: LegalMove | null;
 }
 
 export interface PlayerGameView {
   schemaVersion: 2;
   gameId: string;
   mapId: string;
+  /** The ruleset this game plays (e.g. "rivers", "fortress"): picks card art and Siege UI. */
+  rulesetId: string;
   mode: GameMode;
   status: GameStatus;
   round: number;
@@ -214,6 +231,7 @@ export function playerView(state: GameState, viewerSeat: SeatId): PlayerGameView
     schemaVersion: 2,
     gameId: state.gameId,
     mapId: state.mapId,
+    rulesetId: state.rules.rulesetId,
     mode: state.mode,
     status: state.status,
     round: state.round,
@@ -254,7 +272,7 @@ export function playerView(state: GameState, viewerSeat: SeatId): PlayerGameView
 
 export function legalCommandsForState(state: GameState, seat: SeatId): LegalCommandSummary {
   const map = getMap(state.mapId);
-  const catalog = buildActionSpaces(map);
+  const catalog = buildActionSpaces(map, state.rules);
   // Shared deployability gate for every space and for pass.
   const canDeploy =
     state.status === "active" &&
@@ -264,6 +282,7 @@ export function legalCommandsForState(state: GameState, seat: SeatId): LegalComm
     state.pendingCombat === null &&
     available(state, seat) > 0;
 
+  const pc = state.pendingCombat;
   const spaces: LegalSpace[] = catalog.map((space) => ({
     spaceId: space.id,
     type: space.type,
@@ -286,26 +305,52 @@ export function legalCommandsForState(state: GameState, seat: SeatId): LegalComm
     placements: canDeploy ? enumeratePlacements(state, seat, map, catalog, supplied) : [],
     plans: canDeploy ? enumeratePlans(state, seat, map, catalog) : [],
     cardPlays: canDeploy ? enumerateCardPlays(state, seat, map, catalog, supplied) : [],
-    canRollCombat:
-      state.pendingCombat !== null &&
-      state.pendingCombat.responsibleSeat === seat &&
-      state.pendingCombat.phase === "awaiting-roll",
+    canRollCombat: pc !== null && pc.responsibleSeat === seat && pc.phase === "awaiting-roll",
     canResolveCombat:
-      state.pendingCombat !== null &&
-      state.pendingCombat.responsibleSeat === seat &&
-      state.pendingCombat.phase === "rolled",
+      pc !== null &&
+      pc.responsibleSeat === seat &&
+      (pc.phase === "rolled" || pc.phase === "awaiting-cover"),
     canRerollCombat:
-      state.pendingCombat !== null &&
-      state.pendingCombat.responsibleSeat === seat &&
-      state.pendingCombat.phase === "rolled" &&
+      pc !== null &&
+      pc.responsibleSeat === seat &&
+      pc.phase === "rolled" &&
       state.players[seat].hand.length > 0,
     canAmbush:
-      state.pendingCombat !== null &&
-      state.pendingCombat.responsibleSeat === seat &&
-      state.pendingCombat.phase === "awaiting-roll" &&
-      state.pendingCombat.kind === "advance" &&
-      state.players[seat].hand.includes("ambush")
+      pc !== null &&
+      pc.responsibleSeat === seat &&
+      pc.phase === "awaiting-roll" &&
+      pc.kind === "advance" &&
+      state.players[seat].hand.includes("ambush"),
+    canTakeCover:
+      pc !== null &&
+      pc.responsibleSeat === seat &&
+      pc.phase === "awaiting-cover" &&
+      state.players[seat].hand.includes("take_cover"),
+    siegeAssault: siegeAssaultOffer(state, seat)
   };
+}
+
+/** The Advance an open Siege Assault offer allows this seat, else null. */
+function siegeAssaultOffer(state: GameState, seat: SeatId): LegalMove | null {
+  const decision = state.pendingDecision;
+  if (decision?.kind !== "siegeAssault" || decision.seat !== seat || !decision.spaceId) {
+    return null;
+  }
+  const target = decision.spaceId.slice("advance-".length);
+  const sources = siegeAssaultMoves(state, seat, target).map(({ areaId, max, siegeMax }) => ({
+    areaId,
+    max,
+    ...(siegeMax > 0 ? { siegeMax } : {})
+  }));
+  return { spaceId: decision.spaceId, type: "advance", targetAreaId: target, sources };
+}
+
+/** A move source's spare units, plus (for land) how many catapults may go with them. */
+function moveSource(state: GameState, areaId: string, unit: "troop" | "ship") {
+  const units = state.areas[areaId]?.units;
+  const max = (units?.[unit] ?? 0) - 1;
+  const siegeMax = unit === "troop" ? Math.min(units?.siege ?? 0, max) : 0;
+  return siegeMax > 0 ? { areaId, max, siegeMax } : { areaId, max };
 }
 
 /** Movement targets the seat can deploy into now, each with its legal sources and the
@@ -331,7 +376,7 @@ function enumerateMoves(
         ? advanceSources(map, board, seat, target, supplied)
         : sailReachable(map, board, seat, target, supplied);
     const sources = [...reachable]
-      .map((areaId) => ({ areaId, max: (state.areas[areaId]?.units[unit] ?? 0) - 1 }))
+      .map((areaId) => moveSource(state, areaId, unit))
       .filter((s) => s.max >= 1);
     if (sources.length > 0) {
       moves.push({ spaceId: space.id, type: space.type, targetAreaId: target, sources });
@@ -340,8 +385,9 @@ function enumerateMoves(
   return moves;
 }
 
-/** Bombard/Shell strikes the seat can deploy now: the linked area must be supplied and
- *  have at least one enemy target, and (for Bombard) at least one die to roll. */
+/** Bombard/Shell/Siege strikes the seat can deploy now: the linked area must be supplied and
+ *  have at least one enemy target, and (for Bombard) at least one die to roll / (for Siege)
+ *  at least one catapult. */
 function enumerateStrikes(
   state: GameState,
   seat: SeatId,
@@ -352,22 +398,30 @@ function enumerateStrikes(
   const enemy: SeatId = seat === "red" ? "black" : "red";
   const strikes: LegalStrike[] = [];
   for (const space of catalog) {
-    if (space.type !== "bombard" && space.type !== "shell") continue;
+    if (space.type !== "bombard" && space.type !== "shell" && space.type !== "siege") continue;
     if (state.actionSpaces[space.id] !== null) continue;
     if (!state.rules.enabledActions.includes(space.type)) continue;
     const linked = space.areaId!;
     if (!supplied.has(linked)) continue;
+    if (space.type === "siege" && state.areas[linked]!.units.siege < 1) continue;
     // Land areas hold only troops, sea only ships, so an enemy-owned adjacent area always
     // holds the unit this strike removes.
-    const targets = (
-      space.type === "bombard" ? bombardTargets(map, linked) : shellTargets(map, linked)
-    ).filter((id) => state.areas[id]?.owner === enemy);
+    const candidates =
+      space.type === "bombard"
+        ? bombardTargets(map, linked)
+        : space.type === "shell"
+          ? shellTargets(map, linked)
+          : siegeTargets(map, linked);
+    const targets = candidates.filter((id) => state.areas[id]?.owner === enemy);
     if (targets.length === 0) continue;
     const dice =
       space.type === "bombard"
         ? state.areas[linked]!.units.ship +
           (suppliesBonus(state, seat, "pirateHaven", supplied) ? 1 : 0)
-        : 2;
+        : space.type === "siege"
+          ? state.areas[linked]!.units.siege +
+            (suppliesBonus(state, seat, "armoury", supplied) ? 1 : 0)
+          : 2;
     if (dice < 1) continue;
     strikes.push({ spaceId: space.id, type: space.type, linkedAreaId: linked, targets, dice });
   }
@@ -391,7 +445,10 @@ function enumeratePlacements(
     if (!state.rules.enabledActions.includes(space.type)) continue;
     if (supportTypeOccupied(map, state, seat, space.type)) continue;
     const unit = space.type === "reinforce" ? "troop" : "ship";
-    const reserve = state.players[seat].reserve[unit];
+    const own = state.players[seat].reserve;
+    // Reinforce places foot troops plus up to `siegeAmount` catapults from reserve.
+    const siegeMax = unit === "troop" ? Math.min(space.siegeAmount ?? 0, own.siege) : 0;
+    const reserve = unit === "troop" ? footTroops(own) + siegeMax : own.ship;
     if (reserve <= 0) continue;
     const targets =
       space.type === "reinforce"
@@ -400,7 +457,15 @@ function enumeratePlacements(
     if (targets.length === 0) continue;
     const barracks = space.type === "reinforce" && suppliesBonus(state, seat, "barracks", supplied);
     const pool = space.amount! + (barracks ? 2 : 0);
-    placements.push({ spaceId: space.id, type: space.type, unit, targets, pool, reserve });
+    placements.push({
+      spaceId: space.id,
+      type: space.type,
+      unit,
+      targets,
+      pool,
+      reserve,
+      ...(siegeMax > 0 ? { siegeMax } : {})
+    });
   }
   return placements;
 }
@@ -438,7 +503,7 @@ function enumerateCardPlays(
   const plays: LegalCardPlay[] = [];
   const reserve = state.players[seat].reserve;
 
-  if (hand.has("ground_assault") && reserve.troop > 0) {
+  if (hand.has("ground_assault") && footTroops(reserve) > 0) {
     const moves = enumerateMoves(state, seat, map, catalog, supplied).filter(
       (m) => m.type === "advance"
     );
@@ -447,7 +512,7 @@ function enumerateCardPlays(
         card: "ground_assault",
         action: "advance",
         moves,
-        bonusMax: Math.min(2, reserve.troop)
+        bonusMax: Math.min(2, footTroops(reserve))
       });
     }
   }
@@ -469,6 +534,12 @@ function enumerateCardPlays(
       .filter((s) => s.type === "bombard")
       .map((s) => ({ ...s, dice: s.dice + 2 }));
     if (strikes.length > 0) plays.push({ card: "shore_strike", action: "bombard", strikes });
+  }
+  if (hand.has("volley")) {
+    const strikes = enumerateStrikes(state, seat, map, catalog, supplied)
+      .filter((s) => s.type === "siege")
+      .map((s) => ({ ...s, dice: s.dice + 2 }));
+    if (strikes.length > 0) plays.push({ card: "volley", action: "siege", strikes });
   }
   if (hand.has("mobilise")) {
     const placements = enumeratePlacements(state, seat, map, catalog, supplied)
@@ -537,7 +608,7 @@ function enumerateCounterattackMoves(
     const target = space.areaId!;
     if (state.areas[target]?.owner === seat) continue;
     const sources = [...advanceSources(map, board, seat, target, supplied)]
-      .map((areaId) => ({ areaId, max: (state.areas[areaId]?.units.troop ?? 0) - 1 }))
+      .map((areaId) => moveSource(state, areaId, "troop"))
       .filter((s) => s.max >= 1);
     if (sources.length > 0) {
       moves.push({ spaceId: space.id, type: "advance", targetAreaId: target, sources });
@@ -593,6 +664,9 @@ function buildPrompt(state: GameState, viewer: SeatId): string {
     const pc = state.pendingCombat;
     if (pc.responsibleSeat !== viewer) {
       return `Waiting for ${pc.responsibleSeat} to resolve combat.`;
+    }
+    if (pc.phase === "awaiting-cover") {
+      return "Your area is under siege: take cover, or accept the damage.";
     }
     if (pc.phase === "rolled") {
       return "Review the roll, then continue.";

@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 test("author a custom map, save it, and play a move on it", async ({ page }) => {
+  // The e2e database persists across local runs (reuseExistingServer), so name this run's map
+  // uniquely and match rows by exact title — earlier runs' maps (and their copies) stay listed.
+  const mapName = `E2E Custom Map ${Date.now()}`;
   await page.goto("/maps/new");
 
   // Paint three land hexes in a row (the paint-land tool is active by default).
@@ -23,12 +26,14 @@ test("author a custom map, save it, and play a move on it", async ({ page }) => 
 
   await expect(page.getByText("Map is valid")).toBeVisible();
 
-  await page.getByLabel("Map name").fill("E2E Custom Map");
+  await page.getByLabel("Map name").fill(mapName);
   await page.getByRole("button", { name: "Save map" }).click();
   await page.getByRole("button", { name: "New game on this map" }).click();
 
   // The create screen preselects the new map.
-  await expect(page.getByLabel("Map").locator("option:checked")).toHaveText(/E2E Custom Map/);
+  await expect(page.getByLabel("Map").locator("option:checked")).toHaveText(
+    new RegExp(`^${mapName} \\(`)
+  );
   await page.getByLabel("Your name").fill("Oda");
   await page.getByRole("button", { name: "Create game" }).click();
 
@@ -59,13 +64,14 @@ test("author a custom map, save it, and play a move on it", async ({ page }) => 
   // The map is now in use by the game: editing it must 409 and offer save-as-copy.
   await page.goto("/maps");
   await page
-    .locator(".map-row", { hasText: "E2E Custom Map" })
+    .locator(".map-row")
+    .filter({ has: page.getByText(mapName, { exact: true }) })
     .getByRole("button", { name: "Edit" })
     .click();
-  await page.getByLabel("Map name").fill("E2E Custom Map v2");
+  await page.getByLabel("Map name").fill(`${mapName} v2`);
   await page.getByRole("button", { name: "Save map" }).click();
   await expect(page.getByRole("alertdialog", { name: "Map in use" })).toBeVisible();
   await page.getByRole("button", { name: "Save as copy" }).click();
   await expect(page.getByRole("button", { name: "New game on this map" })).toBeVisible();
-  await expect(page.getByLabel("Map name")).toHaveValue("E2E Custom Map v2 (copy)");
+  await expect(page.getByLabel("Map name")).toHaveValue(`${mapName} v2 (copy)`);
 });

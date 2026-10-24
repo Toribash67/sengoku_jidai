@@ -15,6 +15,11 @@ function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
+/** Catapults among a land-unit event's troops, e.g. " (incl. 2 catapults)". */
+function siegeNote(siege: number | undefined): string {
+  return siege ? ` (incl. ${plural(siege, "catapult")})` : "";
+}
+
 /** A human-readable description of an event for the game log, split into parts so player names
  *  (not seat colours) can be coloured by seat; areas use their labels (not raw tile ids). */
 export function describeEventParts(
@@ -30,19 +35,19 @@ export function describeEventParts(
     case "unitsMoved":
       return [
         who(event.seat),
-        ` moved ${plural(event.count, event.unit)} — ${areaName(event.from)} → ${areaName(
+        ` moved ${plural(event.count, event.unit)}${siegeNote(event.siege)} — ${areaName(event.from)} → ${areaName(
           event.to
         )}`
       ];
     case "unitsPlaced":
       return [
         who(event.seat),
-        ` placed ${plural(event.count, event.unit)} on ${areaName(event.area)}`
+        ` placed ${plural(event.count, event.unit)}${siegeNote(event.siege)} on ${areaName(event.area)}`
       ];
     case "unitsRemoved":
       return [
         who(event.seat),
-        ` lost ${plural(event.count, event.unit)} at ${areaName(event.area)}`
+        ` lost ${plural(event.count, event.unit)}${siegeNote(event.siege)} at ${areaName(event.area)}`
       ];
     case "bonusApplied":
       return [who(event.seat), ` used a bonus at ${areaName(event.area)}`];
@@ -65,7 +70,7 @@ export function describeEventParts(
     }
     case "capExceeded":
       return [
-        `${plural(event.returned, event.unit)} returned from ${areaName(event.area)} (over cap)`
+        `${plural(event.returned, event.unit)}${siegeNote(event.siege)} returned from ${areaName(event.area)} (over cap)`
       ];
     case "turnAdvanced":
       return [who(event.activeSeat), "'s turn"];

@@ -25,9 +25,12 @@ export type ComposerState =
       spaceId: string;
       type: "advance" | "sail";
       targetAreaId: string;
-      sources: { areaId: string; max: number }[];
+      sources: { areaId: string; max: number; siegeMax?: number }[];
       counts: Record<string, number>;
-      /** Operation card played with this move (ground_assault/river_assault/counterattack). */
+      /** Catapults among each source's staged units (Fortress; ≤ its count and `siegeMax`). */
+      siegeCounts: Record<string, number>;
+      /** Operation card played with this move (ground_assault/river_assault/counterattack/
+       *  siege_assault). */
       card?: OperationCard;
       /** Extra reserve units the assault card adds to the move-in, and its 0–2 cap. */
       bonus?: number;
@@ -36,12 +39,12 @@ export type ComposerState =
   | {
       kind: "strike";
       spaceId: string;
-      type: "bombard" | "shell";
+      type: "bombard" | "shell" | "siege";
       linkedAreaId: string;
       targets: string[];
       dice: number;
       targetAreaId: string | null;
-      /** Operation card played with this strike (shore_strike). */
+      /** Operation card played with this strike (shore_strike/volley). */
       card?: OperationCard;
     }
   | {
@@ -53,18 +56,30 @@ export type ComposerState =
       pool: number;
       reserve: number;
       counts: Record<string, number>;
+      /** Reinforce (Fortress): catapults among each target's placed troops, capped in total by
+       *  `siegeMax`. */
+      siegeCounts: Record<string, number>;
+      siegeMax?: number;
       /** Operation card played with this placement (mobilise/commandeer). */
       card?: OperationCard;
     }
   | { kind: "plan"; spaceId: string; initiative: boolean };
 
-export type ActionVerb = "advance" | "sail" | "bombard" | "shell" | "reinforce" | "embark";
+export type ActionVerb =
+  | "advance"
+  | "sail"
+  | "bombard"
+  | "shell"
+  | "siege"
+  | "reinforce"
+  | "embark";
 
 export const VERB: Record<ActionVerb, string> = {
   advance: "Advance",
   sail: "Sail",
   bombard: "Bombard",
   shell: "Shell",
+  siege: "Siege",
   reinforce: "Reinforce",
   embark: "Embark"
 };
