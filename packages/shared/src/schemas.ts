@@ -135,7 +135,8 @@ export const hexTileSourceSchema = z.object({
 export const startingUnitsSchema = z.object({
   seat: seatIdSchema,
   troop: z.number().int().nonnegative().optional(),
-  ship: z.number().int().nonnegative().optional()
+  ship: z.number().int().nonnegative().optional(),
+  siege: z.number().int().nonnegative().optional()
 });
 
 /**

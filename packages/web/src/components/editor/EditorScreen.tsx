@@ -124,7 +124,8 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
       if (previousId === null) {
         dispatch({
           type: "loadDoc",
-          doc: docFromSource(detail.source as HexMapSource, { asCopy: false })
+          doc: docFromSource(detail.source as HexMapSource, { asCopy: false }),
+          keepTool: true
         });
         // Rebind the URL without navigateTo: a popstate would re-run the load
         // effect, which refetches and clears the "Saved" toast.
@@ -158,7 +159,8 @@ export function EditorScreen({ mapId }: { mapId: string | null }) {
       setSavedId(detail.id);
       dispatch({
         type: "loadDoc",
-        doc: docFromSource(detail.source as HexMapSource, { asCopy: false })
+        doc: docFromSource(detail.source as HexMapSource, { asCopy: false }),
+        keepTool: true
       });
       // replaceState, not navigateTo — see handleSave.
       window.history.replaceState(null, "", editorUrl(detail.id));

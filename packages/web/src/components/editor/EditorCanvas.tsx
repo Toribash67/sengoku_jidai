@@ -1,6 +1,7 @@
 import {
   useEffect,
   useRef,
+  useState,
   type Dispatch,
   type PointerEvent as ReactPointerEvent,
   type SetStateAction
@@ -15,9 +16,11 @@ import {
 } from "../../editor/geometry.js";
 import { tileAt, type EditorAction, type EditorState } from "../../editor/reducer.js";
 import {
+  fitView,
   pinchView,
   toBoard,
   zoomView,
+  type RectSize,
   type ViewportPoint,
   type ViewRect
 } from "../../editor/viewport.js";
@@ -45,6 +48,23 @@ export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanv
   const pointersRef = useRef(new Map<number, ViewportPoint>());
   const { doc, tool, selection, multiSelect } = state;
   const selected = new Set(selection);
+  // The canvas's rendered size, so the viewBox can be fitted to its aspect (see `fitView`).
+  const [size, setSize] = useState<RectSize>({ width: 0, height: 0 });
+  // The board region actually on screen: what the viewBox renders and all pointer math uses.
+  const shown = fitView(view, size);
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      const rect = svg.getBoundingClientRect();
+      setSize({ width: rect.width, height: rect.height });
+    });
+    observer.observe(svg);
+    return () => observer.disconnect();
+  }, []);
 
   function relativePoint(event: ReactPointerEvent<SVGSVGElement>): ViewportPoint {
     const rect = svgRef.current!.getBoundingClientRect();
@@ -53,7 +73,10 @@ export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanv
 
   function toBoardPoint(client: { clientX: number; clientY: number }): Pixel {
     const rect = svgRef.current!.getBoundingClientRect();
-    return toBoard(view, rect, { x: client.clientX - rect.left, y: client.clientY - rect.top });
+    return toBoard(fitView(view, rect), rect, {
+      x: client.clientX - rect.left,
+      y: client.clientY - rect.top
+    });
   }
 
   function paintAt(client: { clientX: number; clientY: number }): void {
@@ -125,7 +148,7 @@ export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanv
         const prev = [...pointers.values()] as [ViewportPoint, ViewportPoint];
         pointers.set(event.pointerId, relativePoint(event));
         const curr = [...pointers.values()] as [ViewportPoint, ViewportPoint];
-        onViewChange((v) => pinchView(v, rect, prev, curr));
+        onViewChange((v) => pinchView(fitView(v, rect), rect, prev, curr));
       }
       return;
     }
@@ -141,9 +164,12 @@ export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanv
       paintAt(event);
       return;
     }
+    // Board units per client pixel come from the shown (aspect-fitted) region, so the board
+    // tracks the cursor exactly; the view's own size is left as it was.
     const rect = svgRef.current!.getBoundingClientRect();
-    const dx = ((event.clientX - gesture.startClientX) / rect.width) * view.width;
-    const dy = ((event.clientY - gesture.startClientY) / rect.height) * view.height;
+    const fitted = fitView(view, rect);
+    const dx = ((event.clientX - gesture.startClientX) / rect.width) * fitted.width;
+    const dy = ((event.clientY - gesture.startClientY) / rect.height) * fitted.height;
     onViewChange((v) => ({ ...v, x: gesture.viewX - dx, y: gesture.viewY - dy }));
   }
 
@@ -181,13 +207,13 @@ export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanv
       event.preventDefault();
       const rect = svg.getBoundingClientRect();
       const focus: ViewportPoint = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-      onViewChange((v) => zoomView(v, rect, Math.exp(event.deltaY * 0.001), focus));
+      onViewChange((v) => zoomView(fitView(v, rect), rect, Math.exp(event.deltaY * 0.001), focus));
     };
     svg.addEventListener("wheel", handleWheel, { passive: false });
     return () => svg.removeEventListener("wheel", handleWheel);
   }, [onViewChange]);
 
-  const gridCells = axialsInRect(view, doc.layout);
+  const gridCells = axialsInRect(shown, doc.layout);
   const boundaries = tileBoundarySegments(doc.tiles, doc.layout);
 
   return (
@@ -195,7 +221,7 @@ export function EditorCanvas({ state, dispatch, view, onViewChange }: EditorCanv
       ref={svgRef}
       data-testid="editor-canvas"
       className={`editor-canvas is-tool-${tool}`}
-      viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`}
+      viewBox={`${shown.x} ${shown.y} ${shown.width} ${shown.height}`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -265,8 +291,11 @@ function TileBadge({ tile, state }: { tile: HexTileSource; state: EditorState })
     lines.push({ text: traits.join(" ") });
   }
   if (deployment) {
+    // Foot troops ⚔ and catapults ⚙ (the doc's `troop` counts both; `siege` is the catapults).
+    const foot = (deployment.troop ?? 0) - (deployment.siege ?? 0);
     const units = [
-      deployment.troop ? `${deployment.troop}⚔` : null,
+      foot > 0 ? `${foot}⚔` : null,
+      deployment.siege ? `${deployment.siege}⚙` : null,
       deployment.ship ? `${deployment.ship}⛵` : null
     ]
       .filter(Boolean)

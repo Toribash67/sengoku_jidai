@@ -1,7 +1,7 @@
 import { emptyActionSpaceOccupancy } from "./actionSpaces.js";
 import { deckFor } from "./cards.js";
 import { getMap } from "./maps/registry.js";
-import { riversMapId } from "./maps/riversMap.js";
+import { riversMapId, type StartingUnits } from "./maps/riversMap.js";
 import { createRngState, nextFloat, shuffle } from "./rng.js";
 import { rulesetFor } from "./rules.js";
 import type { BonusType, RulesConfig } from "./rules.js";
@@ -24,7 +24,7 @@ import {
  * the Rivers tile ids; a future map-driven field can supersede it. Areas absent from the
  * active map are skipped, and each player's reserve is derived from this (pool − deployed).
  */
-const RIVERS_STARTING_UNITS: Record<string, { seat: SeatId; troop?: number; ship?: number }> = {
+const RIVERS_STARTING_UNITS: Record<string, StartingUnits> = {
   // Red
   tile1: { seat: "red", troop: 2 },
   tile9: { seat: "red", troop: 3 }, // Red HQ
@@ -109,6 +109,7 @@ export function createInitialState(options: GameSetupOptions): GameState {
     if (start) {
       units.troop = start.troop ?? 0;
       units.ship = start.ship ?? 0;
+      units.siege = start.siege ?? 0;
     }
     areas[area.id] = { owner: area.hq ?? start?.seat ?? null, units };
   }

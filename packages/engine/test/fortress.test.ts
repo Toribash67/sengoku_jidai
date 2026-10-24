@@ -9,6 +9,7 @@ import { riversMap } from "../src/maps/riversMap.js";
 import { riversSource } from "../src/maps/riversSource.js";
 import { compileHexMap } from "../src/maps/hex/compile.js";
 import { registerMap } from "../src/maps/registry.js";
+import { validateHexMap } from "../src/maps/hex/validate.js";
 import { resolveCommand } from "../src/resolve.js";
 import type { Command, CommandResult } from "../src/commands.js";
 import { available } from "../src/legality.js";
@@ -100,6 +101,41 @@ describe("fortress ruleset setup", () => {
     expect(s.rules.bonusSet).not.toContain("hiddenBase");
     expect(riversRuleset.bonusSet).not.toContain("armoury");
     expect(s.actionSpaces["siege-tile10"]).toBeNull();
+  });
+});
+
+describe("starting catapults", () => {
+  const withDeployment = (ruleset: "rivers" | "fortress" | undefined, deployment: object) => ({
+    ...riversSource,
+    id: `catapult-start-${ruleset ?? "none"}`,
+    ...(ruleset ? { ruleset } : {}),
+    startingDeployment: { ...riversSource.startingDeployment, ...deployment }
+  });
+
+  it("places deployed catapults among the troops and takes them from the catapult reserve", () => {
+    const source = withDeployment("fortress", { tile10: { seat: "red", troop: 3, siege: 2 } });
+    registerMap(compileHexMap(source).definition);
+    const s = createInitialState({ gameId: "g", seed: "x", mapId: source.id });
+    expect(s.areas.tile10).toEqual({ owner: "red", units: units(3, 2) });
+    expect(s.players.red.reserve.siege).toBe(CATAPULTS_PER_PLAYER - 2);
+    expect(s.players.black.reserve.siege).toBe(CATAPULTS_PER_PLAYER);
+  });
+
+  it("rejects catapults on a map without Siege, beyond the troops, or over 5 per seat", () => {
+    expect(() =>
+      validateHexMap(withDeployment(undefined, { tile10: { seat: "red", troop: 3, siege: 1 } }))
+    ).toThrow(/no Siege/);
+    expect(() =>
+      validateHexMap(withDeployment("fortress", { tile10: { seat: "red", troop: 1, siege: 2 } }))
+    ).toThrow(/more catapults than troops/);
+    expect(() =>
+      validateHexMap(
+        withDeployment("fortress", {
+          tile10: { seat: "red", troop: 3, siege: 3 },
+          tile1: { seat: "red", troop: 3, siege: 3 }
+        })
+      )
+    ).toThrow(/max 5/);
   });
 });
 
