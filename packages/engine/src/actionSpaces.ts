@@ -27,8 +27,17 @@ const SUPPORT_SPACES: readonly ActionSpace[] = [
   { id: "plan-b", type: "plan", areaId: null, amount: 1 }
 ];
 
+/** Catalogs are static per map, so they are built once per `MapDefinition` object and shared.
+ *  Safe because a registered map is never mutated: `registerMap` always receives a freshly
+ *  compiled definition, which simply gets its own cache entry. Entries are frozen so a caller
+ *  cannot corrupt the shared copy. */
+const catalogCache = new WeakMap<MapDefinition, readonly ActionSpace[]>();
+const catalogByIdCache = new WeakMap<MapDefinition, Readonly<Record<string, ActionSpace>>>();
+
 /** The full action-space catalog for a map (deterministic order: areas then support). */
-export function buildActionSpaces(map: MapDefinition): ActionSpace[] {
+export function buildActionSpaces(map: MapDefinition): readonly ActionSpace[] {
+  const cached = catalogCache.get(map);
+  if (cached) return cached;
   const spaces: ActionSpace[] = [];
   for (const a of Object.values(map.areas)) {
     if (a.kind === "land") {
@@ -40,12 +49,19 @@ export function buildActionSpaces(map: MapDefinition): ActionSpace[] {
     }
   }
   for (const s of SUPPORT_SPACES) spaces.push({ ...s });
-  return spaces;
+  for (const s of spaces) Object.freeze(s);
+  const frozen = Object.freeze(spaces);
+  catalogCache.set(map, frozen);
+  return frozen;
 }
 
 /** Catalog keyed by space id for O(1) descriptor lookup. */
-export function actionSpaceMap(map: MapDefinition): Record<string, ActionSpace> {
-  return Object.fromEntries(buildActionSpaces(map).map((s) => [s.id, s]));
+export function actionSpaceMap(map: MapDefinition): Readonly<Record<string, ActionSpace>> {
+  const cached = catalogByIdCache.get(map);
+  if (cached) return cached;
+  const byId = Object.freeze(Object.fromEntries(buildActionSpaces(map).map((s) => [s.id, s])));
+  catalogByIdCache.set(map, byId);
+  return byId;
 }
 
 /** Fresh occupancy record: every space id -> null. Seeds `GameState.actionSpaces`. */

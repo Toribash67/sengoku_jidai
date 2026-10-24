@@ -1,7 +1,7 @@
 import type { MapDefinition } from "./maps/riversMap.js";
 import type { SeatId } from "./types.js";
 import type { EndReason } from "./state.js";
-import { suppliedAreas, type SupplyBoard } from "./supply.js";
+import { hqAreaId, suppliedAreas, type SupplyBoard } from "./supply.js";
 
 /** Total value stars on areas the seat supplies. */
 export function victoryPoints(map: MapDefinition, board: SupplyBoard, seat: SeatId): number {
@@ -14,8 +14,8 @@ export function victoryPoints(map: MapDefinition, board: SupplyBoard, seat: Seat
 
 /** True if the seat has no units in its own HQ area (or has no HQ). */
 export function hqEliminated(map: MapDefinition, board: SupplyBoard, seat: SeatId): boolean {
-  const hq = Object.values(map.areas).find((a) => a.hq === seat);
-  return !hq || board.ownerOf(hq.id) !== seat;
+  const hq = hqAreaId(map, seat);
+  return !hq || board.ownerOf(hq) !== seat;
 }
 
 export interface GameEndContext {

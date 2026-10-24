@@ -19,6 +19,30 @@ describe("resolveCommand — pass & turn flow", () => {
     expect(JSON.stringify(s)).toBe(before); // input not mutated
   });
 
+  it("accepts into an independent copy: input untouched, no shared objects", () => {
+    const s = game();
+    const before = JSON.stringify(s);
+    const r = resolveCommand(s, { seat: "red" }, { type: "pass" });
+    expect(r.status).toBe("accepted");
+    if (r.status !== "accepted") return;
+    expect(JSON.stringify(s)).toBe(before);
+    const inputObjects = new Set<object>();
+    const collect = (v: unknown) => {
+      if (v === null || typeof v !== "object") return;
+      inputObjects.add(v);
+      for (const child of Object.values(v)) collect(child);
+    };
+    collect(s);
+    const shared: string[] = [];
+    const check = (v: unknown, path: string) => {
+      if (v === null || typeof v !== "object") return;
+      if (inputObjects.has(v)) shared.push(path);
+      for (const [k, child] of Object.entries(v)) check(child, `${path}.${k}`);
+    };
+    check(r.nextState, "nextState");
+    expect(shared).toEqual([]);
+  });
+
   it("pass moves a commander to standby, bumps revision, toggles active seat", () => {
     const s = game();
     const r = resolveCommand(s, { seat: "red" }, { type: "pass" });

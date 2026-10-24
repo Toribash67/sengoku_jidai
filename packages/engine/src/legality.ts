@@ -14,14 +14,17 @@ export function unitKindFor(area: MapArea): UnitType {
  * Legal Advance source land areas for moving troops into `targetId`:
  * land areas the seat supplies that are either adjacent to the target, or
  * adjacent to a water area the seat supplies that is itself adjacent to the target.
+ *
+ * Like the other helpers here, `supplied` may pass in the seat's precomputed supply for this
+ * same board (a caller enumerating many targets walks supply once instead of per target).
  */
 export function advanceSources(
   map: MapDefinition,
   board: SupplyBoard,
   seat: SeatId,
-  targetId: string
+  targetId: string,
+  supplied: ReadonlySet<string> = suppliedAreas(map, board, seat)
 ): Set<string> {
-  const supplied = suppliedAreas(map, board, seat);
   const target = map.areas[targetId]!;
   const bridges = new Set(
     target.adjacent.filter((id) => map.areas[id]!.kind === "sea" && supplied.has(id))
@@ -45,9 +48,9 @@ export function sailReachable(
   map: MapDefinition,
   board: SupplyBoard,
   seat: SeatId,
-  targetId: string
+  targetId: string,
+  supplied: ReadonlySet<string> = suppliedAreas(map, board, seat)
 ): Set<string> {
-  const supplied = suppliedAreas(map, board, seat);
   const reachable = new Set<string>();
   const queue: string[] = [];
   for (const n of map.areas[targetId]!.adjacent) {
@@ -56,8 +59,8 @@ export function sailReachable(
       queue.push(n);
     }
   }
-  while (queue.length > 0) {
-    const cur = queue.shift()!;
+  for (let head = 0; head < queue.length; head++) {
+    const cur = queue[head]!;
     for (const n of map.areas[cur]!.adjacent) {
       if (!reachable.has(n) && map.areas[n]!.kind === "sea" && supplied.has(n)) {
         reachable.add(n);
@@ -72,10 +75,11 @@ export function sailReachable(
 export function reinforceTargets(
   map: MapDefinition,
   board: SupplyBoard,
-  seat: SeatId
+  seat: SeatId,
+  supplied: ReadonlySet<string> = suppliedAreas(map, board, seat)
 ): Set<string> {
   const out = new Set<string>();
-  for (const id of suppliedAreas(map, board, seat)) {
+  for (const id of supplied) {
     if (map.areas[id]!.kind === "land") out.add(id);
   }
   return out;
@@ -92,10 +96,13 @@ export function embarkTargets(
   map: MapDefinition,
   state: GameState,
   seat: SeatId,
-  includeEnemyWaters = false
+  includeEnemyWaters = false,
+  supplied?: ReadonlySet<string>
 ): Set<string> {
-  const board: SupplyBoard = { ownerOf: (id) => state.areas[id]?.owner ?? null };
-  const supplied = suppliedAreas(map, board, seat);
+  if (!supplied) {
+    const board: SupplyBoard = { ownerOf: (id) => state.areas[id]?.owner ?? null };
+    supplied = suppliedAreas(map, board, seat);
+  }
   const out = new Set<string>();
   for (const id of supplied) if (map.areas[id]!.kind === "sea") out.add(id);
   const enemy: SeatId = seat === "red" ? "black" : "red";

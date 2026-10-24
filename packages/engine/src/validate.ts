@@ -385,11 +385,14 @@ function validatePlacements(
   return null;
 }
 
-/** Whether the seat currently supplies the area holding the given bonus. */
-export function suppliesBonus(state: GameState, seat: SeatId, bonus: BonusType): boolean {
-  const map = getMap(state.mapId);
-  const board = gameBoard(state);
-  const supplied = suppliedAreas(map, board, seat);
+/** Whether the seat currently supplies the area holding the given bonus. Pass `supplied` when
+ *  the seat's supply for this state is already in hand. */
+export function suppliesBonus(
+  state: GameState,
+  seat: SeatId,
+  bonus: BonusType,
+  supplied: ReadonlySet<string> = suppliedAreas(getMap(state.mapId), gameBoard(state), seat)
+): boolean {
   for (const [areaId, b] of Object.entries(state.bonuses)) {
     if (b === bonus && supplied.has(areaId)) return true;
   }
