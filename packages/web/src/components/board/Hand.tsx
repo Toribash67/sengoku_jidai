@@ -1,5 +1,5 @@
 import type { OperationCard } from "@sengoku-jidai/engine/client";
-import { cardBack, cardImage, cardLabel } from "./cardImages.js";
+import { cardBackFor, cardImage, cardLabel } from "./cardImages.js";
 
 interface HandProps {
   /** The viewer's own cards (face-up). */
@@ -12,11 +12,20 @@ interface HandProps {
   playableCards: Set<OperationCard>;
   /** Open a large preview of the clicked card. */
   onPreview: (card: OperationCard) => void;
+  /** The game's ruleset, which picks the deck's card back. */
+  rulesetId: string;
 }
 
 /** The viewer's hand of operation cards, plus a face-down count of the opponent's. Clicking a
  *  card opens a large preview (where it can be played, or discarded to reroll during combat). */
-export function Hand({ hand, opponentHandCount, canReroll, playableCards, onPreview }: HandProps) {
+export function Hand({
+  hand,
+  opponentHandCount,
+  canReroll,
+  playableCards,
+  onPreview,
+  rulesetId
+}: HandProps) {
   return (
     <div className="hand-panel">
       <h3 className="detail-subhead">Your cards ({hand.length})</h3>
@@ -58,7 +67,7 @@ export function Hand({ hand, opponentHandCount, canReroll, playableCards, onPrev
           {Array.from({ length: opponentHandCount }, (_, i) => (
             <li key={i}>
               <span className="hand-card hand-card-back">
-                <img src={cardBack} alt="" loading="lazy" />
+                <img src={cardBackFor(rulesetId)} alt="" loading="lazy" />
               </span>
             </li>
           ))}

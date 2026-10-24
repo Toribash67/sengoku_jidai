@@ -17,7 +17,11 @@ export const CARD_TEXT: Record<OperationCard, string> = {
   mobilise: "Reinforce with +2 to the space's pool",
   river_assault: "Sail, and up to 2 reserve ships join the move-in",
   ship_strike: "after your Shell resolves, you may take a second Shell from the same space",
-  shore_strike: "Bombard with +2 dice"
+  shore_strike: "Bombard with +2 dice",
+  siege_assault:
+    "after your Siege resolves, Advance into the sieged area without spending a commander",
+  take_cover: "when the opponent Sieges you, after their roll: ignore 2 points of damage",
+  volley: "Siege with +2 dice"
 };
 
 function seatLabel(seat: SeatId, viewer: SeatId): string {
@@ -26,9 +30,13 @@ function seatLabel(seat: SeatId, viewer: SeatId): string {
 
 function unitText(u: UnitCounts): string {
   const parts: string[] = [];
-  if (u.troop) parts.push(`${u.troop} troop${u.troop === 1 ? "" : "s"}`);
+  // Catapults are counted among the troops (they are troops that can also Siege).
+  if (u.troop)
+    parts.push(
+      `${u.troop} troop${u.troop === 1 ? "" : "s"}` +
+        (u.siege ? ` (incl. ${u.siege} catapult${u.siege === 1 ? "" : "s"})` : "")
+    );
   if (u.ship) parts.push(`${u.ship} ship${u.ship === 1 ? "" : "s"}`);
-  if (u.siege) parts.push(`${u.siege} siege`);
   return parts.length ? parts.join(" ") : "empty";
 }
 
@@ -68,7 +76,9 @@ export function renderBoard(view: PlayerGameView, map: MapDefinition, orders: Or
   out.push(
     `You are ${me.toUpperCase()}. Round ${view.round}/${view.maxRounds} · ${view.phase} phase · initiative: ${seatLabel(view.initiative, me)} · On the clock: ${seatLabel(clockSeat(view), me)}`
   );
-  out.push(`VP: red ${view.victoryPoints.red} · black ${view.victoryPoints.black}`);
+  out.push(
+    `Rules: ${view.rulesetId}${view.rulesetId === "fortress" ? " (catapults, Siege — see rules §9)" : ""} · VP: red ${view.victoryPoints.red} · black ${view.victoryPoints.black}`
+  );
   out.push(
     `Commanders left: you ${view.commandersRemaining[me]}/${view.commandersTotal[me]} · opponent ${view.commandersRemaining[other]}/${view.commandersTotal[other]}`
   );
@@ -90,7 +100,11 @@ export function renderBoard(view: PlayerGameView, map: MapDefinition, orders: Or
     out.push("");
     for (const c of combats) {
       const dice =
-        c.phase === "rolled" ? `rolled ${c.rolls?.join(", ")} = ${c.total}` : "dice not yet rolled";
+        c.phase === "rolled"
+          ? `rolled ${c.rolls?.join(", ")} = ${c.total}`
+          : c.phase === "awaiting-cover"
+            ? `rolled ${c.rolls?.join(", ")} = ${c.total}; the defender may now Take Cover`
+            : "dice not yet rolled";
       const sides =
         c.attackers !== undefined
           ? ` — ${c.attackers} attacking vs ${c.defenders ?? 0} defending`

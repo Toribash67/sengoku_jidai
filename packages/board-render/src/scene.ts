@@ -1,4 +1,4 @@
-import { axialKey, axialToPixel, neighbors } from "@sengoku-jidai/engine";
+import { axialKey, axialToPixel, hasSiege, neighbors, rulesetFor } from "@sengoku-jidai/engine";
 import type { Axial, CompiledMap, HexLayout, MapArea, Pixel, SeatId } from "@sengoku-jidai/engine";
 import { fuseTile, hexEdges, type Edge } from "./outline.js";
 import { NATIVE_HEX_SIZE, ORDER_TOKEN_RADIUS, type GlyphId } from "./assets.js";
@@ -82,23 +82,28 @@ function rightmostHex(hexes: Axial[], layout: HexLayout): Pixel {
 }
 
 /** Order-slot ids for a tile, matching web slotIdForSpace: land→move, sea→sail+bombard,
- *  shellable land→shell. As on board.svg, each token nests corner-on-corner into a vertex
- *  of the tile's topmost hex: the token centre sits at (R - tokenR) along the centre→vertex
- *  axis, so the token's outer corner lands exactly on the region's corner. The primary
- *  action (move/sail) takes the NW vertex (120°), the secondary (shell/bombard) the NE
- *  (60°). Value-star badges live in the SE corner, so tokens never collide with them.
+ *  shellable land→shell, and every land→siege under a Siege ruleset. As on board.svg, each
+ *  token nests corner-on-corner into a vertex of the tile's topmost hex: the token centre sits
+ *  at (R - tokenR) along the centre→vertex axis, so the token's outer corner lands exactly on
+ *  the region's corner. The primary action (move/sail) takes the NW vertex (120°), the next
+ *  (shell/bombard, or siege) the NE (60°), and a third (siege beside shell) the W (180°).
+ *  Value-star badges live in the SE corner, so tokens never collide with them.
  *  The occupancy dot anchors to the token centre. */
 function slotsFor(
   area: MapArea,
   hexes: Axial[],
   layout: HexLayout,
-  centroid: Pixel
+  centroid: Pixel,
+  siege: boolean
 ): Record<string, Pixel> {
   const ids: string[] = [];
   if (area.kind === "land") {
     ids.push(`move-${area.id}`);
     if (area.shellable) {
       ids.push(`shell-${area.id}`);
+    }
+    if (siege) {
+      ids.push(`siege-${area.id}`);
     }
   } else {
     ids.push(`sail-${area.id}`, `bombard-${area.id}`);
@@ -107,17 +112,23 @@ function slotsFor(
   const nest = layout.size - ORDER_TOKEN_RADIUS * (layout.size / NATIVE_HEX_SIZE);
   const slots: Record<string, Pixel> = {};
   ids.forEach((id, i) => {
-    // NW vertex direction (-0.5, -√3/2) for the primary token, NE (+0.5, -√3/2) secondary.
-    slots[id] = {
-      x: anchor.x + (i === 0 ? -0.5 : 0.5) * nest,
-      y: anchor.y - (Math.sqrt(3) / 2) * nest
-    };
+    const dir = SLOT_DIRS[i]!;
+    slots[id] = { x: anchor.x + dir.x * nest, y: anchor.y + dir.y * nest };
   });
   return slots;
 }
 
+/** Unit centre→vertex directions for the 1st/2nd/3rd order token: NW, NE, W. */
+const SLOT_DIRS: readonly Pixel[] = [
+  { x: -0.5, y: -Math.sqrt(3) / 2 },
+  { x: 0.5, y: -Math.sqrt(3) / 2 },
+  { x: -1, y: 0 }
+];
+
 export function buildScene(compiled: CompiledMap): BoardScene {
   const layout = hexLayout(compiled);
+  // Siege slots follow the map's ruleset (a map's ruleset is frozen once games use it).
+  const siege = hasSiege(rulesetFor(compiled.definition.ruleset));
   const centroids = new Map<string, Pixel>();
   const tiles: SceneTile[] = [];
   const hexGrid: Edge[] = [];
@@ -174,7 +185,7 @@ export function buildScene(compiled: CompiledMap): BoardScene {
             : undefined
       },
       bonusGlyph: bonusSlot !== undefined ? ("glyph-bonus-generic" as GlyphId) : undefined,
-      slots: slotsFor(area, hexes, layout, centroid),
+      slots: slotsFor(area, hexes, layout, centroid, siege),
       ports: []
     });
   }

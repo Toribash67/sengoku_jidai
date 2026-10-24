@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { riversMap } from "../src/maps/riversMap.js";
+import { riversRuleset } from "../src/rules.js";
 import {
   buildActionSpaces,
   actionSpaceMap,
@@ -7,8 +8,8 @@ import {
 } from "../src/actionSpaces.js";
 
 describe("buildActionSpaces (rivers)", () => {
-  const spaces = buildActionSpaces(riversMap);
-  const byId = actionSpaceMap(riversMap);
+  const spaces = buildActionSpaces(riversMap, riversRuleset);
+  const byId = actionSpaceMap(riversMap, riversRuleset);
 
   it("has one advance space per land area", () => {
     const lands = Object.values(riversMap.areas).filter((a) => a.kind === "land");
@@ -43,19 +44,19 @@ describe("buildActionSpaces (rivers)", () => {
   });
 
   it("caches one frozen catalog per map object", () => {
-    expect(buildActionSpaces(riversMap)).toBe(spaces);
-    expect(actionSpaceMap(riversMap)).toBe(byId);
+    expect(buildActionSpaces(riversMap, riversRuleset)).toBe(spaces);
+    expect(actionSpaceMap(riversMap, riversRuleset)).toBe(byId);
     expect(Object.isFrozen(spaces)).toBe(true);
     expect(Object.isFrozen(spaces[0])).toBe(true);
     // A different definition (e.g. a re-registered custom map) gets its own catalog.
     const lands = Object.entries(riversMap.areas).filter(([, a]) => a.kind === "land");
     const landOnly = { ...riversMap, areas: Object.fromEntries(lands) };
-    expect(buildActionSpaces(landOnly).some((s) => s.type === "sail")).toBe(false);
-    expect(buildActionSpaces(riversMap)).toBe(spaces);
+    expect(buildActionSpaces(landOnly, riversRuleset).some((s) => s.type === "sail")).toBe(false);
+    expect(buildActionSpaces(riversMap, riversRuleset)).toBe(spaces);
   });
 
   it("emptyActionSpaceOccupancy maps every space id to null", () => {
-    const occ = emptyActionSpaceOccupancy(riversMap);
+    const occ = emptyActionSpaceOccupancy(riversMap, riversRuleset);
     expect(Object.keys(occ).sort()).toEqual(spaces.map((s) => s.id).sort());
     expect(Object.values(occ).every((v) => v === null)).toBe(true);
   });

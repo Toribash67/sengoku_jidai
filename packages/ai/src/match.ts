@@ -1,4 +1,10 @@
-import { createInitialState, resolveCommand, type EndReason } from "@sengoku-jidai/engine";
+import {
+  createInitialState,
+  resolveCommand,
+  type EndReason,
+  type GameEvent,
+  type RulesConfig
+} from "@sengoku-jidai/engine";
 import type { Bot, SeatId } from "./types.js";
 import { onTheClock } from "./onclock.js";
 
@@ -14,9 +20,21 @@ export interface MatchResult {
 export function runMatch(
   botRed: Bot,
   botBlack: Bot,
-  opts: { seed: string; gameId?: string; maxCommands?: number }
+  opts: {
+    seed: string;
+    gameId?: string;
+    maxCommands?: number;
+    /** Ruleset override (default: the map's, i.e. Rivers). */
+    rules?: RulesConfig;
+    /** Observe every accepted command's events (diagnostics/tests). */
+    onEvents?: (events: GameEvent[]) => void;
+  }
 ): MatchResult {
-  let state = createInitialState({ gameId: opts.gameId ?? "match", seed: opts.seed });
+  let state = createInitialState({
+    gameId: opts.gameId ?? "match",
+    seed: opts.seed,
+    ...(opts.rules ? { rules: opts.rules } : {})
+  });
   const max = opts.maxCommands ?? 100_000;
   let commands = 0;
 
@@ -32,6 +50,7 @@ export function runMatch(
       );
     }
     state = r.nextState;
+    opts.onEvents?.(r.events);
     if (++commands > max) throw new Error("runMatch exceeded maxCommands (non-terminating bot?)");
   }
 

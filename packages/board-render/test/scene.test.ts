@@ -29,6 +29,20 @@ describe("buildScene", () => {
     expect(Object.keys(byId("B").slots).sort()).toEqual(["move-B", "shell-B"]); // shellable land
   });
 
+  it("adds a Siege slot to every land under a Siege ruleset: NE, or W beside a Shell", () => {
+    const fortress = buildScene(compileHexMap({ ...FIXTURE_HEX_MAP, ruleset: "fortress" }));
+    const tile = (id: string) => fortress.tiles.find((t) => t.id === id)!;
+    expect(Object.keys(tile("A").slots).sort()).toEqual(["move-A", "siege-A"]);
+    expect(Object.keys(tile("B").slots).sort()).toEqual(["move-B", "shell-B", "siege-B"]);
+    expect(Object.keys(tile("C").slots).sort()).toEqual(["bombard-C", "sail-C"]);
+    const nest = fortress.hexSize - ORDER_TOKEN_RADIUS * (fortress.hexSize / NATIVE_HEX_SIZE);
+    // A (single hex at 0,0): siege takes the NE vertex. B: siege takes the W vertex of its
+    // anchor hex (171,-98.73), after move (NW) and shell (NE).
+    expect(tile("A").slots["siege-A"]!.x).toBeCloseTo(0.5 * nest, 1);
+    expect(tile("B").slots["siege-B"]!.x).toBeCloseTo(171 - nest, 1);
+    expect(tile("B").slots["siege-B"]!.y).toBeCloseTo(-98.73, 1);
+  });
+
   it("nests order tokens corner-on-corner in the topmost hex's NW/NE vertices (as on board.svg)", () => {
     // Measured from board.svg: every token centre sits at (R - tokenR) along the
     // centre→vertex axis — the token's outer corner coincides exactly with the region's

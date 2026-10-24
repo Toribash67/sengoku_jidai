@@ -6,6 +6,8 @@ export type GlyphId =
   | "unit-army-black"
   | "unit-ship-red"
   | "unit-ship-black"
+  | "unit-catapult-red"
+  | "unit-catapult-black"
   | "glyph-hq-red"
   | "glyph-hq-black"
   | "glyph-star"
@@ -49,6 +51,28 @@ const ARMY_BLACK = symbol(
   40,
   `<circle r="16" fill="${SEAT_FILL.black}" stroke="#000000" stroke-width="2"/>`
 );
+
+// ---------------------------------------------------------------------------
+// Catapults (Fortress) — the top-down catapult outline from assets/units/catapult.svg (two wheels and the
+// throwing arm), filled with the seat colour like the army discs. The source path spans a
+// 17 × 21.66 box centred at (-25.5, -141.83); it is scaled 2× (34 × 43) so its thin silhouette
+// carries about the visual weight of the 32-unit army disc.
+// ---------------------------------------------------------------------------
+const CATAPULT_D =
+  "M -21.65 -140.32 L -21.87 -140.57 L -22.05 -140.85 L -22.2 -141.15 L -22.31 -141.47 L -22.36 -141.73 L -22.38 -141.8 L -22.38 -141.9 L -22.4 -141.91 L -22.42 -141.93 L -27.86 -136.49 L -28.14 -136.21 L -28.24 -136.11 L -28.3 -136.05 L -28.32 -136.03 L -28.21 -135.85 L -28.06 -135.55 L -27.95 -135.23 L -27.94 -135.17 L -27.88 -134.9 L -27.86 -134.57 L -27.88 -134.23 L -27.95 -133.9 L -28.06 -133.59 L -28.21 -133.29 L -28.39 -133.01 L -28.61 -132.75 L -28.67 -132.7 L -28.87 -132.53 L -29.15 -132.34 L -29.45 -132.2 L -29.77 -132.09 L -30.09 -132.02 L -30.43 -132 L -30.77 -132.02 L -31.1 -132.09 L -31.41 -132.2 L -31.72 -132.34 L -32 -132.53 L -32.25 -132.75 L -32.47 -133.01 L -32.66 -133.29 L -32.77 -133.51 L -32.8 -133.59 L -32.91 -133.9 L -32.98 -134.23 L -33 -134.57 L -32.98 -134.9 L -32.93 -135.17 L -32.91 -135.23 L -32.8 -135.55 L -32.77 -135.63 L -32.66 -135.85 L -32.47 -136.13 L -32.25 -136.39 L -32 -136.61 L -31.72 -136.79 L -31.41 -136.94 L -31.39 -136.95 L -31.39 -136.99 L -31.39 -137.08 L -31.39 -137.14 L -31.39 -146.52 L -31.39 -146.52 L -31.39 -146.65 L -31.39 -146.71 L -31.39 -146.71 L -31.41 -146.72 L -31.72 -146.87 L -32 -147.05 L -32.25 -147.27 L -32.41 -147.46 L -32.47 -147.53 L -32.66 -147.81 L -32.77 -148.04 L -32.8 -148.11 L -32.91 -148.43 L -32.98 -148.76 L -33 -149.09 L -32.98 -149.43 L -32.91 -149.76 L -32.8 -150.07 L -32.77 -150.15 L -32.66 -150.38 L -32.47 -150.66 L -32.25 -150.91 L -32 -151.13 L -31.72 -151.32 L -31.41 -151.47 L -31.16 -151.55 L -31.1 -151.57 L -30.77 -151.64 L -30.43 -151.66 L -30.09 -151.64 L -29.77 -151.57 L -29.7 -151.55 L -29.45 -151.47 L -29.15 -151.32 L -28.87 -151.13 L -28.67 -150.96 L -28.61 -150.91 L -28.39 -150.66 L -28.21 -150.38 L -28.06 -150.07 L -27.95 -149.76 L -27.88 -149.43 L -27.86 -149.09 L -27.88 -148.76 L -27.95 -148.43 L -28.06 -148.11 L -28.16 -147.9 L -28.15 -147.89 L -28.11 -147.85 L -27.86 -147.6 L -23.57 -143.31 L -20.89 -145.99 L -19.61 -144.7 L -19.59 -144.69 L -19.49 -144.68 L -19.42 -144.67 L -19.16 -144.62 L -18.84 -144.51 L -18.54 -144.36 L -18.26 -144.17 L -18.01 -143.95 L -18 -143.94 L -18.58 -143.36 L -20.48 -141.46 L -21.63 -140.31 L -21.65 -140.32 z";
+
+function catapultSymbol(id: string, seat: SeatId): string {
+  return symbol(
+    id,
+    "-20 -20 40 40",
+    40,
+    40,
+    `<path d="${CATAPULT_D}" transform="scale(2) translate(25.5 141.83)" fill="${SEAT_FILL[seat]}" stroke="#000000" stroke-width="1" stroke-linejoin="round"/>`
+  );
+}
+
+const CATAPULT_RED = catapultSymbol("unit-catapult-red", "red");
+const CATAPULT_BLACK = catapultSymbol("unit-catapult-black", "black");
 
 // ---------------------------------------------------------------------------
 // Ships — path1-7-5-4-2 (red) and path1-7-5-4 (black) extracted verbatim.
@@ -257,7 +281,7 @@ const STRIPE_PATTERNS = [
 // centres the BLACK HEX (not the overflowing icon) at (0,0), so assemble.ts can
 // seat the token on a tile edge; centres computed from the nested matrices.
 // ---------------------------------------------------------------------------
-export type OrderKind = "move" | "sail" | "bombard" | "shell";
+export type OrderKind = "move" | "sail" | "bombard" | "shell" | "siege";
 
 /** Native circumradius of the token's black hex (path width 189.646 × inner matrix
  *  1.1965682 × outer 0.25, halved). scene.ts nests tokens so this corner-to-centre
@@ -268,8 +292,25 @@ const ORDER_ART_CENTER: Record<OrderKind, Pixel> = {
   move: { x: 490.0928, y: -403.1972 },
   sail: { x: 532.6411, y: -378.6319 },
   bombard: { x: 575.1895, y: -403.1972 },
-  shell: { x: 532.6411, y: -427.7625 }
+  shell: { x: 532.6411, y: -427.7625 },
+  siege: { x: 575.1895, y: -403.1972 }
 };
+
+// Siege (not on board.svg): the Bombard token's hex and burst, with the burst's centre circle
+// replaced by a small two-tier house, as on the Fortress cards. Drawn upright and flipped 180°
+// about the circle's centre so it reads correctly once the token is rotated like the others.
+const SIEGE_HOUSE =
+  `<g transform="rotate(180,74.302063,23.713425)" style="fill:#ffffff;fill-opacity:1;stroke:none">` +
+  `<rect x="72.3" y="-3" width="4" height="8" />` +
+  `<path d="M 57.3,13 66.3,5 82.3,5 91.3,13 Z" />` +
+  `<rect x="65.3" y="13" width="18" height="7" />` +
+  `<path d="M 51.3,29 61.3,20 87.3,20 97.3,29 Z" />` +
+  `<path style="fill-rule:evenodd" d="M 59.3,29 H 89.3 V 46 H 59.3 Z M 70.3,35 V 46 H 78.3 V 35 Z" />` +
+  `</g>`;
+
+/** The Bombard burst (board.svg g1-7), shared by the Siege token. */
+const BURST_D =
+  "M 110.95703,27.751953 A 36.509426,36.509426 0 0 1 74.646484,60.447266 36.509426,36.509426 0 0 1 41.320312,38.845703 L 40,39.056641 21.103516,57.638672 C 51.970288,55.433903 51.96875,55.75 51.96875,55.75 L 39.371094,79.6875 62.994141,60.789062 v 55.748048 l 22.046875,-0.31445 0.945312,-55.119144 8.818359,14.173828 -0.945312,-16.064453 29.292965,11.96875 -17.32421,-25.826172 26.77343,-6.615235 -21.41797,-11.023437 z";
 
 const ORDER_ART_INNER: Record<OrderKind, string> = {
   move:
@@ -283,7 +324,11 @@ const ORDER_ART_INNER: Record<OrderKind, string> = {
     `<g transform="matrix(0.25,0,0,0.25,556.26682,-416.49418)"><path style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:none" d="M 63.45577,37.504402 16.044226,119.62361 h -94.82309 l -47.411546,-82.119208 47.411546,-82.119204 h 94.82309 z" transform="matrix(1.1965682,0,0,1.1965682,113.22384,8.3114902)" />` +
     `<circle style="fill:#ffffff;fill-opacity:1;stroke:none" cx="74.302063" cy="23.713425" r="22.922977" />` +
     `<path style="fill:#000000;fill-opacity:0;stroke:none" d="m 37.544044,24.880909 -16.62438,5.591837 18.58908,3.778268 z" />` +
-    `<path style="fill:#fefefe;fill-opacity:1;fill-rule:evenodd;stroke:none" d="M 110.95703,27.751953 A 36.509426,36.509426 0 0 1 74.646484,60.447266 36.509426,36.509426 0 0 1 41.320312,38.845703 L 40,39.056641 21.103516,57.638672 C 51.970288,55.433903 51.96875,55.75 51.96875,55.75 L 39.371094,79.6875 62.994141,60.789062 v 55.748048 l 22.046875,-0.31445 0.945312,-55.119144 8.818359,14.173828 -0.945312,-16.064453 29.292965,11.96875 -17.32421,-25.826172 26.77343,-6.615235 -21.41797,-11.023437 z" /></g>`,
+    `<path style="fill:#fefefe;fill-opacity:1;fill-rule:evenodd;stroke:none" d="${BURST_D}" /></g>`,
+  siege:
+    `<g transform="matrix(0.25,0,0,0.25,556.26682,-416.49418)"><path style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:none" d="M 63.45577,37.504402 16.044226,119.62361 h -94.82309 l -47.411546,-82.119208 47.411546,-82.119204 h 94.82309 z" transform="matrix(1.1965682,0,0,1.1965682,113.22384,8.3114902)" />` +
+    SIEGE_HOUSE +
+    `<path style="fill:#fefefe;fill-opacity:1;fill-rule:evenodd;stroke:none" d="${BURST_D}" /></g>`,
   shell:
     `<g transform="matrix(0.25,0,0,0.25,343.75917,-539.89396)"><path style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:none" d="M 63.45577,37.504402 16.044226,119.62361 h -94.82309 l -47.411546,-82.119208 47.411546,-82.119204 h 94.82309 z" transform="matrix(1.1965682,0,0,1.1965682,793.06103,403.64939)" />` +
     `<path style="fill:#ffffff;fill-opacity:1;stroke:none" d="m 784.47759,405.09844 0.0834,-2.0872 0.0932,-9.4e-4 9.45215,-0.0901 -8.11571,-11.24657 -59.57163,0.56819 -7.89975,11.39932 10.61243,-0.10121 1.11409,-0.0106 0.0417,0.32845 0.3019,6.29032 -0.1819,6.29115 -0.58556,5.43323 -0.0811,0.75295 -0.40664,2.14618 -0.7269,3.83655 -0.38765,1.38453 0.44658,-0.0262 0.71712,-0.0419 0.48544,-0.0284 0.84427,-0.0494 0.0642,-0.01 2.67955,-0.4242 2.69203,-0.69848 2.61015,-0.96226 2.50192,-1.21446 2.37491,-1.45141 2.21778,-1.68045 1.84354,-1.70332 0.19836,-0.18335 0.20009,-0.22498 -0.0118,0.40463 -0.0267,0.91493 -0.77278,7.21149 -0.17475,1.63071 -1.62313,8.54627 -0.55444,1.98145 0.64096,-0.0373 1.70879,-0.0993 1.21513,-0.0707 0.0905,-0.0144 3.83438,-0.60891 3.84574,-1.00052 0.10554,-0.0388 3.62334,-1.33473 0.43269,-0.20998 3.14149,-1.52495 3.38951,-2.07338 3.17096,-2.40013 2.91867,-2.69629 2.64014,-2.96959 2.33547,-3.21232 2.01209,-3.42849 1.66645,-3.61037 1.3022,-3.75432 0.92696,-3.86414 z" />` +
@@ -330,6 +375,8 @@ const SYMBOLS = [
   ARMY_BLACK,
   SHIP_RED,
   SHIP_BLACK,
+  CATAPULT_RED,
+  CATAPULT_BLACK,
   HQ_BLACK,
   HQ_RED,
   STAR,
@@ -361,6 +408,10 @@ export function armyGlyph(seat: SeatId): GlyphId {
 
 export function shipGlyph(seat: SeatId): GlyphId {
   return seat === "red" ? "unit-ship-red" : "unit-ship-black";
+}
+
+export function catapultGlyph(seat: SeatId): GlyphId {
+  return seat === "red" ? "unit-catapult-red" : "unit-catapult-black";
 }
 
 export function hqGlyph(seat: SeatId): GlyphId {

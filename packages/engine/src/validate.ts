@@ -1,5 +1,6 @@
 import type { Command, CommandActor, Move, Placement, RejectionReason } from "./commands.js";
 import type { GameState, OperationCard } from "./state.js";
+import { footTroops } from "./state.js";
 import type { SeatId } from "./types.js";
 import { getMap } from "./maps/registry.js";
 import { actionSpaceMap, type ActionSpace } from "./actionSpaces.js";
@@ -12,6 +13,7 @@ import {
   embarkTargets,
   bombardTargets,
   shellTargets,
+  siegeTargets,
   supportTypeOccupied,
   available
 } from "./legality.js";
@@ -62,8 +64,20 @@ export function validateCommand(
         }
       }
     }
-    if (command.type === "combatResolve" && pc.phase !== "rolled") {
-      return reject("pendingDecisionRequired", "Roll the dice before resolving.");
+    if (command.type === "combatResolve") {
+      if (pc.phase === "awaiting-roll") {
+        return reject("pendingDecisionRequired", "Roll the dice before resolving.");
+      }
+      // Take Cover is the only card playable on a resolve: by a siege's defender, once the
+      // attacker has accepted the roll (the `awaiting-cover` phase).
+      if (command.card !== undefined) {
+        if (command.card !== "take_cover" || pc.phase !== "awaiting-cover") {
+          return reject("illegalChoice", "Only Take Cover can be played, against a Siege.");
+        }
+        if (!state.players[actor.seat].hand.includes("take_cover")) {
+          return reject("illegalChoice", "That card is not in your hand.");
+        }
+      }
     }
     if (command.type === "combatReroll") {
       if (pc.phase !== "rolled") {
@@ -83,7 +97,32 @@ export function validateCommand(
     return reject("pendingDecisionNotFound", "No combat is awaiting a roll.");
   }
 
-  // Pending-decision gate (future cards seam).
+  // Siege Assault follow-up: the offered decision is answered by an Advance on its space
+  // carrying the card (no commander, occupancy ignored), or by declining.
+  const decision = state.pendingDecision;
+  if (decision?.kind === "siegeAssault" && command.type === "advance") {
+    if (decision.seat !== actor.seat) {
+      return reject("notActiveSeat", "This seat cannot answer the pending decision.");
+    }
+    if (command.card !== "siege_assault" || command.spaceId !== decision.spaceId) {
+      return reject("illegalChoice", "Siege Assault must advance into the sieged area.");
+    }
+    if (!state.players[actor.seat].hand.includes("siege_assault")) {
+      return reject("illegalChoice", "That card is not in your hand.");
+    }
+    const space = actionSpaceMap(getMap(state.mapId), state.rules)[command.spaceId];
+    if (!space) return reject("spaceNotFound", "No such action space.");
+    return validateAdvance(
+      state,
+      actor.seat,
+      space,
+      command.moves,
+      command.card,
+      command.cardBonus
+    );
+  }
+
+  // Pending-decision gate.
   if (state.pendingDecision && command.type !== "choosePendingDecision") {
     return reject("pendingDecisionRequired", "A pending decision must be answered first.");
   }
@@ -118,7 +157,7 @@ export function validateCommand(
   const enemy: SeatId = seat === "red" ? "black" : "red";
   const card = "card" in command ? command.card : undefined;
 
-  const spaces = actionSpaceMap(map);
+  const spaces = actionSpaceMap(map, state.rules);
   const space = spaces[command.spaceId];
   if (!space) return reject("spaceNotFound", "No such action space.");
   if (space.type !== command.type) return reject("spaceWrongType", "Wrong space type for command.");
@@ -158,6 +197,8 @@ export function validateCommand(
       return validateBombard(state, seat, space, command.targetAreaId, supplied);
     case "shell":
       return validateShell(state, seat, space, command.targetAreaId, supplied);
+    case "siege":
+      return validateSiege(state, seat, space, command.targetAreaId, supplied);
     case "reinforce":
       return validateReinforce(state, seat, space, command.placements, card);
     case "embark":
@@ -169,8 +210,8 @@ export function validateCommand(
   }
 }
 
-/** Which action each deploy-time card is played with; the two combat-time cards map to
- *  undefined (they ride on combat, never a deploy command). */
+/** Which action each deploy-time card is played with; the combat-time and follow-up cards map
+ *  to undefined (they ride on combat or a pending decision, never a deploy command). */
 const CARD_ACTION: Record<OperationCard, Command["type"] | undefined> = {
   mobilise: "reinforce",
   commandeer: "embark",
@@ -178,8 +219,11 @@ const CARD_ACTION: Record<OperationCard, Command["type"] | undefined> = {
   river_assault: "sail",
   shore_strike: "bombard",
   counterattack: "advance",
+  volley: "siege",
   ambush: undefined,
-  ship_strike: undefined
+  ship_strike: undefined,
+  take_cover: undefined,
+  siege_assault: undefined
 };
 
 /** A played card must be in the seat's hand and matched to the action it modifies. */
@@ -214,17 +258,26 @@ function validateAdvance(
   }
   if (moves.length === 0) return reject("illegalMove", "Advance must move at least one troop.");
   const legalSources = advanceSources(map, board, seat, target);
-  const perSource = new Map<string, number>();
+  const perSource = new Map<string, { count: number; siege: number }>();
   for (const m of moves) {
     if (!legalSources.has(m.from)) return reject("illegalMove", `Illegal source ${m.from}.`);
     if (m.count < 1) return reject("illegalMove", "Move count must be >= 1.");
-    perSource.set(m.from, (perSource.get(m.from) ?? 0) + m.count);
+    const siege = m.siege ?? 0;
+    if (!Number.isInteger(siege) || siege < 0 || siege > m.count) {
+      return reject("illegalMove", "Catapults moved must be 0–count.");
+    }
+    const acc = perSource.get(m.from) ?? { count: 0, siege: 0 };
+    perSource.set(m.from, { count: acc.count + m.count, siege: acc.siege + siege });
   }
   let total = 0;
-  for (const [from, count] of perSource) {
-    const have = state.areas[from]?.units.troop ?? 0;
-    if (count > have - 1) return reject("illegalMove", "Cannot take the last unit.");
-    total += count;
+  for (const [from, moved] of perSource) {
+    const units = state.areas[from]?.units;
+    const have = units?.troop ?? 0;
+    if (moved.count > have - 1) return reject("illegalMove", "Cannot take the last unit.");
+    if (moved.siege > (units?.siege ?? 0)) {
+      return reject("illegalMove", "Not that many catapults there.");
+    }
+    total += moved.count;
   }
   if (total < 1) return reject("illegalMove", "Advance must move at least one troop.");
   return validateCardBonus(state, seat, "troop", card, "ground_assault", cardBonus);
@@ -242,7 +295,9 @@ function validateCardBonus(
 ): RejectionReason | null {
   const bonus = cardBonus ?? 0;
   if (card === assaultCard) {
-    const limit = Math.min(2, state.players[seat].reserve[unit]);
+    // Ground Assault adds foot troops only (catapults come only from Reinforce).
+    const reserve = state.players[seat].reserve;
+    const limit = Math.min(2, unit === "troop" ? footTroops(reserve) : reserve[unit]);
     if (bonus < 0 || bonus > limit) {
       return reject("illegalMove", `Assault bonus must be 0–${limit}.`);
     }
@@ -272,6 +327,7 @@ function validateSail(
   for (const m of moves) {
     if (!reachable.has(m.from)) return reject("illegalMove", `Unreachable source ${m.from}.`);
     if (m.count < 1) return reject("illegalMove", "Move count must be >= 1.");
+    if (m.siege) return reject("illegalMove", "Ships carry no catapults.");
     perSource.set(m.from, (perSource.get(m.from) ?? 0) + m.count);
   }
   let total = 0;
@@ -324,6 +380,29 @@ function validateShell(
   return null;
 }
 
+function validateSiege(
+  state: GameState,
+  seat: SeatId,
+  space: ActionSpace,
+  targetAreaId: string,
+  supplied: Set<string>
+): RejectionReason | null {
+  const map = getMap(state.mapId);
+  const land = space.areaId!;
+  if (!supplied.has(land)) return reject("criteriaNotMet", "You do not supply the linked land.");
+  if ((state.areas[land]?.units.siege ?? 0) < 1) {
+    return reject("criteriaNotMet", "Siege needs at least one catapult in the linked land.");
+  }
+  if (!siegeTargets(map, land).includes(targetAreaId)) {
+    return reject("illegalTarget", "Target is not land adjacent to the linked land.");
+  }
+  const enemy: SeatId = seat === "red" ? "black" : "red";
+  if (state.areas[targetAreaId]?.owner !== enemy) {
+    return reject("illegalTarget", "Target has no enemy units.");
+  }
+  return null;
+}
+
 function validateReinforce(
   state: GameState,
   seat: SeatId,
@@ -340,7 +419,29 @@ function validateReinforce(
   const barracks = suppliesBonus(state, seat, "barracks");
   // Mobilise raises the placement limit by 2.
   const n = space.amount! + (barracks ? 2 : 0) + (card === "mobilise" ? 2 : 0);
-  return validatePlacements(state, seat, placements, targets, n, "troop");
+  const rejection = validatePlacements(state, seat, placements, targets, n, "troop");
+  if (rejection) return rejection;
+  // Up to the space's `siegeAmount` of the placed troops may be catapults (Siege rulesets);
+  // the rest must be foot troops.
+  const reserve = state.players[seat].reserve;
+  let siege = 0;
+  let total = 0;
+  for (const p of placements) {
+    const s = p.siege ?? 0;
+    if (!Number.isInteger(s) || s < 0 || s > p.count) {
+      return reject("illegalPlacement", "Catapults placed must be 0–count.");
+    }
+    siege += s;
+    total += p.count;
+  }
+  if (siege > (space.siegeAmount ?? 0)) {
+    return reject("illegalPlacement", `At most ${space.siegeAmount ?? 0} catapults here.`);
+  }
+  if (siege > reserve.siege) return reject("insufficientReserve", "Not enough catapults.");
+  if (total - siege > footTroops(reserve)) {
+    return reject("insufficientReserve", "Not enough troops in reserve.");
+  }
+  return null;
 }
 
 function validateEmbark(
@@ -360,6 +461,9 @@ function validateEmbark(
   const commandeer = card === "commandeer";
   const targets = embarkTargets(map, state, seat, commandeer);
   const pool = space.amount! + (commandeer ? 1 : 0);
+  if (placements.some((p) => p.siege)) {
+    return reject("illegalPlacement", "Ships carry no catapults.");
+  }
   return validatePlacements(state, seat, placements, targets, pool, "ship");
 }
 

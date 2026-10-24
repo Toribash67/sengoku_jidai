@@ -7,25 +7,29 @@ export interface CommandActor {
   seat: SeatId;
 }
 
-export type Move = { from: string; count: number };
-export type Placement = { area: string; count: number };
+/** `siege` (Fortress): how many of the `count` land units are catapults (default 0). */
+export type Move = { from: string; count: number; siege?: number };
+export type Placement = { area: string; count: number; siege?: number };
 
 export type Command =
   // `card` (optional) is an operation card played as the commander deploys — it modifies the
   // action (extra pool/dice, opponent-area placement, or counterattack occupancy) and is
   // discarded. `cardBonus` (advance/sail) is the 0–2 reserve units a ground/river-assault card
-  // adds to the linked area.
+  // adds to the linked area. A Siege Assault follow-up is an `advance` on the offered space
+  // carrying the `siege_assault` card (no commander deployed).
   | { type: "advance"; spaceId: string; moves: Move[]; card?: OperationCard; cardBonus?: number }
   | { type: "sail"; spaceId: string; moves: Move[]; card?: OperationCard; cardBonus?: number }
   | { type: "bombard"; spaceId: string; targetAreaId: string; card?: OperationCard }
   | { type: "shell"; spaceId: string; targetAreaId: string }
+  | { type: "siege"; spaceId: string; targetAreaId: string; card?: OperationCard }
   | { type: "reinforce"; spaceId: string; placements: Placement[]; card?: OperationCard }
   | { type: "embark"; spaceId: string; placements: Placement[]; card?: OperationCard }
   | { type: "plan"; spaceId: string }
   | { type: "pass" }
   | { type: "combatRoll"; pendingId: string; card?: OperationCard }
   | { type: "combatReroll"; pendingId: string; card: OperationCard }
-  | { type: "combatResolve"; pendingId: string }
+  // `card` is only Take Cover, played by a siege's defender in the `awaiting-cover` phase.
+  | { type: "combatResolve"; pendingId: string; card?: OperationCard }
   | { type: "choosePendingDecision"; pendingId: string; choice: PendingChoice };
 
 export type RejectionReason =
@@ -50,8 +54,24 @@ export type RejectionReason =
 export type GameEvent =
   | { type: "commanderDeployed"; seat: SeatId; spaceId: string }
   | { type: "passed"; seat: SeatId }
-  | { type: "unitsMoved"; seat: SeatId; from: string; to: string; unit: UnitType; count: number }
-  | { type: "unitsPlaced"; seat: SeatId; area: string; unit: UnitType; count: number }
+  // `siege` (land units only, omitted when 0): how many of `count` are catapults.
+  | {
+      type: "unitsMoved";
+      seat: SeatId;
+      from: string;
+      to: string;
+      unit: UnitType;
+      count: number;
+      siege?: number;
+    }
+  | {
+      type: "unitsPlaced";
+      seat: SeatId;
+      area: string;
+      unit: UnitType;
+      count: number;
+      siege?: number;
+    }
   | { type: "bonusApplied"; seat: SeatId; bonus: BonusType; area: string }
   | {
       type: "diceRolled";
@@ -64,9 +84,23 @@ export type GameEvent =
   | { type: "cardsDrawn"; seat: SeatId; count: number }
   | { type: "cardDiscarded"; seat: SeatId }
   | { type: "cardPlayed"; seat: SeatId; card: OperationCard }
-  | { type: "unitsRemoved"; seat: SeatId; area: string; unit: UnitType; count: number }
+  | {
+      type: "unitsRemoved";
+      seat: SeatId;
+      area: string;
+      unit: UnitType;
+      count: number;
+      siege?: number;
+    }
   | { type: "areaCaptured"; seat: SeatId; area: string; previousOwner: SeatId | null }
-  | { type: "capExceeded"; area: string; unit: UnitType; returned: number; owner: SeatId }
+  | {
+      type: "capExceeded";
+      area: string;
+      unit: UnitType;
+      returned: number;
+      owner: SeatId;
+      siege?: number;
+    }
   | { type: "turnAdvanced"; activeSeat: SeatId }
   | { type: "recalled"; round: number; initiative: SeatId }
   | { type: "initiativeSeized"; seat: SeatId }

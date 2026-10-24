@@ -1,7 +1,14 @@
 import { useEffect, useState, type Dispatch, type ReactNode } from "react";
 import type { HexTileSource, SeatId } from "@sengoku-jidai/engine/client";
-import { riversRuleset } from "@sengoku-jidai/engine/client";
+import { rulesetFor, type RulesetId } from "@sengoku-jidai/engine/client";
 import { canMergeSelection, type EditorAction, type EditorState } from "../../editor/reducer.js";
+
+/** One-line summary of what each ruleset plays with, shown under the picker. */
+const RULESET_HINT: Record<RulesetId, string> = {
+  rivers: "Rivers deck (Ship Strike, Shore Strike); Hidden Base bonus.",
+  fortress:
+    "Catapults and a Siege action on every land; Fortress deck (Volley, Take Cover, Siege Assault); Armoury bonus."
+};
 
 export function InspectorPanel({
   state,
@@ -95,14 +102,26 @@ function SummaryBody({
 }): ReactNode {
   const { doc } = state;
   const hqSeats = doc.tiles.filter((t) => t.features.hq).map((t) => t.features.hq);
+  const rules = rulesetFor(doc.ruleset);
   return (
     <>
+      <label className="editor-field">
+        <span>Ruleset</span>
+        <select
+          value={rules.rulesetId}
+          onChange={(e) => dispatch({ type: "setRuleset", ruleset: e.target.value as RulesetId })}
+        >
+          <option value="rivers">Rivers</option>
+          <option value="fortress">Fortress</option>
+        </select>
+      </label>
+      <p className="muted">{RULESET_HINT[rules.rulesetId as RulesetId]}</p>
       <ul className="editor-tally">
         <li>{doc.tiles.length} tiles</li>
         <li>Red HQ: {hqSeats.includes("red") ? "placed" : "missing"}</li>
         <li>Black HQ: {hqSeats.includes("black") ? "placed" : "missing"}</li>
         <li>
-          Bonus slots: {doc.bonusSlots.length} of {riversRuleset.bonusSet.length}
+          Bonus slots: {doc.bonusSlots.length} of {rules.bonusSet.length}
         </li>
       </ul>
       <label className="editor-field">
@@ -112,7 +131,7 @@ function SummaryBody({
           min={1}
           max={8}
           step={1}
-          value={doc.commandersPerRound ?? riversRuleset.commandersPerPlayer}
+          value={doc.commandersPerRound ?? rules.commandersPerPlayer}
           onChange={(e) =>
             dispatch({ type: "setCommandersPerRound", value: e.target.valueAsNumber })
           }

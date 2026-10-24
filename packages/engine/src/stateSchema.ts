@@ -24,7 +24,10 @@ const operationCardSchema = z.enum([
   "mobilise",
   "river_assault",
   "ship_strike",
-  "shore_strike"
+  "shore_strike",
+  "siege_assault",
+  "take_cover",
+  "volley"
 ]);
 
 const actionTypeSchema = z.enum([
@@ -70,25 +73,27 @@ const pendingDecisionSchema = z.object({
   seat: seatIdSchema,
   prompt: z.string(),
   choices: z.array(pendingChoiceSchema),
-  kind: z.enum(["shipStrike", "selectCombat"]).optional(),
+  kind: z.enum(["shipStrike", "selectCombat", "siegeAssault"]).optional(),
   spaceId: z.string().optional()
 });
 
 const pendingCombatSchema = z.object({
   id: z.string(),
-  kind: z.enum(["advance", "sail", "bombard", "shell"]),
+  kind: z.enum(["advance", "sail", "bombard", "shell", "siege"]),
   attacker: seatIdSchema,
   defender: seatIdSchema,
   responsibleSeat: seatIdSchema,
-  phase: z.enum(["awaiting-roll", "rolled"]),
+  phase: z.enum(["awaiting-roll", "rolled", "awaiting-cover"]),
   area: z.string(),
   spaceId: z.string().optional(),
   unit: z.enum(["troop", "ship"]),
   attackers: z.number().int().optional(),
+  attackerSiege: z.number().int().optional(),
   defenders: z.number().int().optional(),
   dice: z.number().int().optional(),
   rolls: z.array(z.number()).optional(),
-  total: z.number().optional()
+  total: z.number().optional(),
+  covered: z.boolean().optional()
 });
 
 const playerStateSchema = z.object({

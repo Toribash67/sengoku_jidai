@@ -1,7 +1,14 @@
 import type { GameMode, GameStatus, SeatId } from "./types.js";
 import type { BonusType, RulesConfig } from "./rules.js";
+import { hasSiege } from "./rules.js";
 
-/** Unit kinds. `siege` exists for the Fortress map and is always 0 in Rivers. */
+/**
+ * Unit kinds. `siege` counts catapults (Fortress ruleset; always 0 in Rivers). A catapult is
+ * a troop in every respect — it holds land, counts toward the land cap, moves with Advance and
+ * takes combat losses — so `troop` counts ALL land units, catapults included, and `siege` is
+ * the subset of them that are catapults (`0 <= siege <= troop`, on the board and in reserve).
+ * Catapults are always lost last: a loss of N land units removes foot troops first.
+ */
 export type UnitType = "troop" | "ship" | "siege";
 export type UnitCounts = Record<UnitType, number>;
 
@@ -22,7 +29,10 @@ export type OperationCard =
   | "mobilise"
   | "river_assault"
   | "ship_strike"
-  | "shore_strike";
+  | "shore_strike"
+  | "siege_assault"
+  | "take_cover"
+  | "volley";
 
 /** A choice offered by a pending decision (future cards seam). */
 export interface PendingChoice {
@@ -30,8 +40,8 @@ export interface PendingChoice {
   label: string;
 }
 
-/** A decision the engine is waiting on before any other command. Currently only the
- *  Ship Strike follow-up (offered after a Shell resolves) uses it. */
+/** A decision the engine is waiting on before any other command: the Ship Strike follow-up
+ *  (after a Shell), the Siege Assault follow-up (after a Siege), or the next-battle pick. */
 export interface PendingDecision {
   id: string;
   seat: SeatId;
@@ -39,8 +49,10 @@ export interface PendingDecision {
   choices: PendingChoice[];
   /** Discriminates the decision: "shipStrike" offers a second Shell from `spaceId` and each
    *  non-decline `choice.id` is a candidate sea to target; "selectCombat" lets the attacker pick
-   *  which queued sea battle to resolve next (each `choice.id` is the contested area). */
-  kind?: "shipStrike" | "selectCombat";
+   *  which queued sea battle to resolve next (each `choice.id` is the contested area);
+   *  "siegeAssault" offers an Advance into the sieged land — answered with an `advance` command
+   *  on `spaceId` carrying the `siege_assault` card, or the "decline" choice. */
+  kind?: "shipStrike" | "selectCombat" | "siegeAssault";
   spaceId?: string;
 }
 
@@ -52,25 +64,29 @@ export interface PendingDecision {
  */
 export interface PendingCombat {
   id: string;
-  kind: "advance" | "sail" | "bombard" | "shell";
+  kind: "advance" | "sail" | "bombard" | "shell" | "siege";
   attacker: SeatId;
   defender: SeatId;
-  /** Who rolls: the defender for advance/sail, the attacker for bombard/shell. */
+  /** Who acts now: the defender for advance/sail, the attacker for bombard/shell/siege —
+   *  and, for a siege in the `awaiting-cover` phase, the defender. */
   responsibleSeat: SeatId;
   /**
    * `awaiting-roll`: dice not yet thrown. `rolled`: dice are shown and the responsible seat
-   * reviews them before deciding to continue (apply casualties) or — once cards exist —
-   * reroll. Casualties only land on the combatResolve step.
+   * reviews them before deciding to continue (apply casualties) or reroll. `awaiting-cover`
+   * (siege only): the attacker accepted the roll and the defender, if holding any card, may
+   * answer with Take Cover before the damage lands. Casualties only land on combatResolve.
    */
-  phase: "awaiting-roll" | "rolled";
+  phase: "awaiting-roll" | "rolled" | "awaiting-cover";
   /** Target area whose garrison is at stake. */
   area: string;
-  /** Originating action space (bombard/shell); used to stage a Ship Strike second shell. */
+  /** Originating action space (bombard/shell/siege); used to stage a Ship Strike second shell. */
   spaceId?: string;
-  /** Combat only ever moves troops (land) or ships (water), never siege. */
+  /** Combat removes land units (troops, catapults last) or ships. */
   unit: "troop" | "ship";
   /** advance/sail: incoming attacker units held off-board until the roll resolves. */
   attackers?: number;
+  /** advance: how many of the held `attackers` are catapults (absent = none). */
+  attackerSiege?: number;
   /** advance/sail: defender units present when combat began. */
   defenders?: number;
   /** bombard/shell: number of dice the attacker will roll. */
@@ -78,6 +94,8 @@ export interface PendingCombat {
   /** Populated once phase is `rolled`: the dice faces shown and their sum. */
   rolls?: number[];
   total?: number;
+  /** siege: the defender played Take Cover, ignoring two points of damage. */
+  covered?: boolean;
 }
 
 /** Full per-player unit pools in Rivers (siege unused). Frozen: it's a shared singleton. */
@@ -86,6 +104,21 @@ export const RIVERS_UNIT_POOL: Readonly<UnitCounts> = Object.freeze({
   ship: 10,
   siege: 0
 });
+
+/** Catapults per player when the ruleset uses Siege. */
+export const CATAPULTS_PER_PLAYER = 5;
+
+/** Full per-player unit pool for a ruleset: the 25 foot troops and 10 ships, plus the
+ *  catapults when Siege is in play (counted in `troop` too — see `UnitType`). */
+export function unitPool(rules: Pick<RulesConfig, "enabledActions">): UnitCounts {
+  const siege = hasSiege(rules) ? CATAPULTS_PER_PLAYER : 0;
+  return { troop: RIVERS_UNIT_POOL.troop + siege, ship: RIVERS_UNIT_POOL.ship, siege };
+}
+
+/** Foot (non-catapult) troops in a unit count. */
+export function footTroops(units: UnitCounts): number {
+  return units.troop - units.siege;
+}
 
 /** A fresh, independent all-zero unit-counts object. */
 export function zeroUnits(): UnitCounts {
@@ -137,7 +170,7 @@ export interface GameState {
 
   players: Record<SeatId, PlayerState>;
   /** Shared operation-card draw pile, top first. Shuffled once at setup; never reshuffled
-   *  (≤16 draws from 24 cards never empties it). */
+   *  (≤16 draws from a 24+ card deck never empties it). */
   deck: OperationCard[];
   /** Shared pile of spent cards (played or discarded to reroll). Not drawn from. */
   discard: OperationCard[];

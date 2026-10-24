@@ -1,4 +1,5 @@
 import type { SeatId } from "../types.js";
+import type { RulesetId } from "../rules.js";
 import { compileHexMap } from "./hex/compile.js";
 import { riversSource } from "./riversSource.js";
 
@@ -72,6 +73,8 @@ export interface MapDefinition {
   startingDeployment?: Record<string, StartingUnits>;
   /** Commanders each player deploys per round; overrides the ruleset default when set. */
   commandersPerRound?: number;
+  /** The ruleset new games on this map use; absent means Rivers. */
+  ruleset?: RulesetId;
 }
 
 export const riversMapId = "rivers";

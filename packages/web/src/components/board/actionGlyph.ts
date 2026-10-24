@@ -6,6 +6,7 @@ export type ActionGlyphVerb =
   | "sail"
   | "bombard"
   | "shell"
+  | "siege"
   | "reinforce"
   | "embark"
   | "plan"
@@ -16,7 +17,8 @@ const ORDER_KIND: Partial<Record<ActionGlyphVerb, OrderKind>> = {
   advance: "move",
   sail: "sail",
   bombard: "bombard",
-  shell: "shell"
+  shell: "shell",
+  siege: "siege"
 };
 
 /**

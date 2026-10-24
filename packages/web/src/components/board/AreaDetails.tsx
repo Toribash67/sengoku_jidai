@@ -23,7 +23,9 @@ export function AreaDetails({ area, mapArea, view }: AreaDetailsProps) {
         <div>
           <dt>Units</dt>
           <dd>
-            {area.units.troop} troops, {area.units.ship} ships
+            {area.units.troop} troops
+            {area.units.siege > 0 ? ` (incl. ${area.units.siege} catapults)` : ""},{" "}
+            {area.units.ship} ships
           </dd>
         </div>
         <div>

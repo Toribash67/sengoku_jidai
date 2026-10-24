@@ -2,7 +2,7 @@
 
 exports[`renderBoard > matches the Rivers opening snapshot 1`] = `
 "You are BLACK. Round 1/4 · deploy phase · initiative: you · On the clock: you
-VP: red 0 · black 0
+Rules: rivers · VP: red 0 · black 0
 Commanders left: you 5/5 · opponent 5/5
 Your hand:
   - mobilise — Reinforce with +2 to the space's pool

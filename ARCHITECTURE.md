@@ -842,7 +842,7 @@ Recommended first E2E flow:
 3. Add SQLite-backed server game creation, command submission, migrations, and state snapshots. — **done**
 4. Add React client that creates a game and renders a placeholder board from a player view. — **done**
 5. Add Playwright smoke test for create/select/submit/refresh. — **done**
-6. Replace fake command resolution with first real rules. — **done** (full Rivers rules incl. interactive combat)
+6. Replace fake command resolution with first real rules. — **done** (full Rivers rules incl. interactive combat; the Fortress ruleset — catapults, Siege, Armoury, the Fortress deck — is chosen per map by `HexMapSource.ruleset`)
 7. Add WebSocket updates. — **open** (HTTP polling is the interim)
 8. Add cards, pending decisions, and richer animations/logs. — **partial** (cards drawn/discard-to-reroll and pending decisions work; card abilities are the next rules task)
 

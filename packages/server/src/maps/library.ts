@@ -49,13 +49,17 @@ export class MapLibrary {
     const rows = this.db
       .prepare("SELECT id, name, source_json, updated_at FROM maps ORDER BY updated_at DESC")
       .all() as MapRow[];
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      tileCount: (JSON.parse(row.source_json) as HexMapSource).tiles.length,
-      builtin: false,
-      updatedAt: row.updated_at
-    }));
+    return rows.map((row) => {
+      const source = JSON.parse(row.source_json) as HexMapSource;
+      return {
+        id: row.id,
+        name: row.name,
+        tileCount: source.tiles.length,
+        ruleset: source.ruleset ?? "rivers",
+        builtin: false,
+        updatedAt: row.updated_at
+      };
+    });
   }
 
   get(id: string, terrainsFn?: (id: string) => TerrainInfo[]): MapDetail | null {

@@ -25,7 +25,14 @@ export interface MapBoardProps {
   activeSourceId?: string | null;
   /** During advance/sail combat, the attacker's off-board units to show on the contested
    *  tile alongside the defender. */
-  pendingAttack?: { area: string; seat: SeatId; unit: "troop" | "ship"; count: number } | null;
+  pendingAttack?: {
+    area: string;
+    seat: SeatId;
+    unit: "troop" | "ship";
+    count: number;
+    /** Catapults among the `count` attacking troops. */
+    siege?: number;
+  } | null;
   /** Committed terrain background for the active map, painted behind all tiles. Null = flat fills. */
   terrainUrl?: string | null;
   /** The game's per-slot bonus assignment (`view.bonuses`); retargets each baked generic
@@ -49,6 +56,13 @@ const SEAT_MARK: Record<SeatId, string> = { red: "#7b1f1a", black: "#15181d" };
 /** Unit token defs in the procedural SVG, keyed by seat. Armies are discs; ships are boats. */
 const ARMY_DEF: Record<SeatId, string> = { red: "unit-army-red", black: "unit-army-black" };
 const SHIP_DEF: Record<SeatId, string> = { red: "unit-ship-red", black: "unit-ship-black" };
+const CATAPULT_DEF: Record<SeatId, string> = {
+  red: "unit-catapult-red",
+  black: "unit-catapult-black"
+};
+
+/** Horizontal gap between a land area's foot-troop and catapult stacks (centre to centre). */
+const SIEGE_STACK_SPREAD = 84;
 
 /** Max tokens drawn in a stack; larger counts still show this many, with the real total. */
 const MAX_STACK_TOKENS = 5;
@@ -217,6 +231,29 @@ function renderUnitStack(overlay: SVGGElement, defId: string, count: number, anc
   if (count >= 2) {
     overlay.appendChild(makeText(String(count), topCenter));
   }
+}
+
+/** Draw a seat's land units at `anchor`: foot troops as army discs and catapults as their own
+ *  stack beside them (troops right, catapults left) when both are present. */
+function renderLandStacks(
+  overlay: SVGGElement,
+  seat: SeatId,
+  troops: number,
+  siege: number,
+  anchor: Point
+): void {
+  const foot = troops - siege;
+  if (siege <= 0) {
+    renderUnitStack(overlay, ARMY_DEF[seat], foot, anchor);
+    return;
+  }
+  if (foot <= 0) {
+    renderUnitStack(overlay, CATAPULT_DEF[seat], siege, anchor);
+    return;
+  }
+  const half = SIEGE_STACK_SPREAD / 2;
+  renderUnitStack(overlay, ARMY_DEF[seat], foot, { x: anchor.x + half, y: anchor.y });
+  renderUnitStack(overlay, CATAPULT_DEF[seat], siege, { x: anchor.x - half, y: anchor.y });
 }
 
 /** A tile outline clone pinned to the tile's on-screen position via its local->root
@@ -395,7 +432,14 @@ interface DecorateInput {
   flashAreaIds?: ReadonlySet<string>;
   stagedCounts?: ReadonlyMap<string, number>;
   activeSourceId?: string | null;
-  pendingAttack?: { area: string; seat: SeatId; unit: "troop" | "ship"; count: number } | null;
+  pendingAttack?: {
+    area: string;
+    seat: SeatId;
+    unit: "troop" | "ship";
+    count: number;
+    /** Catapults among the `count` attacking troops. */
+    siege?: number;
+  } | null;
   hasTerrain?: boolean;
   bonuses?: Record<string, BonusType>;
 }
@@ -518,7 +562,7 @@ function decorate(
       const center = centerInRoot(svg, tile);
       if (center) {
         if (area.units.troop > 0) {
-          renderUnitStack(overlay, ARMY_DEF[area.owner], area.units.troop, center);
+          renderLandStacks(overlay, area.owner, area.units.troop, area.units.siege, center);
         }
         if (area.units.ship > 0) {
           renderUnitStack(overlay, SHIP_DEF[area.owner], area.units.ship, center);
@@ -532,11 +576,17 @@ function decorate(
     if (pendingAttack && pendingAttack.area === area.id && pendingAttack.count > 0) {
       const anchor = bboxPointInRoot(svg, tile, 0.5, 0.26);
       if (anchor) {
-        const def =
-          pendingAttack.unit === "troop"
-            ? ARMY_DEF[pendingAttack.seat]
-            : SHIP_DEF[pendingAttack.seat];
-        renderUnitStack(overlay, def, pendingAttack.count, anchor);
+        if (pendingAttack.unit === "troop") {
+          renderLandStacks(
+            overlay,
+            pendingAttack.seat,
+            pendingAttack.count,
+            pendingAttack.siege ?? 0,
+            anchor
+          );
+        } else {
+          renderUnitStack(overlay, SHIP_DEF[pendingAttack.seat], pendingAttack.count, anchor);
+        }
       }
     }
 

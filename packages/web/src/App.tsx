@@ -13,6 +13,7 @@ import type {
 } from "@sengoku-jidai/engine/client";
 import {
   type ArmedOrder,
+  type StrikeType,
   armMove,
   armStrike,
   candidateTiles,
@@ -40,7 +41,8 @@ import {
   type ComposerState,
   VERB,
   largestPlacementPerType,
-  stagedCountsFor
+  stagedCountsFor,
+  sumCounts
 } from "./components/board/composer.js";
 import { MapBoard } from "./components/board/MapBoard.js";
 import { useTerrainPicker } from "./components/board/useTerrainPicker.js";
@@ -399,6 +401,7 @@ export function App() {
             sail: false,
             bombard: false,
             shell: false,
+            siege: false,
             reinforce: false,
             embark: false,
             plan: false,
@@ -538,8 +541,9 @@ export function App() {
       spaceId: move.spaceId,
       type: move.type,
       targetAreaId: move.targetAreaId,
-      sources: move.sources.map((s) => ({ areaId: s.areaId, max: s.max })),
+      sources: move.sources.map((s) => ({ areaId: s.areaId, max: s.max, siegeMax: s.siegeMax })),
       counts: {},
+      siegeCounts: {},
       card,
       bonus: bonusMax !== undefined ? 0 : undefined,
       bonusMax
@@ -571,6 +575,8 @@ export function App() {
       pool: placement.pool,
       reserve: placement.reserve,
       counts: {},
+      siegeCounts: {},
+      siegeMax: placement.siegeMax,
       card
     });
     setArmedOrder(null);
@@ -581,7 +587,7 @@ export function App() {
   }
 
   // Arm a move/strike verb from the palette: glow its candidate tiles, await a tile click.
-  function armVerb(verb: "advance" | "sail" | "bombard" | "shell") {
+  function armVerb(verb: "advance" | "sail" | StrikeType) {
     if (!game) {
       return;
     }
@@ -612,8 +618,9 @@ export function App() {
   }
 
   // Begin playing a card. Placement cards (mobilise/commandeer) open their composer at once; a
-  // single-target bombard card opens its strike composer directly; other move/strike cards arm
-  // targeting mode (glow the card's options, await a tile click) carrying the card context.
+  // strike card (shore_strike/volley) with a single option opens its strike composer directly;
+  // other move/strike cards arm targeting mode (glow the card's options, await a tile click)
+  // carrying the card context.
   function startCardPlay(play: LegalCardPlay) {
     setPreviewCard(null);
     if (play.placements && play.placements.length > 0) {
@@ -621,7 +628,11 @@ export function App() {
       startPlacement(best, play.card);
       return;
     }
-    if (play.action === "bombard" && play.strikes && play.strikes.length === 1) {
+    if (
+      (play.action === "bombard" || play.action === "siege") &&
+      play.strikes &&
+      play.strikes.length === 1
+    ) {
       startStrike(play.strikes[0]!, play.card);
       return;
     }
@@ -636,7 +647,12 @@ export function App() {
         bonusMax: play.bonusMax
       });
     } else if (play.strikes && play.strikes.length > 0) {
-      setArmedOrder({ kind: "strike", type: "bombard", strikes: play.strikes, card: play.card });
+      setArmedOrder({
+        kind: "strike",
+        type: play.action === "siege" ? "siege" : "bombard",
+        strikes: play.strikes,
+        card: play.card
+      });
     }
   }
 
@@ -657,8 +673,38 @@ export function App() {
     });
   }
 
+  // Begin a Siege Assault: the offered Advance into the sieged area, carrying the card.
+  function startSiegeAssault() {
+    const offer = game?.view.legal.siegeAssault;
+    if (offer) {
+      setSelectedAreaId(null);
+      startOrder(offer, "siege_assault");
+    }
+  }
+
+  // Adjust how many of an area's staged troops are catapults, bounded by the staged count
+  // there and (move) the source's catapults / (placement) the space's catapult allowance.
+  function adjustSiege(areaId: string, delta: number) {
+    setComposer((prev) => {
+      if (prev?.kind === "move") {
+        const source = prev.sources.find((s) => s.areaId === areaId);
+        const max = Math.min(source?.siegeMax ?? 0, prev.counts[areaId] ?? 0);
+        const next = clamp((prev.siegeCounts[areaId] ?? 0) + delta, 0, max);
+        return { ...prev, siegeCounts: { ...prev.siegeCounts, [areaId]: next } };
+      }
+      if (prev?.kind === "placement") {
+        const others = sumCounts(prev.siegeCounts) - (prev.siegeCounts[areaId] ?? 0);
+        const max = Math.min((prev.siegeMax ?? 0) - others, prev.counts[areaId] ?? 0);
+        const next = clamp((prev.siegeCounts[areaId] ?? 0) + delta, 0, max);
+        return { ...prev, siegeCounts: { ...prev.siegeCounts, [areaId]: next } };
+      }
+      return prev;
+    });
+  }
+
   // Adjust a staged count for a move source or placement target, clamped to its bound:
-  // a move source keeps one unit; a placement is bounded by min(pool, reserve) overall.
+  // a move source keeps one unit; a placement is bounded by min(pool, reserve) overall. Its
+  // staged catapults never exceed the staged count.
   function adjustCount(areaId: string, delta: number) {
     setComposer((prev) => {
       if (!prev) {
@@ -670,7 +716,14 @@ export function App() {
           return prev;
         }
         const next = clamp((prev.counts[areaId] ?? 0) + delta, 0, source.max);
-        return { ...prev, counts: { ...prev.counts, [areaId]: next } };
+        return {
+          ...prev,
+          counts: { ...prev.counts, [areaId]: next },
+          siegeCounts: {
+            ...prev.siegeCounts,
+            [areaId]: Math.min(prev.siegeCounts[areaId] ?? 0, next)
+          }
+        };
       }
       if (prev.kind === "placement") {
         if (!prev.targets.includes(areaId)) {
@@ -682,7 +735,14 @@ export function App() {
           0
         );
         const next = clamp((prev.counts[areaId] ?? 0) + delta, 0, cap - others);
-        return { ...prev, counts: { ...prev.counts, [areaId]: next } };
+        return {
+          ...prev,
+          counts: { ...prev.counts, [areaId]: next },
+          siegeCounts: {
+            ...prev.siegeCounts,
+            [areaId]: Math.min(prev.siegeCounts[areaId] ?? 0, next)
+          }
+        };
       }
       return prev;
     });
@@ -774,7 +834,7 @@ export function App() {
   async function submitCombat(
     action:
       | { type: "combatRoll"; card?: OperationCard }
-      | { type: "combatResolve" }
+      | { type: "combatResolve"; card?: OperationCard }
       | { type: "combatReroll"; card: OperationCard }
   ) {
     if (!game || !game.view.pendingCombat) {
@@ -922,7 +982,8 @@ export function App() {
           area: pendingCombat.area,
           seat: pendingCombat.attacker,
           unit: pendingCombat.unit,
-          count: pendingCombat.attackers ?? 0
+          count: pendingCombat.attackers ?? 0,
+          siege: pendingCombat.attackerSiege ?? 0
         }
       : null;
 
@@ -1045,16 +1106,23 @@ export function App() {
               canResolve={game.view.legal.canResolveCombat}
               canReroll={game.view.legal.canRerollCombat}
               canAmbush={game.view.legal.canAmbush}
+              canTakeCover={game.view.legal.canTakeCover}
               busy={busy}
               onRoll={() => submitCombat({ type: "combatRoll" })}
               onRollAmbush={() => submitCombat({ type: "combatRoll", card: "ambush" })}
               onResolve={() => submitCombat({ type: "combatResolve" })}
+              onTakeCover={() => submitCombat({ type: "combatResolve", card: "take_cover" })}
             />
-          ) : game.view.pendingDecision ? (
+          ) : game.view.pendingDecision && !(composer && game.view.legal.siegeAssault) ? (
             <PendingDecisionPanel
               decision={game.view.pendingDecision}
               busy={busy}
               onChoose={submitDecision}
+              primaryAction={
+                game.view.legal.siegeAssault
+                  ? { label: "Assault", onClick: startSiegeAssault }
+                  : undefined
+              }
               renderLabel={(choice) => {
                 const kind = game.view.pendingDecision?.kind;
                 if (choice.id === "decline") {
@@ -1097,12 +1165,14 @@ export function App() {
               armedLabel={armedLabel}
               placements={placements}
               plans={game.view.legal.plans}
+              showSiege={game.view.legal.spaces.some((space) => space.type === "siege")}
               onArmVerb={armVerb}
               onStartPlacement={startPlacement}
               onStartPlan={startPlan}
               onPass={handlePass}
               onAdjust={adjustCount}
               onAdjustBonus={adjustBonus}
+              onAdjustSiege={adjustSiege}
               onConfirm={handleConfirmOrder}
               onCancel={cancelOrder}
             />
@@ -1140,6 +1210,7 @@ export function App() {
               canReroll={game.view.legal.canRerollCombat}
               playableCards={playableCards}
               onPreview={setPreviewCard}
+              rulesetId={game.view.rulesetId}
             />
           </section>
 
@@ -1216,7 +1287,11 @@ function buildCommand(composer: ComposerState): Command | null {
   switch (composer.kind) {
     case "move": {
       const moves = composer.sources
-        .map((s) => ({ from: s.areaId, count: composer.counts[s.areaId] ?? 0 }))
+        .map((s) => ({
+          from: s.areaId,
+          count: composer.counts[s.areaId] ?? 0,
+          ...(composer.siegeCounts[s.areaId] ? { siege: composer.siegeCounts[s.areaId] } : {})
+        }))
         .filter((m) => m.count > 0);
       if (moves.length === 0) {
         return null;
@@ -1233,7 +1308,11 @@ function buildCommand(composer: ComposerState): Command | null {
     }
     case "placement": {
       const placements = composer.targets
-        .map((area) => ({ area, count: composer.counts[area] ?? 0 }))
+        .map((area) => ({
+          area,
+          count: composer.counts[area] ?? 0,
+          ...(composer.siegeCounts[area] ? { siege: composer.siegeCounts[area] } : {})
+        }))
         .filter((p) => p.count > 0);
       if (placements.length === 0) {
         return null;

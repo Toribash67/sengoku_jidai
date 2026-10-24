@@ -1,4 +1,10 @@
-import type { Axial, HexTileSource, SeatId, StartingUnits } from "@sengoku-jidai/engine/client";
+import type {
+  Axial,
+  HexTileSource,
+  RulesetId,
+  SeatId,
+  StartingUnits
+} from "@sengoku-jidai/engine/client";
 import { axialKey, axialToPixel, neighbors } from "@sengoku-jidai/engine/client";
 import type { EditorDoc } from "./doc.js";
 
@@ -39,6 +45,7 @@ export type EditorAction =
   | { type: "toggleBonusSlot"; tileId: string }
   | { type: "setName"; name: string }
   | { type: "setCommandersPerRound"; value: number }
+  | { type: "setRuleset"; ruleset: RulesetId }
   | { type: "undo" }
   | { type: "redo" }
   | { type: "loadDoc"; doc: EditorDoc };
@@ -389,6 +396,11 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       const value = Math.max(1, Math.min(8, Math.floor(action.value)));
       return withDoc(state, { ...state.doc, commandersPerRound: value });
     }
+    case "setRuleset":
+      return withDoc(state, {
+        ...state.doc,
+        ruleset: action.ruleset === "rivers" ? undefined : action.ruleset
+      });
     case "setName":
       return withDoc(state, { ...state.doc, name: action.name });
     default:

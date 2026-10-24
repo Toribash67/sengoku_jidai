@@ -106,6 +106,8 @@ export interface MapSummary {
   id: string;
   name: string;
   tileCount: number;
+  /** The map's ruleset ("rivers" unless the author chose another). */
+  ruleset: "rivers" | "fortress";
   builtin: boolean;
   /** ISO timestamp for library maps; null for built-ins (which live in code). */
   updatedAt: string | null;

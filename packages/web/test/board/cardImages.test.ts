@@ -1,14 +1,19 @@
 import type { OperationCard } from "@sengoku-jidai/engine/client";
-import { RIVERS_CARDS } from "@sengoku-jidai/engine/client";
+import { FORTRESS_CARDS, RIVERS_CARDS } from "@sengoku-jidai/engine/client";
 import { describe, expect, it } from "vitest";
-import { cardBack, cardImage, cardLabel } from "../../src/components/board/cardImages.js";
+import { cardBackFor, cardImage, cardLabel } from "../../src/components/board/cardImages.js";
 
 describe("card images", () => {
-  it("resolves a truthy url for every card id", () => {
-    for (const card of RIVERS_CARDS as OperationCard[]) {
+  it("resolves a truthy url for every card id in both decks", () => {
+    for (const card of [...RIVERS_CARDS, ...FORTRESS_CARDS] as OperationCard[]) {
       expect(cardImage(card)).toBeTruthy();
     }
-    expect(cardBack).toBeTruthy();
+  });
+
+  it("uses each deck's own back", () => {
+    expect(cardBackFor("rivers")).toBeTruthy();
+    expect(cardBackFor("fortress")).toBeTruthy();
+    expect(cardBackFor("fortress")).not.toBe(cardBackFor("rivers"));
   });
 
   it("humanises card ids for labels", () => {

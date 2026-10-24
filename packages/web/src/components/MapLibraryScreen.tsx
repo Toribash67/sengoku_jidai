@@ -71,6 +71,7 @@ export function MapLibraryScreen() {
                   <strong>{map.name}</strong>
                   <span className="muted">
                     {map.tileCount} tiles
+                    {map.ruleset === "fortress" ? " · Fortress rules" : ""}
                     {map.builtin ? " · built-in" : ""}
                     {map.updatedAt ? ` · ${new Date(map.updatedAt).toLocaleDateString()}` : ""}
                   </span>

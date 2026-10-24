@@ -18,6 +18,9 @@ export interface EvalWeights {
   /** Multiplier applied to controlled-but-unsupplied tiles (0.2 = "big discount, not zero"). */
   unsuppliedFactor: number;
   card: number;
+  /** Per catapult on a land the seat holds (Fortress): what the Siege threat adds on top of the
+   *  catapult's worth as a troop. Scaled by supply like every other tile term. */
+  catapult: number;
   initiative: number;
   /** Magnitude of a terminal win/loss. */
   terminal: number;
@@ -26,6 +29,7 @@ export interface EvalWeights {
 export const DEFAULT_WEIGHTS: EvalWeights = {
   vp: 10,
   bonus: { barracks: 3, warRoom: 3, pirateHaven: 2, shipyard: 2, hiddenBase: 2, armoury: 2 },
+  catapult: 1,
   tile: { star: 2, bonusSlot: 1.5, proximity: 1 },
   unsuppliedFactor: 0.2,
   card: 1.5,
@@ -52,9 +56,10 @@ function rawScore(state: GameState, map: MapDefinition, seat: SeatId, w: EvalWei
 
   for (const [id, rt] of Object.entries(state.areas)) {
     if (rt.owner !== seat) continue;
-    const units = rt.units.troop + rt.units.ship; // siege is 0 in Rivers
+    const units = rt.units.troop + rt.units.ship; // catapults are counted among the troops
     if (units <= 0) continue; // owned ⟺ has units here; skip defensively
     const sf = supplied.has(id) ? 1 : w.unsuppliedFactor;
+    score += w.catapult * Math.min(rt.units.siege, rt.units.troop) * sf; // 0 in Rivers
     const area = map.areas[id]!;
     score += w.vp * area.valueStars * sf; // VP payoff — flat in unit count
     const bonusType = state.bonuses[id];
@@ -109,8 +114,14 @@ function expectedCombatValue(state: GameState, seat: SeatId, weights: EvalWeight
     return acc;
   }
 
-  // bombard / shell: the rolled total removes that many enemy units (no capture).
-  // Shell's optional Ship Strike follow-up (card-gated, unreachable for AI) is not modelled.
+  // A siege awaiting the defender's Take Cover answer: the roll is known; value it as thrown
+  // (the cover discount is the defender's choice and is priced by combatResponse).
+  if (pc.phase === "awaiting-cover") {
+    return evaluate(resolveStrikeBoard(state, pc, pc.total ?? 0), seat, weights);
+  }
+
+  // bombard / shell / siege: the rolled total removes that many enemy units (no capture).
+  // Shell's Ship Strike and Siege's Take Cover / Siege Assault (card-gated) are not modelled.
   const dist = rollTotalDistribution(faces, pc.dice ?? 1);
   let acc = 0;
   for (const { total, prob } of dist) {
@@ -151,6 +162,7 @@ function resolveStrikeBoard(
   const src = state.areas[pc.area]!;
   const target = { ...src, units: { ...src.units } };
   target.units[pc.unit] = Math.max(0, target.units[pc.unit] - total);
+  target.units.siege = Math.min(target.units.siege, target.units.troop); // catapults lost last
   if (target.units.troop === 0 && target.units.ship === 0) target.owner = null;
   return { ...state, areas: { ...state.areas, [pc.area]: target }, pendingCombat: null };
 }
