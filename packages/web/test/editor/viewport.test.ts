@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  fitView,
   MAX_VIEW_WIDTH,
   MIN_VIEW_WIDTH,
   pinchView,
@@ -101,5 +102,35 @@ describe("pinchView", () => {
     const out = pinchView(view, rect, prev, curr);
     expect(out.width).toBe(view.width);
     expect(Number.isFinite(out.x)).toBe(true);
+  });
+});
+
+describe("fitView", () => {
+  it("grows the view about its centre to the element's aspect, like SVG's xMidYMid meet", () => {
+    // A 1.3:1 view in a 2:1 canvas: the browser shows it full height, padded left and right.
+    const fitted = fitView(
+      { x: -900, y: -700, width: 2600, height: 2000 },
+      { width: 1600, height: 800 }
+    );
+    expect(fitted).toEqual({ x: -1600, y: -700, width: 4000, height: 2000 });
+    // …and a tall canvas pads top and bottom instead.
+    const tall = fitView({ x: 0, y: 0, width: 1000, height: 1000 }, { width: 500, height: 1000 });
+    expect(tall).toEqual({ x: 0, y: -500, width: 1000, height: 2000 });
+  });
+
+  it("makes the pointer mapping land under the cursor in a letterboxed canvas", () => {
+    // Clicking the canvas's left edge must hit the left edge of the shown region, not the view's.
+    const shown = fitView({ x: 0, y: 0, width: 1000, height: 1000 }, { width: 2000, height: 1000 });
+    expect(toBoard(shown, { width: 2000, height: 1000 }, { x: 0, y: 500 })).toEqual({
+      x: -500,
+      y: 500
+    });
+  });
+
+  it("is idempotent and leaves a matching aspect (or an unmeasured canvas) alone", () => {
+    const fitted = fitView(view, { width: 1600, height: 800 });
+    expect(fitView(fitted, { width: 1600, height: 800 })).toEqual(fitted);
+    expect(fitView(view, rect)).toEqual(view);
+    expect(fitView(view, { width: 0, height: 0 })).toBe(view);
   });
 });

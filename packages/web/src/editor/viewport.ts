@@ -28,6 +28,28 @@ function clampFactor(view: ViewRect, factor: number): number {
   return width / view.width;
 }
 
+/**
+ * The board region an SVG of size `rect` actually shows for viewBox `view`. SVG's default
+ * `preserveAspectRatio="xMidYMid meet"` keeps the viewBox whole and centred, padding the axis
+ * where the element is relatively longer — so when the element's aspect differs from the
+ * view's, the visible region is `view` grown (about its centre) to the element's aspect. Render
+ * this as the viewBox and use it for pointer math: with matching aspects the client→board map
+ * is the plain linear stretch `toBoard` assumes. Idempotent; a zero-size rect returns `view`.
+ */
+export function fitView(view: ViewRect, rect: RectSize): ViewRect {
+  if (rect.width <= 0 || rect.height <= 0) {
+    return view;
+  }
+  const aspect = rect.width / rect.height;
+  if (view.width / view.height < aspect) {
+    const width = view.height * aspect;
+    return { ...view, x: view.x - (width - view.width) / 2, width };
+  }
+  const height = view.width / aspect;
+  return { ...view, y: view.y - (height - view.height) / 2, height };
+}
+
+/** Client point → board point. `view` must already match `rect`'s aspect (see `fitView`). */
 export function toBoard(view: ViewRect, rect: RectSize, point: ViewportPoint): ViewportPoint {
   return {
     x: view.x + (point.x / rect.width) * view.width,

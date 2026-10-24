@@ -5,7 +5,13 @@ import type {
   SeatId,
   StartingUnits
 } from "@sengoku-jidai/engine/client";
-import { axialKey, axialToPixel, neighbors } from "@sengoku-jidai/engine/client";
+import {
+  axialKey,
+  axialToPixel,
+  hasSiege,
+  neighbors,
+  rulesetFor
+} from "@sengoku-jidai/engine/client";
 import type { EditorDoc } from "./doc.js";
 
 export type Tool = "select" | "land" | "sea" | "erase";
@@ -48,14 +54,18 @@ export type EditorAction =
   | { type: "setRuleset"; ruleset: RulesetId }
   | { type: "undo" }
   | { type: "redo" }
-  | { type: "loadDoc"; doc: EditorDoc };
+  /** `keepTool`: keep the active tool (a save re-loading the stored doc), instead of the
+   *  default for a freshly opened doc. */
+  | { type: "loadDoc"; doc: EditorDoc; keepTool?: boolean };
 
 const HISTORY_LIMIT = 100;
 
+/** A fresh editor state. An existing map (any tiles) opens on Select, since editing usually
+ *  means picking tiles; an empty new map opens on Land, ready to paint. */
 export function initialEditorState(doc: EditorDoc): EditorState {
   return {
     doc,
-    tool: "land",
+    tool: doc.tiles.length > 0 ? "select" : "land",
     selection: [],
     multiSelect: false,
     selectEpoch: 0,
@@ -281,11 +291,14 @@ function setFeature(doc: EditorDoc, tileId: string, patch: FeaturePatch): Editor
 
 function setDeployment(doc: EditorDoc, tileId: string, units: StartingUnits | null): EditorDoc {
   const startingDeployment = { ...doc.startingDeployment };
+  // Catapults are counted among the troops (`siege <= troop`), as the engine expects.
+  const siege = units ? Math.min(units.siege ?? 0, units.troop ?? 0) : 0;
   const normalized = units
     ? {
         seat: units.seat,
         ...(units.troop && units.troop > 0 ? { troop: units.troop } : {}),
-        ...(units.ship && units.ship > 0 ? { ship: units.ship } : {})
+        ...(units.ship && units.ship > 0 ? { ship: units.ship } : {}),
+        ...(siege > 0 ? { siege } : {})
       }
     : null;
   if (!normalized || (normalized.troop === undefined && normalized.ship === undefined)) {
@@ -329,8 +342,10 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
   switch (action.type) {
     case "setTool":
       return { ...state, tool: action.tool };
-    case "loadDoc":
-      return initialEditorState(action.doc);
+    case "loadDoc": {
+      const next = initialEditorState(action.doc);
+      return action.keepTool ? { ...next, tool: state.tool } : next;
+    }
     case "paintHex":
       return withDoc(state, paintHex(state.doc, action.kind, action.hex));
     case "eraseHex":
@@ -396,11 +411,19 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       const value = Math.max(1, Math.min(8, Math.floor(action.value)));
       return withDoc(state, { ...state.doc, commandersPerRound: value });
     }
-    case "setRuleset":
-      return withDoc(state, {
-        ...state.doc,
-        ruleset: action.ruleset === "rivers" ? undefined : action.ruleset
-      });
+    case "setRuleset": {
+      const ruleset = action.ruleset === "rivers" ? undefined : action.ruleset;
+      // Leaving a Siege ruleset turns deployed catapults into ordinary troops.
+      const startingDeployment = hasSiege(rulesetFor(ruleset))
+        ? state.doc.startingDeployment
+        : Object.fromEntries(
+            Object.entries(state.doc.startingDeployment).map(([id, { siege: _siege, ...rest }]) => [
+              id,
+              rest
+            ])
+          );
+      return withDoc(state, { ...state.doc, ruleset, startingDeployment });
+    }
     case "setName":
       return withDoc(state, { ...state.doc, name: action.name });
     default:

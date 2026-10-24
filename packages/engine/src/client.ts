@@ -26,6 +26,7 @@ export {
 export type { Axial, HexLayout, Pixel } from "./maps/hex/coords.js";
 export type { HexTileSource } from "./maps/hex/source.js";
 export { riversRuleset, fortressRuleset, RULESETS, rulesetFor, hasSiege } from "./rules.js";
+export { CATAPULTS_PER_PLAYER } from "./state.js";
 
 // The public card list (identities in hands and the deck stay hidden; the set of
 // cards that exists is open information).

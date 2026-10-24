@@ -6,8 +6,11 @@ import { riversSource } from "./riversSource.js";
 /** Map-driven starting unit placement for a tile (seat + counts). */
 export interface StartingUnits {
   seat: SeatId;
+  /** Land units, catapults included (see `UnitType`). */
   troop?: number;
   ship?: number;
+  /** Fortress: how many of `troop` are catapults. */
+  siege?: number;
 }
 
 /**

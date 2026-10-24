@@ -1,6 +1,11 @@
 import { useEffect, useState, type Dispatch, type ReactNode } from "react";
 import type { HexTileSource, SeatId } from "@sengoku-jidai/engine/client";
-import { rulesetFor, type RulesetId } from "@sengoku-jidai/engine/client";
+import {
+  CATAPULTS_PER_PLAYER,
+  hasSiege,
+  rulesetFor,
+  type RulesetId
+} from "@sengoku-jidai/engine/client";
 import { canMergeSelection, type EditorAction, type EditorState } from "../../editor/reducer.js";
 
 /** One-line summary of what each ruleset plays with, shown under the picker. */
@@ -155,6 +160,14 @@ function TileBody({
   const tileId = primary.id;
   const deployment = doc.startingDeployment[tileId];
   const isLand = primary.kind === "land";
+  // Catapults (Fortress): at most CATAPULTS_PER_PLAYER per seat across the whole deployment.
+  const siegeRules = hasSiege(rulesetFor(doc.ruleset));
+  const catapultRoom = deployment
+    ? CATAPULTS_PER_PLAYER -
+      Object.entries(doc.startingDeployment)
+        .filter(([id, units]) => id !== tileId && units.seat === deployment.seat)
+        .reduce((n, [, units]) => n + (units.siege ?? 0), 0)
+    : 0;
 
   return (
     <>
@@ -268,22 +281,51 @@ function TileBody({
       {deployment ? (
         <>
           {isLand ? (
-            <label className="field">
-              <span>Troops</span>
-              <input
-                type="number"
-                min={0}
-                max={20}
-                value={deployment.troop ?? 0}
-                onChange={(event) =>
-                  dispatch({
-                    type: "setDeployment",
-                    tileId,
-                    units: { ...deployment, troop: Math.max(0, Number(event.target.value) || 0) }
-                  })
-                }
-              />
-            </label>
+            <>
+              {/* Troops are entered as foot troops + catapults; the doc stores the engine's
+                  `troop` (all land units) with `siege` (the catapults among them). */}
+              <label className="field">
+                <span>Troops</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={(deployment.troop ?? 0) - (deployment.siege ?? 0)}
+                  onChange={(event) => {
+                    const foot = Math.max(0, Number(event.target.value) || 0);
+                    const siege = deployment.siege ?? 0;
+                    dispatch({
+                      type: "setDeployment",
+                      tileId,
+                      units: { ...deployment, troop: foot + siege }
+                    });
+                  }}
+                />
+              </label>
+              {siegeRules ? (
+                <label className="field">
+                  <span>Catapults</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={catapultRoom}
+                    value={deployment.siege ?? 0}
+                    onChange={(event) => {
+                      const siege = Math.min(
+                        catapultRoom,
+                        Math.max(0, Number(event.target.value) || 0)
+                      );
+                      const foot = (deployment.troop ?? 0) - (deployment.siege ?? 0);
+                      dispatch({
+                        type: "setDeployment",
+                        tileId,
+                        units: { ...deployment, troop: foot + siege, siege }
+                      });
+                    }}
+                  />
+                </label>
+              ) : null}
+            </>
           ) : (
             <label className="field">
               <span>Ships</span>

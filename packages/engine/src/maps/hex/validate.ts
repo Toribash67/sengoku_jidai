@@ -2,7 +2,8 @@ import type { SeatId } from "../../types.js";
 import { areNeighbors, axialKey } from "./coords.js";
 import type { Axial } from "./coords.js";
 import type { HexMapSource } from "./source.js";
-import { RULESETS } from "../../rules.js";
+import { hasSiege, rulesetFor, RULESETS } from "../../rules.js";
+import { CATAPULTS_PER_PLAYER } from "../../state.js";
 
 const SEATS: readonly SeatId[] = ["red", "black"];
 
@@ -66,12 +67,30 @@ export function validateHexMap(source: HexMapSource): void {
       throw new Error(`bonus slot references unknown tile ${id}`);
     }
   }
+  const siegeRules = hasSiege(rulesetFor(source.ruleset));
+  const catapults: Record<SeatId, number> = { red: 0, black: 0 };
   for (const [id, units] of Object.entries(source.startingDeployment)) {
     if (!ids.has(id)) {
       throw new Error(`startingDeployment references unknown tile ${id}`);
     }
     if (!SEATS.includes(units.seat)) {
       throw new Error(`startingDeployment ${id} has unknown seat ${String(units.seat)}`);
+    }
+    // Catapults are a subset of a land tile's troops, and only exist under a Siege ruleset.
+    const siege = units.siege ?? 0;
+    if (siege > 0) {
+      if (!siegeRules) {
+        throw new Error(`startingDeployment ${id} has catapults, but the ruleset has no Siege`);
+      }
+      if (siege > (units.troop ?? 0)) {
+        throw new Error(`startingDeployment ${id} has more catapults than troops`);
+      }
+      catapults[units.seat] += siege;
+    }
+  }
+  for (const seat of SEATS) {
+    if (catapults[seat] > CATAPULTS_PER_PLAYER) {
+      throw new Error(`${seat} deploys ${catapults[seat]} catapults (max ${CATAPULTS_PER_PLAYER})`);
     }
   }
 }

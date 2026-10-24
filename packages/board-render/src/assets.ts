@@ -297,16 +297,16 @@ const ORDER_ART_CENTER: Record<OrderKind, Pixel> = {
 };
 
 // Siege (not on board.svg): the Bombard token's hex and burst, with the burst's centre circle
-// replaced by a small two-tier house, as on the Fortress cards. Drawn upright and flipped 180°
-// about the circle's centre so it reads correctly once the token is rotated like the others.
-const SIEGE_HOUSE =
-  `<g transform="rotate(180,74.302063,23.713425)" style="fill:#ffffff;fill-opacity:1;stroke:none">` +
-  `<rect x="72.3" y="-3" width="4" height="8" />` +
-  `<path d="M 57.3,13 66.3,5 82.3,5 91.3,13 Z" />` +
-  `<rect x="65.3" y="13" width="18" height="7" />` +
-  `<path d="M 51.3,29 61.3,20 87.3,20 97.3,29 Z" />` +
-  `<path style="fill-rule:evenodd" d="M 59.3,29 H 89.3 V 46 H 59.3 Z M 70.3,35 V 46 H 78.3 V 35 Z" />` +
-  `</g>`;
+// replaced by a two-tier house, as on the Fortress cards. One solid white outline (no inner
+// cut-outs or seams between roof and walls). Authored upright, then flipped 180° about the
+// circle's centre (74.3, 23.7) so it reads correctly once the token is rotated like the others.
+// Upright, the burst sits above: its inner arc is radius ≈36.5 around that centre, so the roof
+// stays within ≈25 of it, keeping a black band (≥ ≈12) between house and burst; the walls grow down
+// toward the hex's lower edge, where there is room.
+const SIEGE_HOUSE_D =
+  "M 71.3,-1 H 77.3 V 3 H 85.6 L 96.6,14 H 86.6 V 26 H 94.6 L 108.6,38 H 98.6 V 70 " +
+  "H 50 V 38 H 40 L 54,26 H 62 V 14 H 52 L 63,3 H 71.3 Z";
+const SIEGE_HOUSE = `<path transform="rotate(180,74.302063,23.713425)" style="fill:#ffffff;fill-opacity:1;stroke:none" d="${SIEGE_HOUSE_D}" />`;
 
 /** The Bombard burst (board.svg g1-7), shared by the Siege token. */
 const BURST_D =
