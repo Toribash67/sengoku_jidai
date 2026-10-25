@@ -25,7 +25,6 @@ describe("engine package exports", () => {
   it("no longer exposes placeholder symbols", () => {
     const surface = engine as Record<string, unknown>;
     expect(surface.createGame).toBeUndefined();
-    expect(surface.spectatorView).toBeUndefined();
     expect(surface.legalCommandsForView).toBeUndefined();
   });
 });

@@ -198,6 +198,10 @@ export interface PlayerGameView {
   winner: SeatId | null;
   endReason: EndReason | null;
   legal: LegalCommandSummary;
+  /** Present (true) only on spectator views: no seat's private information is included. */
+  spectator?: true;
+  /** Spectator views only: each seat's card count (identities stay hidden). */
+  handCounts?: Record<SeatId, number>;
 }
 
 export function playerView(state: GameState, viewerSeat: SeatId): PlayerGameView {
@@ -267,6 +271,42 @@ export function playerView(state: GameState, viewerSeat: SeatId): PlayerGameView
     winner: state.winner,
     endReason: state.endReason,
     legal: legalCommandsForState(state, viewerSeat)
+  };
+}
+
+/** The read-only projection for a spectator: `playerView` as red with both hands hidden (counts
+ *  only), no pending decision, no legal actions and a neutral prompt. `viewerSeat` is nominal
+ *  (colours only). */
+export function spectatorView(state: GameState): PlayerGameView {
+  const view = playerView(state, "red");
+  return {
+    ...view,
+    spectator: true,
+    hand: [],
+    opponentHandCount: state.players.black.hand.length,
+    handCounts: { red: state.players.red.hand.length, black: state.players.black.hand.length },
+    pendingDecision: null,
+    legal: emptyLegal(state.activeSeat),
+    prompt: spectatorPrompt(state)
+  };
+}
+
+function emptyLegal(activeSeat: SeatId): LegalCommandSummary {
+  return {
+    activeSeat,
+    spaces: [],
+    canPass: false,
+    moves: [],
+    strikes: [],
+    placements: [],
+    plans: [],
+    cardPlays: [],
+    canRollCombat: false,
+    canResolveCombat: false,
+    canRerollCombat: false,
+    canAmbush: false,
+    canTakeCover: false,
+    siegeAssault: null
   };
 }
 
@@ -624,6 +664,13 @@ export function playerEvents(events: GameEvent[], viewer: SeatId): PlayerGameEve
   return events.filter((event) => isEventVisibleTo(event, viewer));
 }
 
+/** Events a spectator may see: only those visible to both seats. */
+export function spectatorEvents(events: GameEvent[]): PlayerGameEvent[] {
+  return events.filter(
+    (event) => isEventVisibleTo(event, "red") && isEventVisibleTo(event, "black")
+  );
+}
+
 function isEventVisibleTo(event: GameEvent, _viewer: SeatId): boolean {
   switch (event.type) {
     case "commanderDeployed":
@@ -683,4 +730,17 @@ function buildPrompt(state: GameState, viewer: SeatId): string {
   return state.activeSeat === viewer
     ? `Round ${state.round}: deploy a commander or pass.`
     : `Waiting for ${state.activeSeat}.`;
+}
+
+const seatName = (seat: SeatId): string => (seat === "red" ? "Red" : "Black");
+
+function spectatorPrompt(state: GameState): string {
+  if (state.status === "abandoned") return "Game abandoned.";
+  if (state.status === "complete") {
+    return state.winner ? `Game over — ${state.winner} wins.` : "Game over.";
+  }
+  if (state.pendingCombat)
+    return `${seatName(state.pendingCombat.responsibleSeat)} is resolving combat.`;
+  if (state.pendingDecision) return `${seatName(state.pendingDecision.seat)} is deciding.`;
+  return `Round ${state.round}: ${seatName(state.activeSeat)} is giving orders.`;
 }
