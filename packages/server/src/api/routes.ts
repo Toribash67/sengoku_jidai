@@ -17,6 +17,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { runAlphaBetaInWorker } from "@sengoku-jidai/ai";
 import type { Command, GameState } from "@sengoku-jidai/engine";
 import { bearerToken, hashToken } from "../sessions/tokens.js";
+import { SpectatorPresence } from "../sessions/spectatorPresence.js";
 import type { GameRepository, SessionRecord } from "../persistence/repository.js";
 import type { MapLibrary, MapLibraryError } from "../maps/library.js";
 import type { TerrainStore } from "../maps/terrainStore.js";
@@ -58,6 +59,8 @@ export function registerApiRoutes(
         aiPickCommandFor(gameId)
       ).catch((err) => app.log.error({ err, gameId }, "AI driver failed"));
     });
+
+  const presence = new SpectatorPresence();
 
   app.get("/healthz", async () => ({ ok: true }));
 
@@ -479,6 +482,75 @@ export function registerApiRoutes(
     return reply.status(201).send({ message });
   });
 
+  app.get("/api/games/:gameId/spectators", async (request, reply) => {
+    const params = gameParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Game id is invalid.");
+    }
+    const session = authenticate(request, repository);
+    if (!session) {
+      return sendError(reply, 401, "invalidSession", "A valid seat token is required.");
+    }
+    if (session.gameId !== params.data.gameId) {
+      return sendError(reply, 403, "forbidden", "That seat token does not belong to this game.");
+    }
+    const spectatorToken = repository.spectatorTokenFor(params.data.gameId);
+    if (!spectatorToken) {
+      return sendError(reply, 404, "gameNotFound", "Game was not found.");
+    }
+    return reply.send({ count: presence.count(params.data.gameId), spectatorToken });
+  });
+
+  app.get("/api/watch/:gameId", async (request, reply) => {
+    const params = gameParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return sendError(reply, 400, "invalidRequest", "Game id is invalid.");
+    }
+    if (!authenticateSpectator(request, reply, repository, params.data.gameId)) {
+      return reply;
+    }
+    const clientId = request.headers["x-spectator-client"];
+    if (typeof clientId === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(clientId)) {
+      presence.touch(params.data.gameId, clientId);
+    }
+    const view = repository.getSpectatorView(params.data.gameId);
+    if (!view) {
+      return sendError(reply, 404, "gameNotFound", "Game was not found.");
+    }
+    return reply.send({
+      gameId: params.data.gameId,
+      revision: view.revision,
+      view: view.view,
+      seatInfo: view.seatInfo
+    });
+  });
+
+  app.get("/api/watch/:gameId/events", async (request, reply) => {
+    const params = gameParamsSchema.safeParse(request.params);
+    const query = eventQuerySchema.safeParse(request.query);
+    if (!params.success || !query.success) {
+      return sendError(reply, 400, "invalidRequest", "Events request is invalid.");
+    }
+    if (!authenticateSpectator(request, reply, repository, params.data.gameId)) {
+      return reply;
+    }
+    return reply.send(
+      repository.spectatorEventsWithRevisionsAfter(params.data.gameId, query.data.after)
+    );
+  });
+
+  app.get("/api/watch/:gameId/chat", async (request, reply) => {
+    const params = gameParamsSchema.safeParse(request.params);
+    const query = chatQuerySchema.safeParse(request.query);
+    if (!params.success || !query.success) {
+      return sendError(reply, 400, "invalidRequest", "Chat request is invalid.");
+    }
+    if (!authenticateSpectator(request, reply, repository, params.data.gameId)) {
+      return reply;
+    }
+    return reply.send({ messages: repository.chatAfter(params.data.gameId, query.data.after) });
+  });
+
   app.get("/api/admin/games", async (request, reply) => {
     if (!requireAdmin(request, reply, adminPassword)) {
       return reply;
@@ -509,6 +581,26 @@ function authenticate(request: FastifyRequest, repository: GameRepository): Sess
     return null;
   }
   return repository.getSession(hashToken(token));
+}
+
+/** Checks the spectator bearer token for `gameId`; sends the error and returns false if invalid. */
+function authenticateSpectator(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  repository: GameRepository,
+  gameId: string
+): boolean {
+  const token = bearerToken(request.headers.authorization);
+  const tokenGameId = token ? repository.gameForSpectatorToken(token) : null;
+  if (!tokenGameId) {
+    sendError(reply, 401, "invalidSession", "A valid spectator link is required.");
+    return false;
+  }
+  if (tokenGameId !== gameId) {
+    sendError(reply, 403, "forbidden", "That spectator link does not belong to this game.");
+    return false;
+  }
+  return true;
 }
 
 function requireAdmin(

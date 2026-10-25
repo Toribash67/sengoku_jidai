@@ -49,6 +49,18 @@ export interface AdminGamesResponse {
   games: AdminGameSummary[];
 }
 
+export interface SpectatorViewEnvelope<View = unknown> {
+  gameId: string;
+  revision: number;
+  view: View;
+  seatInfo: GameSeatInfo[];
+}
+
+export interface SpectatorsResponse {
+  count: number;
+  spectatorToken: string;
+}
+
 export interface CreateGameResponse<View = unknown> extends PlayerGameViewEnvelope<View> {
   seats: SeatToken[];
 }
