@@ -9,6 +9,10 @@ export function shouldPoll(view: PlayerGameView, seatInfo: GameSeatInfo[]): bool
   if (view.status !== "active") {
     return false;
   }
+  if (view.spectator) {
+    // A spectator is never on the clock: poll for as long as the game is live.
+    return true;
+  }
   const opponentWaiting = seatInfo.some((s) => s.status === "open");
   const notViewersClock = onClockSeat(view) !== view.viewerSeat;
   return opponentWaiting || notViewersClock;

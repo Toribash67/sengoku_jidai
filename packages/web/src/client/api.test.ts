@@ -7,6 +7,7 @@ import {
   claimSeat,
   createGame,
   createMap,
+  createSpectatorClientId,
   deleteMap,
   listMaps,
   regenerateTerrainCandidates,
@@ -160,5 +161,11 @@ describe("terrain candidates api", () => {
     const [url, init] = mock.mock.calls[0]! as unknown as [string, RequestInit];
     expect(url).toBe("/api/maps/m/terrains/t1/regenerate");
     expect(init.method).toBe("POST");
+  });
+});
+
+describe("createSpectatorClientId", () => {
+  it("matches the server's accepted client id shape", () => {
+    expect(createSpectatorClientId()).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
   });
 });
