@@ -167,14 +167,24 @@ export async function fetchGameView(
   });
 }
 
-/** Opaque per-tab id so the server can count distinct spectators (matches /^[A-Za-z0-9_-]{8,64}$/). */
-export function createSpectatorClientId(): string {
+function mintSpectatorClientId(): string {
   if (typeof globalThis.crypto?.getRandomValues === "function") {
     const bytes = new Uint8Array(16);
     globalThis.crypto.getRandomValues(bytes);
     return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
   }
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`.padEnd(8, "0");
+}
+
+let cachedSpectatorClientId: string | undefined;
+
+/**
+ * Opaque per-tab id so the server counts each tab once (matches /^[A-Za-z0-9_-]{8,64}$/).
+ * Memoised for the page's lifetime so StrictMode's double effect run cannot mint two.
+ */
+export function spectatorClientId(): string {
+  cachedSpectatorClientId ??= mintSpectatorClientId();
+  return cachedSpectatorClientId;
 }
 
 export async function fetchSpectatorView(
@@ -212,7 +222,9 @@ export async function fetchSpectators(
   gameId: string,
   seatToken: string
 ): Promise<SpectatorsResponse> {
-  return request(`/api/games/${gameId}/spectators`, { headers: authHeaders(seatToken) });
+  return request(`/api/games/${encodeURIComponent(gameId)}/spectators`, {
+    headers: authHeaders(seatToken)
+  });
 }
 
 export async function submitCommand(

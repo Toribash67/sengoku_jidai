@@ -53,7 +53,6 @@ import {
   apiErrorMessage,
   claimSeat,
   createGame,
-  createSpectatorClientId,
   fetchChat,
   fetchEvents,
   fetchGameView,
@@ -62,6 +61,7 @@ import {
   fetchSpectators,
   fetchSpectatorView,
   postChat,
+  spectatorClientId,
   submitCommand
 } from "./client/api.js";
 import { forgetGame, loadSeatTokens, rememberSeatTokens } from "./state/localGame.js";
@@ -215,10 +215,10 @@ export function App() {
     let cancelled = false;
     setBusy(true);
     setError(null);
-    const spectatorClientId = spectating ? createSpectatorClientId() : undefined;
+    const clientId = spectating ? spectatorClientId() : undefined;
     // A spectator envelope names no seat (it holds none).
     const load = spectating
-      ? fetchSpectatorView(gameId, token, spectatorClientId!).then((envelope) => ({
+      ? fetchSpectatorView(gameId, token, clientId!).then((envelope) => ({
           envelope,
           seat: null
         }))
@@ -244,7 +244,7 @@ export function App() {
           view: envelope.view,
           seatInfo: envelope.seatInfo,
           spectating,
-          ...(spectatorClientId ? { spectatorClientId } : {})
+          ...(clientId ? { spectatorClientId: clientId } : {})
         });
         setSelectedAreaId(null);
         setComposer(null);

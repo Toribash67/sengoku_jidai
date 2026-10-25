@@ -45,7 +45,7 @@ describe("spectatorView", () => {
     const v = spectatorView(game());
     expect(v.legal.activeSeat).toBe("red");
     expect(v.legal.canPass).toBe(false);
-    expect(v.legal.spaces.every((sp) => !sp.legal)).toBe(true);
+    expect(v.legal.spaces).toEqual([]);
     expect(v.legal.moves).toEqual([]);
     expect(v.legal.strikes).toEqual([]);
     expect(v.legal.placements).toEqual([]);
@@ -58,6 +58,30 @@ describe("spectatorView", () => {
     expect(v.legal.canTakeCover).toBe(false);
     expect(v.legal.siegeAssault).toBeNull();
     expect(v.prompt).toBe("Round 1: Red is giving orders.");
+  });
+
+  it("words the prompt for combat, complete and abandoned games", () => {
+    for (const seat of ["red", "black"] as const) {
+      const s = game();
+      const pc = { responsibleSeat: seat, area: "tile1" } as unknown as GameState["pendingCombat"];
+      s.pendingCombat = pc;
+      const v = spectatorView(s);
+      expect(v.prompt).toBe(
+        seat === "red" ? "Red is resolving combat." : "Black is resolving combat."
+      );
+      expect(v.pendingCombat).toEqual(pc);
+    }
+    const done = game();
+    done.status = "complete";
+    done.winner = "red";
+    expect(spectatorView(done).prompt).toBe("Game over — Red wins.");
+    done.winner = "black";
+    expect(spectatorView(done).prompt).toBe("Game over — Black wins.");
+    done.winner = null;
+    expect(spectatorView(done).prompt).toBe("Game over.");
+    const gone = game();
+    gone.status = "abandoned";
+    expect(spectatorView(gone).prompt).toBe("Game abandoned.");
   });
 
   it("leaks no rng/deck state", () => {

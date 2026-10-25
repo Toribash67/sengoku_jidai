@@ -118,7 +118,8 @@ describe("spectator API", () => {
       { method: "POST", url: `/api/games/${id}/claim`, payload: { name: "x" } },
       { method: "POST", url: `/api/games/${id}/chat`, payload: { text: "hi" } },
       { method: "GET", url: `/api/games/${id}/events` },
-      { method: "GET", url: `/api/games/${id}/chat` }
+      { method: "GET", url: `/api/games/${id}/chat` },
+      { method: "GET", url: `/api/games/${id}/spectators` }
     ] as const;
     for (const call of calls) {
       const res = await app.inject({ ...call, headers: h } as never);

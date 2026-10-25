@@ -7,10 +7,10 @@ import {
   claimSeat,
   createGame,
   createMap,
-  createSpectatorClientId,
   deleteMap,
   listMaps,
   regenerateTerrainCandidates,
+  spectatorClientId,
   updateMap
 } from "./api.js";
 import type { HexMapSource } from "@sengoku-jidai/engine/client";
@@ -164,8 +164,12 @@ describe("terrain candidates api", () => {
   });
 });
 
-describe("createSpectatorClientId", () => {
+describe("spectatorClientId", () => {
   it("matches the server's accepted client id shape", () => {
-    expect(createSpectatorClientId()).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(spectatorClientId()).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+  });
+
+  it("is stable for the lifetime of the page", () => {
+    expect(spectatorClientId()).toBe(spectatorClientId());
   });
 });

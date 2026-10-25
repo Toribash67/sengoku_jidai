@@ -737,7 +737,7 @@ const seatName = (seat: SeatId): string => (seat === "red" ? "Red" : "Black");
 function spectatorPrompt(state: GameState): string {
   if (state.status === "abandoned") return "Game abandoned.";
   if (state.status === "complete") {
-    return state.winner ? `Game over — ${state.winner} wins.` : "Game over.";
+    return state.winner ? `Game over — ${seatName(state.winner)} wins.` : "Game over.";
   }
   if (state.pendingCombat)
     return `${seatName(state.pendingCombat.responsibleSeat)} is resolving combat.`;
