@@ -1145,7 +1145,8 @@ button:disabled {
   gap: 10px;
 }
 
-.game-over-banner {
+.game-over-banner,
+.spectating-banner {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1155,6 +1156,12 @@ button:disabled {
   border-radius: 6px;
   background: var(--washi-raised);
   min-height: 60px;
+}
+
+/* A spectator's stand-in for the order bar: same frame, the label set like the banner text. */
+.spectating-banner {
+  font-family: var(--font-display);
+  font-weight: 700;
 }
 
 .game-over-banner-text {
@@ -1517,6 +1524,16 @@ button:disabled {
   background: var(--washi);
   color: var(--sumi-soft);
   font-size: 0.8rem;
+}
+
+.spectator-count {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--sumi-soft);
+}
+.spectator-hands {
+  margin: 0;
+  font-size: 0.9rem;
 }
 
 /* --- Map library --- */

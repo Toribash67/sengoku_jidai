@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createUrl, editorUrl, gameUrl, inviteUrl, mapsUrl, parseRoute } from "./route.js";
+import {
+  createUrl,
+  editorUrl,
+  gameUrl,
+  inviteUrl,
+  mapsUrl,
+  parseRoute,
+  spectateUrl
+} from "./route.js";
 
 describe("parseRoute", () => {
   it("returns the create route for /", () => {
@@ -86,5 +94,23 @@ describe("url builders", () => {
 
   it("builds an absolute invite url from an origin", () => {
     expect(inviteUrl("https://host:8080", "g1", "tok")).toBe("https://host:8080/g/g1#tok");
+  });
+});
+
+describe("spectate route", () => {
+  it("parses /g/:id/watch with the token from the fragment", () => {
+    expect(parseRoute({ pathname: "/g/abc/watch", hash: "#tok", search: "" })).toEqual({
+      kind: "spectate",
+      gameId: "abc",
+      token: "tok"
+    });
+  });
+
+  it("still parses /g/:id as a seat game route", () => {
+    expect(parseRoute({ pathname: "/g/abc", hash: "#tok", search: "" }).kind).toBe("game");
+  });
+
+  it("builds a spectate url", () => {
+    expect(spectateUrl("https://x", "a b", "t")).toBe("https://x/g/a%20b/watch#t");
   });
 });

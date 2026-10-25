@@ -7,6 +7,8 @@ import type {
   ListMapsResponse,
   MapDetail,
   PlayerGameViewEnvelope,
+  SpectatorsResponse,
+  SpectatorViewEnvelope,
   SubmitCommandResponse,
   TerrainStyleId
 } from "@sengoku-jidai/shared";
@@ -162,6 +164,66 @@ export async function fetchGameView(
 ): Promise<PlayerGameViewEnvelope<PlayerGameView>> {
   return request(`/api/games/${gameId}`, {
     headers: authHeaders(token)
+  });
+}
+
+function mintSpectatorClientId(): string {
+  if (typeof globalThis.crypto?.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`.padEnd(8, "0");
+}
+
+let cachedSpectatorClientId: string | undefined;
+
+/**
+ * Opaque per-tab id so the server counts each tab once (matches /^[A-Za-z0-9_-]{8,64}$/).
+ * Memoised for the page's lifetime so StrictMode's double effect run cannot mint two.
+ */
+export function spectatorClientId(): string {
+  cachedSpectatorClientId ??= mintSpectatorClientId();
+  return cachedSpectatorClientId;
+}
+
+export async function fetchSpectatorView(
+  gameId: string,
+  token: string,
+  clientId: string
+): Promise<SpectatorViewEnvelope<PlayerGameView>> {
+  return request(`/api/watch/${encodeURIComponent(gameId)}`, {
+    headers: { ...authHeaders(token), "x-spectator-client": clientId }
+  });
+}
+
+export async function fetchSpectatorEvents(
+  gameId: string,
+  token: string,
+  after: number
+): Promise<EventsResponse<PlayerGameEvent>> {
+  return request(`/api/watch/${encodeURIComponent(gameId)}/events?after=${after}`, {
+    headers: authHeaders(token)
+  });
+}
+
+export async function fetchSpectatorChat(
+  gameId: string,
+  token: string,
+  after: number
+): Promise<ChatResponse> {
+  return request(`/api/watch/${encodeURIComponent(gameId)}/chat?after=${after}`, {
+    headers: authHeaders(token)
+  });
+}
+
+/** Seat-authenticated: current spectator count and the shareable spectator token. */
+export async function fetchSpectators(
+  gameId: string,
+  seatToken: string
+): Promise<SpectatorsResponse> {
+  return request(`/api/games/${encodeURIComponent(gameId)}/spectators`, {
+    headers: authHeaders(seatToken)
   });
 }
 

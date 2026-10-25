@@ -36,10 +36,18 @@ interface PlayersPanelProps {
   viewerSeat: SeatId;
   activeSeat: SeatId;
   inviteLink: string | null;
+  /** A read-only spectator view: no invite or spectator box (the pills are read-only already). */
+  spectating: boolean;
+  /** The shareable spectator link (seat views only), or null until it has loaded. */
+  spectatorLink: string | null;
+  /** How many spectators are watching right now. */
+  spectatorCount: number;
   busy: boolean;
   onSwitchSeat: (seat: SeatId) => void;
   thinkingSeat?: SeatId | null;
 }
+
+type CopyKey = "invite" | "spectator";
 
 const sideLabel: Record<SeatId, string> = { red: "Red", black: "Black" };
 const seatOrder: SeatId[] = ["red", "black"];
@@ -50,11 +58,15 @@ export function PlayersPanel({
   viewerSeat,
   activeSeat,
   inviteLink,
+  spectating,
+  spectatorLink,
+  spectatorCount,
   busy,
   onSwitchSeat,
   thinkingSeat = null
 }: PlayersPanelProps) {
-  const [copied, setCopied] = useState(false);
+  // Which link's Copy button shows "Copied!" (one shared timer for both boxes).
+  const [copiedKey, setCopiedKey] = useState<CopyKey | null>(null);
   const copiedTimer = useRef<number | null>(null);
   // Clear any pending "Copied!" reset on unmount so it can't fire after the panel is gone.
   useEffect(() => {
@@ -68,17 +80,15 @@ export function PlayersPanel({
     .map((seat) => seatInfo.find((s) => s.seat === seat))
     .filter((s): s is GameSeatInfo => Boolean(s));
 
-  async function handleCopy() {
-    if (!inviteLink) {
-      return;
+  async function handleCopy(key: CopyKey, link: string) {
+    const ok = await copyToClipboard(link);
+    if (copiedTimer.current !== null) {
+      window.clearTimeout(copiedTimer.current);
+      copiedTimer.current = null;
     }
-    const ok = await copyToClipboard(inviteLink);
-    setCopied(ok);
+    setCopiedKey(ok ? key : null);
     if (ok) {
-      if (copiedTimer.current !== null) {
-        window.clearTimeout(copiedTimer.current);
-      }
-      copiedTimer.current = window.setTimeout(() => setCopied(false), 2000);
+      copiedTimer.current = window.setTimeout(() => setCopiedKey(null), 2000);
     }
   }
 
@@ -132,16 +142,42 @@ export function PlayersPanel({
         })}
       </ul>
 
-      {inviteLink ? (
+      {!spectating && inviteLink ? (
         <div className="invite-box">
           <p className="invite-hint">Share this link to invite your opponent:</p>
           <div className="invite-row">
             <input type="text" readOnly value={inviteLink} aria-label="Invite link" />
-            <button type="button" className="secondary-action" onClick={handleCopy}>
-              {copied ? "Copied!" : "Copy"}
+            <button
+              type="button"
+              className="secondary-action"
+              onClick={() => void handleCopy("invite", inviteLink)}
+            >
+              {copiedKey === "invite" ? "Copied!" : "Copy"}
             </button>
           </div>
         </div>
+      ) : null}
+
+      {!spectating && spectatorLink ? (
+        <div className="invite-box spectator-box">
+          <p className="invite-hint">Share this link so friends can watch:</p>
+          <div className="invite-row">
+            <input type="text" readOnly value={spectatorLink} aria-label="Spectator link" />
+            <button
+              type="button"
+              className="secondary-action"
+              onClick={() => void handleCopy("spectator", spectatorLink)}
+            >
+              {copiedKey === "spectator" ? "Copied!" : "Copy"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {!spectating && spectatorCount > 0 ? (
+        <p className="spectator-count" aria-label="Spectators">
+          👁 {spectatorCount} watching
+        </p>
       ) : null}
     </div>
   );

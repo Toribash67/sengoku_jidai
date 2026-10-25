@@ -3,12 +3,14 @@ import { useEffect, useState } from "react";
 export type Route =
   | { kind: "create"; map: string | null }
   | { kind: "game"; gameId: string; token: string }
+  | { kind: "spectate"; gameId: string; token: string }
   | { kind: "maps" }
   | { kind: "editor"; mapId: string | null }
   | { kind: "admin" };
 
 const ADMIN_PATH = /^\/admin\/?$/;
 const GAME_PATH = /^\/g\/([^/]+)\/?$/;
+const WATCH_PATH = /^\/g\/([^/]+)\/watch\/?$/;
 const MAPS_PATH = /^\/maps\/?$/;
 const EDITOR_NEW_PATH = /^\/maps\/new\/?$/;
 const EDITOR_EDIT_PATH = /^\/maps\/([^/]+)\/edit\/?$/;
@@ -16,6 +18,11 @@ const EDITOR_EDIT_PATH = /^\/maps\/([^/]+)\/edit\/?$/;
 /** Parse a location into a route. The seat token rides in the URL fragment so it
  *  never reaches the server. Pure — takes the location parts as an argument. */
 export function parseRoute(loc: { pathname: string; hash: string; search: string }): Route {
+  const watch = WATCH_PATH.exec(loc.pathname);
+  if (watch) {
+    const token = loc.hash.startsWith("#") ? loc.hash.slice(1) : "";
+    return { kind: "spectate", gameId: decodeURIComponent(watch[1]!), token };
+  }
   const game = GAME_PATH.exec(loc.pathname);
   if (game) {
     const token = loc.hash.startsWith("#") ? loc.hash.slice(1) : "";
@@ -57,6 +64,11 @@ export function gameUrl(gameId: string, token: string): string {
 /** Absolute seat URL for sharing, built from an origin (e.g. window.location.origin). */
 export function inviteUrl(origin: string, gameId: string, token: string): string {
   return `${origin}${gameUrl(gameId, token)}`;
+}
+
+/** Absolute spectator URL for sharing: game id in the path, spectator token in the fragment. */
+export function spectateUrl(origin: string, gameId: string, token: string): string {
+  return `${origin}/g/${encodeURIComponent(gameId)}/watch#${token}`;
 }
 
 /** Client-side navigation: push the path, then notify listeners (pushState does not

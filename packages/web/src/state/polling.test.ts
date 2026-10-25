@@ -52,3 +52,15 @@ describe("shouldPoll", () => {
     ).toBe(false);
   });
 });
+
+describe("shouldPoll for spectators", () => {
+  it("polls while the game is active, even on red's turn", () => {
+    expect(
+      shouldPoll(view({ spectator: true, viewerSeat: undefined, activeSeat: "red" }), bothClaimed)
+    ).toBe(true);
+  });
+
+  it("stops when the game is complete", () => {
+    expect(shouldPoll(view({ spectator: true, status: "complete" }), bothClaimed)).toBe(false);
+  });
+});

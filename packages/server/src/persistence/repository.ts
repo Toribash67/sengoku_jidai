@@ -5,6 +5,8 @@ import {
   playerView,
   resolveCommand,
   serializeState,
+  spectatorEvents,
+  spectatorView,
   type Command,
   type GameEvent,
   type GameMode,
@@ -287,6 +289,45 @@ export class GameRepository {
     };
   }
 
+  getSpectatorView(
+    gameId: string
+  ): { revision: number; view: PlayerGameView; seatInfo: GameSeatInfo[] } | null {
+    const game = this.getGameRow(gameId);
+    if (!game) {
+      return null;
+    }
+    return {
+      revision: game.current_revision,
+      view: spectatorView(this.loadSnapshot(gameId, game.current_revision)),
+      seatInfo: this.getSeatInfo(gameId)
+    };
+  }
+
+  /** The game's read-only spectator token, created on first request. Null if no such game. */
+  spectatorTokenFor(gameId: string): string | null {
+    if (!this.getGameRow(gameId)) {
+      return null;
+    }
+    const existing = this.db
+      .prepare("SELECT token FROM game_spectator_links WHERE game_id = ?")
+      .get(gameId) as { token: string } | undefined;
+    if (existing) {
+      return existing.token;
+    }
+    const { token } = issueToken();
+    this.db
+      .prepare("INSERT INTO game_spectator_links (game_id, token, created_at) VALUES (?, ?, ?)")
+      .run(gameId, token, new Date().toISOString());
+    return token;
+  }
+
+  gameForSpectatorToken(token: string): string | null {
+    const row = this.db
+      .prepare("SELECT game_id FROM game_spectator_links WHERE token = ?")
+      .get(token) as { game_id: string } | undefined;
+    return row?.game_id ?? null;
+  }
+
   claimSeat(
     gameId: string,
     seat: SeatId,
@@ -480,6 +521,22 @@ export class GameRepository {
     seat: SeatId,
     afterRevision: number
   ): { events: PlayerGameEvent[]; revisions: number[] } {
+    return this.filteredEventsAfter(gameId, afterRevision, (events) => playerEvents(events, seat));
+  }
+
+  /** Public events only (what a spectator may see), with the revision each was produced at. */
+  spectatorEventsWithRevisionsAfter(
+    gameId: string,
+    afterRevision: number
+  ): { events: PlayerGameEvent[]; revisions: number[] } {
+    return this.filteredEventsAfter(gameId, afterRevision, spectatorEvents);
+  }
+
+  private filteredEventsAfter(
+    gameId: string,
+    afterRevision: number,
+    filter: (events: GameEvent[]) => PlayerGameEvent[]
+  ): { events: PlayerGameEvent[]; revisions: number[] } {
     const rows = this.db
       .prepare(
         `SELECT revision, event_json
@@ -493,7 +550,7 @@ export class GameRepository {
     const revisions: number[] = [];
     for (const row of rows) {
       // Filter one row at a time so each visible event keeps its own revision.
-      for (const event of playerEvents([JSON.parse(row.event_json) as GameEvent], seat)) {
+      for (const event of filter([JSON.parse(row.event_json) as GameEvent])) {
         events.push(event);
         revisions.push(row.revision);
       }

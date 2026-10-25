@@ -10,6 +10,7 @@ import {
   deleteMap,
   listMaps,
   regenerateTerrainCandidates,
+  spectatorClientId,
   updateMap
 } from "./api.js";
 import type { HexMapSource } from "@sengoku-jidai/engine/client";
@@ -160,5 +161,15 @@ describe("terrain candidates api", () => {
     const [url, init] = mock.mock.calls[0]! as unknown as [string, RequestInit];
     expect(url).toBe("/api/maps/m/terrains/t1/regenerate");
     expect(init.method).toBe("POST");
+  });
+});
+
+describe("spectatorClientId", () => {
+  it("matches the server's accepted client id shape", () => {
+    expect(spectatorClientId()).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+  });
+
+  it("is stable for the lifetime of the page", () => {
+    expect(spectatorClientId()).toBe(spectatorClientId());
   });
 });

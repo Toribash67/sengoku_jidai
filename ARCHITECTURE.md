@@ -255,7 +255,7 @@ Responsibilities:
 - Resolve deterministic randomness for dice and shuffled decks.
 - Score the game and detect game end.
 - Provide helper functions for legal action previews (embedded in each player view).
-- Produce player-visible state projections (spectator projections are **Later**).
+- Produce player-visible state projections (`spectatorView`/`spectatorEvents` give a redacted, read-only spectator projection: no hands, no pending decision, no legal actions).
 
 The engine should not know about:
 
@@ -278,7 +278,7 @@ serializeState(state) -> JsonGameState
 deserializeState(json) -> GameState            // validates schema version AND shape (Zod)
 ```
 
-The client does not compute legality itself: the server embeds the acting seat's `LegalCommandSummary` in every `PlayerGameView` (`view.legal`), so no view-input legality helper is needed. A `spectatorView` projection is a **Later** addition.
+The client does not compute legality itself: the server embeds the acting seat's `LegalCommandSummary` in every `PlayerGameView` (`view.legal`), so no view-input legality helper is needed. `spectatorView` is the redacted, action-free equivalent for spectators.
 
 `playerEvents` projects engine events for one seat and is fail-closed: it filters through an exhaustive allowlist of public event types, so an event type added without an explicit visibility decision never reaches a client (adding a `GameEvent` variant is a compile error until it is classified there).
 
@@ -351,7 +351,7 @@ If one browser holds multiple seat tokens, each seat view should still be fetche
 
 Async multiplayer can add notifications, "waiting for opponent" summaries, and last-action digests without changing the engine boundary.
 
-Spectator and replay UX can build on `spectatorView`. Live spectators should receive redacted views unless the game rules or table settings explicitly allow open information. Completed-game replay can optionally reveal more information, but that should be an explicit product decision.
+Live spectators now exist: the engine's `spectatorView`/`spectatorEvents` feed read-only `/api/watch/:gameId{,/events,/chat}` routes authenticated by a per-game spectator token (table `game_spectator_links`), and seats read the link plus an in-memory presence count from `GET /api/games/:gameId/spectators`. Replay UX can build on the same projection. Live spectators should receive redacted views unless the game rules or table settings explicitly allow open information. Completed-game replay can optionally reveal more information, but that should be an explicit product decision.
 
 ## Client
 
