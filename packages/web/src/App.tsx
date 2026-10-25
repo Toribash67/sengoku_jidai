@@ -53,9 +53,14 @@ import {
   apiErrorMessage,
   claimSeat,
   createGame,
+  createSpectatorClientId,
   fetchChat,
   fetchEvents,
   fetchGameView,
+  fetchSpectatorChat,
+  fetchSpectatorEvents,
+  fetchSpectators,
+  fetchSpectatorView,
   postChat,
   submitCommand
 } from "./client/api.js";
@@ -64,7 +69,7 @@ import { chatEnabled } from "./state/chat.js";
 import { useChatAlert } from "./state/chatAlert.js";
 import { MIN_MAP_WIDTH, MIN_PANEL_WIDTH, usePanelFit } from "./state/panelFit.js";
 import { onClockSeat } from "./state/onClock.js";
-import { gameUrl, inviteUrl, navigateTo, useRoute } from "./state/route.js";
+import { gameUrl, inviteUrl, navigateTo, spectateUrl, useRoute } from "./state/route.js";
 import { shouldPoll } from "./state/polling.js";
 import { useTurnAlert } from "./state/turnAlert.js";
 import { affectedTileIds } from "./components/board/eventTiles.js";
@@ -78,13 +83,43 @@ import { PlayersPanel } from "./components/PlayersPanel.js";
 /** How long the opponent's changed tiles pulse before the highlight clears. */
 const FLASH_MS = 1500;
 
+/** How often a seat refreshes the live spectator count while the game is active. */
+const SPECTATOR_POLL_MS = 15_000;
+
 interface LoadedGame {
   gameId: string;
+  /** The seat token, or the spectator token when `spectating`. */
   token: string;
   heldSeats: SeatToken[];
   revision: number;
   view: PlayerGameView;
   seatInfo: GameSeatInfo[];
+  /** A read-only spectator view loaded from a /g/:id/watch link. */
+  spectating: boolean;
+  /** This tab's spectator id (spectators only), so the server counts distinct watchers. */
+  spectatorClientId?: string;
+}
+
+/** The latest spectator count + shareable link a seat holds, keyed by game. */
+interface SpectatorInfo {
+  gameId: string;
+  count: number;
+  link: string;
+}
+
+/** Fetch the current view through the seat or spectator API, as the loaded game requires. */
+function fetchViewFor(game: LoadedGame) {
+  return game.spectating
+    ? fetchSpectatorView(game.gameId, game.token, game.spectatorClientId ?? "")
+    : fetchGameView(game.gameId, game.token);
+}
+
+function eventsFetcher(spectating: boolean) {
+  return spectating ? fetchSpectatorEvents : fetchEvents;
+}
+
+function chatFetcher(spectating: boolean) {
+  return spectating ? fetchSpectatorChat : fetchChat;
 }
 
 export function App() {
@@ -151,31 +186,45 @@ export function App() {
     event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
-  // Load the seat named by the current /g/:id#token route. Keyed on the route only, so a
-  // "view as" switch (which changes game.token but not the URL) does not trigger a reload.
+  // Load the seat named by the current /g/:id#token route (or the spectator view for a
+  // /g/:id/watch#token route). Keyed on the route only, so a "view as" switch (which changes
+  // game.token but not the URL) does not trigger a reload.
   useEffect(() => {
-    if (route.kind !== "game") {
+    if (route.kind !== "game" && route.kind !== "spectate") {
       loadedKeyRef.current = null;
       setGame(null);
       return;
     }
     const { gameId, token } = route;
-    const key = `${gameId}#${token}`;
+    const spectating = route.kind === "spectate";
+    const key = spectating ? `watch:${gameId}#${token}` : `${gameId}#${token}`;
     if (loadedKeyRef.current === key) {
       return;
     }
     loadedKeyRef.current = key;
 
     if (!token) {
-      setError("This game link is missing its seat token.");
+      setError(
+        spectating
+          ? "This spectator link is missing its token."
+          : "This game link is missing its seat token."
+      );
       return;
     }
 
     let cancelled = false;
     setBusy(true);
     setError(null);
-    void fetchGameView(gameId, token)
-      .then(async (envelope) => {
+    const spectatorClientId = spectating ? createSpectatorClientId() : undefined;
+    // A spectator envelope names no seat (it holds none).
+    const load = spectating
+      ? fetchSpectatorView(gameId, token, spectatorClientId!).then((envelope) => ({
+          envelope,
+          seat: null
+        }))
+      : fetchGameView(gameId, token).then((envelope) => ({ envelope, seat: envelope.seat }));
+    void load
+      .then(async ({ envelope, seat }) => {
         if (cancelled) {
           return;
         }
@@ -183,22 +232,27 @@ export function App() {
         if (cancelled) {
           return;
         }
-        rememberSeatTokens(gameId, [{ seat: envelope.seat, token }]);
+        // A spectator holds no seat: never remember its token as one.
+        if (seat) {
+          rememberSeatTokens(gameId, [{ seat, token }]);
+        }
         setGame({
           gameId,
           token,
-          heldSeats: loadSeatTokens(gameId),
+          heldSeats: spectating ? [] : loadSeatTokens(gameId),
           revision: envelope.revision,
           view: envelope.view,
-          seatInfo: envelope.seatInfo
+          seatInfo: envelope.seatInfo,
+          spectating,
+          ...(spectatorClientId ? { spectatorClientId } : {})
         });
         setSelectedAreaId(null);
         setComposer(null);
         setArmedOrder(null);
         setChat(null);
         const [history, chatHistory] = await Promise.all([
-          loadHistory(gameId, token),
-          loadChat(gameId, token)
+          loadHistory(gameId, token, spectating),
+          loadChat(gameId, token, spectating)
         ]);
         if (cancelled) {
           return;
@@ -244,7 +298,7 @@ export function App() {
       if (!current) {
         return;
       }
-      void fetchGameView(current.gameId, current.token)
+      void fetchViewFor(current)
         .then(async (envelope) => {
           if (gameRef.current?.token !== current.token) {
             return; // seat switched mid-poll; drop this result
@@ -252,7 +306,11 @@ export function App() {
           let newEvents: PlayerGameEvent[] = [];
           let newRevisions: number[] = [];
           if (envelope.revision > current.revision) {
-            const fetched = await fetchEvents(current.gameId, current.token, current.revision);
+            const fetched = await eventsFetcher(current.spectating)(
+              current.gameId,
+              current.token,
+              current.revision
+            );
             newEvents = fetched.events;
             newRevisions = fetched.revisions;
           }
@@ -319,9 +377,10 @@ export function App() {
     if (!game || !chatOn || !chatLoaded) {
       return;
     }
-    const { gameId, token } = game;
+    const { gameId, token, spectating } = game;
+    const fetchChatFor = chatFetcher(spectating);
     const interval = window.setInterval(() => {
-      void fetchChat(gameId, token, lastChatIdRef.current)
+      void fetchChatFor(gameId, token, lastChatIdRef.current)
         .then(({ messages }) => {
           if (messages.length > 0 && gameRef.current?.token === token) {
             setChat((previous) => (previous ? mergeChat(previous, messages) : previous));
@@ -333,18 +392,59 @@ export function App() {
     }, 3000);
     return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the seat, not every view
-  }, [game?.gameId, game?.token, chatOn, chatLoaded]);
+  }, [game?.gameId, game?.token, game?.spectating, chatOn, chatLoaded]);
+
+  // A seat's live spectator count + shareable spectator link: fetched at once, then refreshed
+  // while the game is active. Failures keep the last value.
+  const [spectators, setSpectators] = useState<SpectatorInfo | null>(null);
+  const seatGameId = game && !game.spectating ? game.gameId : null;
+  const seatToken = game && !game.spectating ? game.token : null;
+  const gameActive = game?.view.status === "active";
+  useEffect(() => {
+    if (!seatGameId || !seatToken) {
+      return;
+    }
+    let cancelled = false;
+    const refresh = () => {
+      void fetchSpectators(seatGameId, seatToken)
+        .then(({ count, spectatorToken }) => {
+          if (!cancelled) {
+            setSpectators({
+              gameId: seatGameId,
+              count,
+              link: spectateUrl(window.location.origin, seatGameId, spectatorToken)
+            });
+          }
+        })
+        .catch(() => {
+          // keep the last known count/link; the next tick retries
+        });
+    };
+    refresh();
+    const interval = gameActive ? window.setInterval(refresh, SPECTATOR_POLL_MS) : null;
+    return () => {
+      cancelled = true;
+      if (interval !== null) {
+        window.clearInterval(interval);
+      }
+    };
+  }, [seatGameId, seatToken, gameActive]);
+  const spectatorInfo = spectators && spectators.gameId === seatGameId ? spectators : null;
 
   const logEntries = useMemo(() => buildLogEntries(events, chat ?? []), [events, chat]);
 
   // Flash the tab title when the opponent chats while the tab is in the background.
+  // A spectator has no opponent: no chat alert.
   const opponentChat = chat?.filter((m) => m.seat !== game?.view.viewerSeat);
-  useChatAlert(chat === null ? null : (opponentChat?.at(-1)?.id ?? 0));
+  useChatAlert(chat === null || game?.spectating ? null : (opponentChat?.at(-1)?.id ?? 0));
 
   // Flash the tab title when it becomes the viewer's turn while the tab is backgrounded. Called
   // unconditionally (above the early returns) so the hook order stays stable.
   useTurnAlert(
-    game != null && game.view.status === "active" && game.view.activeSeat === game.view.viewerSeat
+    game != null &&
+      !game.spectating &&
+      game.view.status === "active" &&
+      game.view.activeSeat === game.view.viewerSeat
   );
 
   const selectedArea = useMemo(
@@ -429,7 +529,8 @@ export function App() {
         heldSeats: created.seats,
         revision: created.revision,
         view: created.view,
-        seatInfo: created.seatInfo
+        seatInfo: created.seatInfo,
+        spectating: false
       });
       setSelectedAreaId(null);
       setComposer(null);
@@ -447,9 +548,13 @@ export function App() {
   // The full per-seat event history, oldest first. The server keeps it from revision 0, so a
   // reload or seat switch restores the whole log instead of starting empty. Resilient: a failed
   // history fetch yields an empty log rather than failing the surrounding view load.
-  async function loadHistory(gameId: string, token: string): Promise<LoggedEvent[]> {
+  async function loadHistory(
+    gameId: string,
+    token: string,
+    spectating = false
+  ): Promise<LoggedEvent[]> {
     try {
-      const { events, revisions } = await fetchEvents(gameId, token, 0);
+      const { events, revisions } = await eventsFetcher(spectating)(gameId, token, 0);
       return events.map((event, index) => ({ event, revision: revisions[index] ?? 0 }));
     } catch {
       return [];
@@ -457,9 +562,13 @@ export function App() {
   }
 
   // The game's chat so far (same resilience as loadHistory).
-  async function loadChat(gameId: string, token: string): Promise<ChatMessage[]> {
+  async function loadChat(
+    gameId: string,
+    token: string,
+    spectating = false
+  ): Promise<ChatMessage[]> {
     try {
-      return (await fetchChat(gameId, token, 0)).messages;
+      return (await chatFetcher(spectating)(gameId, token, 0)).messages;
     } catch {
       return [];
     }
@@ -931,7 +1040,12 @@ export function App() {
   const viewerSeatInfo = game.seatInfo.find((s) => s.seat === game.view.viewerSeat);
   // Only the *invited* opponent (the one who opened the open seat's link) claims it. A creator
   // "viewing as" the still-open second seat changes game.token, not route.token, so they play it.
-  if (route.kind === "game" && route.token === game.token && viewerSeatInfo?.status === "open") {
+  if (
+    route.kind === "game" &&
+    !game.spectating &&
+    route.token === game.token &&
+    viewerSeatInfo?.status === "open"
+  ) {
     return (
       <ClaimSeatPrompt
         seatInfo={game.seatInfo}
@@ -1154,6 +1268,10 @@ export function App() {
             <div className="game-over-banner" role="status">
               <span className="game-over-banner-text">Game abandoned</span>
             </div>
+          ) : game.spectating ? (
+            <div className="spectating-banner" role="status">
+              Spectating
+            </div>
           ) : (
             <ActionBar
               composer={composer}
@@ -1198,20 +1316,30 @@ export function App() {
             viewerSeat={game.view.viewerSeat}
             activeSeat={turnSeat}
             inviteLink={inviteLink}
+            spectating={game.spectating}
+            spectatorLink={spectatorInfo?.link ?? null}
+            spectatorCount={spectatorInfo?.count ?? 0}
             busy={busy}
             onSwitchSeat={handleSwitchSeat}
             thinkingSeat={thinkingSeat}
           />
 
           <section className="panel-section panel-hand">
-            <Hand
-              hand={game.view.hand}
-              opponentHandCount={game.view.opponentHandCount}
-              canReroll={game.view.legal.canRerollCombat}
-              playableCards={playableCards}
-              onPreview={setPreviewCard}
-              rulesetId={game.view.rulesetId}
-            />
+            {game.spectating ? (
+              <p className="spectator-hands">
+                Cards in hand: Red {game.view.handCounts?.red ?? 0} · Black{" "}
+                {game.view.handCounts?.black ?? 0}
+              </p>
+            ) : (
+              <Hand
+                hand={game.view.hand}
+                opponentHandCount={game.view.opponentHandCount}
+                canReroll={game.view.legal.canRerollCombat}
+                playableCards={playableCards}
+                onPreview={setPreviewCard}
+                rulesetId={game.view.rulesetId}
+              />
+            )}
           </section>
 
           <section className="panel-section">
@@ -1226,21 +1354,23 @@ export function App() {
           <GameLog
             entries={logEntries}
             lookup={eventLookup}
-            viewerSeat={game.view.viewerSeat}
-            chatEnabled={chatOn}
+            viewerSeat={game.spectating ? null : game.view.viewerSeat}
+            chatEnabled={chatOn && !game.spectating}
             onSend={handleSendChat}
           />
 
-          <button
-            type="button"
-            className="secondary-action"
-            onClick={() => {
-              forgetGame(game.gameId);
-              navigateTo("/");
-            }}
-          >
-            Clear local game
-          </button>
+          {game.spectating ? null : (
+            <button
+              type="button"
+              className="secondary-action"
+              onClick={() => {
+                forgetGame(game.gameId);
+                navigateTo("/");
+              }}
+            >
+              Clear local game
+            </button>
+          )}
 
           {error ? <p className="error-text">{error}</p> : null}
         </aside>

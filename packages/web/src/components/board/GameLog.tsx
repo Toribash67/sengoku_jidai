@@ -10,7 +10,8 @@ const STICK_SLACK = 24;
 interface GameLogProps {
   entries: LogEntry[];
   lookup: EventLookup;
-  viewerSeat: SeatId;
+  /** The viewer's seat, or null for a spectator (no line is "mine"; every chat line is unread). */
+  viewerSeat: SeatId | null;
   /** Show the chat input (online human-vs-human games only). */
   chatEnabled: boolean;
   /** Send a chat line; rejects on failure so the draft is kept. */
