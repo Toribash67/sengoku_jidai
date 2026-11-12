@@ -17,6 +17,8 @@ import {
   armMove,
   armStrike,
   candidateTiles,
+  decisionTileChoices,
+  pickedDecisionChoice,
   resolveArmedTile,
   verbAvailability
 } from "./components/board/orders.js";
@@ -467,11 +469,26 @@ export function App() {
     }
     return candidateTiles(armedOrder);
   }, [composer, armedOrder]);
+  // Tile choices of a pending decision (a sea to shell again, a battle to resolve next): picked
+  // on the map rather than by same-named buttons. A paused combat is answered first.
+  const decisionTiles = useMemo(() => {
+    const decision = game?.view.pendingDecision;
+    if (!game || !decision || game.view.pendingCombat) {
+      return [];
+    }
+    const areas = getMap(game.view.mapId).areas;
+    return decisionTileChoices(decision, (id) => areas[id] !== undefined);
+  }, [game]);
+  const pickedDecision = useMemo(
+    () => pickedDecisionChoice(decisionTiles, selectedAreaId),
+    [decisionTiles, selectedAreaId]
+  );
+
   // Glowing, clickable tiles for the active composer: move sources, or strike/placement
-  // targets. Plan has no tiles.
+  // targets. Plan has no tiles. With no composer, a pending decision's tile choices glow.
   const sourceIds = useMemo(() => {
     if (!composer) {
-      return new Set<string>();
+      return new Set(decisionTiles.map((choice) => choice.id));
     }
     if (composer.kind === "move") {
       return new Set(composer.sources.map((s) => s.areaId));
@@ -480,7 +497,7 @@ export function App() {
       return new Set(composer.targets);
     }
     return new Set<string>();
-  }, [composer]);
+  }, [composer, decisionTiles]);
 
   // Staged units per area for the active move/placement, drawn as on-map badges.
   const stagedCounts = useMemo(() => stagedCountsFor(composer), [composer]);
@@ -880,6 +897,10 @@ export function App() {
   // A click on a glowing map tile during composition: pick the strike target, or stage a
   // unit for a move/placement (and mark it the active source for the stepper).
   function handleSourceClick(areaId: string) {
+    if (!composer) {
+      // A pending decision's tile: handleSelectArea already picked it.
+      return;
+    }
     if (composer?.kind === "strike") {
       selectStrikeTarget(areaId);
       return;
@@ -1104,7 +1125,7 @@ export function App() {
   // During a move, the gold highlight stays on the target; the stepper and the solid source
   // ring follow the active source instead.
   const isMove = composer?.kind === "move";
-  const goldAreaId = isMove ? composer.targetAreaId : selectedAreaId;
+  const goldAreaId = isMove ? composer.targetAreaId : (pickedDecision?.id ?? selectedAreaId);
   const stepperAreaId = isMove ? activeSourceId : selectedAreaId;
   const mapActiveSourceId = isMove ? activeSourceId : null;
 
@@ -1237,18 +1258,15 @@ export function App() {
                   ? { label: "Assault", onClick: startSiegeAssault }
                   : undefined
               }
-              renderLabel={(choice) => {
-                const kind = game.view.pendingDecision?.kind;
-                if (choice.id === "decline") {
-                  return choice.label;
-                }
-                const area = getMap(game.view.mapId).areas[choice.id];
-                if (!area) {
-                  return choice.label;
-                }
-                // selectCombat lists battle areas by name; shipStrike lists candidate seas to shell.
-                return kind === "shipStrike" ? `Shell ${describeArea(area)}` : describeArea(area);
-              }}
+              tileChoices={decisionTiles}
+              pickedChoice={pickedDecision}
+              confirmLabel={
+                game.view.pendingDecision.kind === "shipStrike"
+                  ? "Confirm Shell"
+                  : game.view.pendingDecision.kind === "selectCombat"
+                    ? "Resolve battle"
+                    : "Confirm"
+              }
             />
           ) : game.view.status === "complete" ? (
             <div className="game-over-banner" role="status">
