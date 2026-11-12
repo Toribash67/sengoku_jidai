@@ -12,6 +12,7 @@ describe("runMatch", () => {
     expect(a.winner).not.toBeNull();
     expect(a.commands).toBeGreaterThan(0);
     expect(a).toEqual(b); // deterministic given seed + bot seeds
+    expect(a.victoryPoints.red + a.victoryPoints.black).toBeGreaterThanOrEqual(0);
   });
 
   it("runMatches aggregates a series without throwing", () => {

@@ -1,6 +1,9 @@
 import {
   createInitialState,
+  gameBoard,
+  getMap,
   resolveCommand,
+  victoryPoints,
   type EndReason,
   type GameEvent,
   type RulesConfig
@@ -13,6 +16,8 @@ export interface MatchResult {
   rounds: number;
   commands: number;
   endReason: EndReason | null;
+  /** Each seat's victory points on the final board. */
+  victoryPoints: Record<SeatId, number>;
 }
 
 /** Drive one full game between two bots, headless. Throws if a bot ever emits an
@@ -54,11 +59,17 @@ export function runMatch(
     if (++commands > max) throw new Error("runMatch exceeded maxCommands (non-terminating bot?)");
   }
 
+  const map = getMap(state.mapId);
+  const board = gameBoard(state);
   return {
     winner: state.winner,
     rounds: state.round,
     commands,
-    endReason: state.endReason
+    endReason: state.endReason,
+    victoryPoints: {
+      red: victoryPoints(map, board, "red"),
+      black: victoryPoints(map, board, "black")
+    }
   };
 }
 
