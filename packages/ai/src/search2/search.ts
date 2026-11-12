@@ -9,6 +9,8 @@ import type { SeatId } from "../types.js";
 import { deployCandidates, moveArchetypes } from "../candidates.js";
 import { DEFAULT_WEIGHTS, evaluate } from "../eval.js";
 import { battleDecision, battleOutcomes, type BattleCtx } from "./battle.js";
+import { holdProbability } from "./belief.js";
+import { grantCard } from "./hidden.js";
 import { DEFAULT_FEATURES, type ExpectiOptions } from "./features.js";
 
 /**
@@ -72,22 +74,115 @@ export function searchValue(
   const mover = state.activeSeat;
   const kids = deployChildren(state, mover, ctx);
   if (kids.length === 0) return evaluate(state, ctx.viewer, ctx.weights);
-  const maximizing = mover === ctx.viewer;
-  let value = maximizing ? -Infinity : Infinity;
-  let a = alpha;
-  let b = beta;
-  for (const k of kids) {
-    const v = childValue(k, absent, depth - 1, a, b, ctx);
-    if (maximizing) {
-      if (v > value) value = v;
-      if (value > a) a = value;
-    } else {
-      if (v < value) value = v;
-      if (value < b) b = value;
+  if (mover === ctx.viewer) {
+    let value = -Infinity;
+    let a = alpha;
+    for (const k of kids) {
+      value = Math.max(value, childValue(k, absent, depth - 1, a, beta, ctx));
+      a = Math.max(a, value);
+      if (beta <= a) break; // prune
     }
-    if (b <= a) break; // prune
+    return value;
   }
-  return value;
+
+  // The opponent's step. Their hand is placeholders, so `kids` are their card-free options; the
+  // cards they might hold are weighed in by probability (follow-ups per option, deploy-time cards
+  // as threats against the whole step).
+  const threats =
+    ctx.features.opponentDeployThreats && depth === ctx.threatDepth
+      ? deployThreats(state, mover, absent, depth, ctx)
+      : [];
+  // The threat formula needs this step's exact value, so it searches a full window.
+  let b = threats.length > 0 ? Infinity : beta;
+  const floor = threats.length > 0 ? -Infinity : alpha;
+  let value = Infinity;
+  for (const k of kids) {
+    value = Math.min(value, opponentChildValue(state, mover, k, absent, depth - 1, floor, b, ctx));
+    b = Math.min(b, value);
+    if (b <= floor) break; // prune
+  }
+  if (threats.length === 0) return value;
+  let weighed = value;
+  let worst = value;
+  for (const t of threats) {
+    weighed -= t.prob * Math.max(0, value - t.value);
+    worst = Math.min(worst, t.value);
+  }
+  return Math.max(worst, weighed);
+}
+
+/** Cards the opponent plays as a commander deploys. */
+const DEPLOY_CARDS: readonly OperationCard[] = [
+  "ground_assault",
+  "river_assault",
+  "mobilise",
+  "commandeer",
+  "counterattack",
+  "shore_strike",
+  "volley"
+];
+
+/** Strikes whose resolution offers the attacker a follow-up, and the card that offers it. */
+const FOLLOW_UP_CARD: Partial<Record<Command["type"], OperationCard>> = {
+  shell: "ship_strike",
+  siege: "siege_assault"
+};
+
+interface Threat {
+  /** Probability the opponent holds the card. */
+  prob: number;
+  /** The step's value if they do: their best option that plays it. */
+  value: number;
+}
+
+/** For each deploy-time card the opponent might hold: how likely, and how bad their best play
+ *  of it would be. Kinds they cannot hold, or could not use here, are left out. */
+function deployThreats(
+  state: GameState,
+  mover: SeatId,
+  absent: Absent,
+  depth: number,
+  ctx: SearchCtx
+): Threat[] {
+  const threats: Threat[] = [];
+  for (const card of DEPLOY_CARDS) {
+    if (state.players[mover].hand.includes(card)) continue; // already real: in the card-free kids
+    const prob = holdProbability(state, mover, card, absent);
+    if (prob <= 0) continue;
+    const holding = grantCard(state, mover, card);
+    if (!holding) continue;
+    const plays = deployCandidates(holding, mover).filter((c) => "card" in c && c.card === card);
+    let value = Infinity;
+    for (const k of children(holding, mover, plays, ctx)) {
+      value = Math.min(value, childValue(k, absent, depth - 1, -Infinity, Infinity, ctx));
+    }
+    if (Number.isFinite(value)) threats.push({ prob, value });
+  }
+  return threats;
+}
+
+/** Value of one opponent option. A Shell or Siege may be followed by a Ship Strike or Siege
+ *  Assault if they hold that card: mix the plain result with the result of the same command
+ *  played while holding it (the engine then raises the follow-up offer by itself). */
+function opponentChildValue(
+  state: GameState,
+  mover: SeatId,
+  k: Child,
+  absent: Absent,
+  depth: number,
+  alpha: number,
+  beta: number,
+  ctx: SearchCtx
+): number {
+  const card = ctx.features.followUps ? FOLLOW_UP_CARD[k.cmd.type] : undefined;
+  const prob = card ? holdProbability(state, mover, card, absent) : 0;
+  const holding = card && prob > 0 ? grantCard(state, mover, card) : null;
+  if (!holding) return childValue(k, absent, depth, alpha, beta, ctx);
+  const [granted] = children(holding, mover, [k.cmd], ctx);
+  if (!granted) return childValue(k, absent, depth, alpha, beta, ctx);
+  const plain = childValue(k, absent, depth, -Infinity, Infinity, ctx);
+  const withCard = childValue(granted, absent, depth, -Infinity, Infinity, ctx);
+  return (1 - prob) * plain + prob * Math.min(plain, withCard);
 }
 
 interface Child {

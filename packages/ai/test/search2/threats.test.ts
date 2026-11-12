@@ -1,0 +1,68 @@
+import { describe, expect, it } from "vitest";
+import { deckFor, resolveCommand, type OperationCard } from "@sengoku-jidai/engine";
+import { deployCandidates } from "../../src/candidates.js";
+import type { Features } from "../../src/search2/features.js";
+import { grantCard, observe } from "../../src/search2/hidden.js";
+import { searchValue } from "../../src/search2/search.js";
+import { ctxFor, opponentToMove } from "./scenario.js";
+
+const cards = (n: number): OperationCard[] => Array<OperationCard>(n).fill("mobilise");
+const none = new Set<OperationCard>();
+const seeds = ["t1", "t2", "t3", "t4", "t5", "t6"];
+const cardBlind: Partial<Features> = { opponentDeployThreats: false, followUps: false };
+
+const value = (seed: string, n: number, features?: Partial<Features>) => {
+  const { state, viewer } = opponentToMove(seed, cards(n));
+  const observed = observe(state, viewer);
+  return searchValue(observed, none, 1, -Infinity, Infinity, ctxFor(viewer, features));
+};
+
+describe("opponent card threats", () => {
+  it("possible opponent cards can only lower the position's value", () => {
+    for (const seed of seeds) {
+      expect(value(seed, 4)).toBeLessThanOrEqual(value(seed, 4, cardBlind) + 1e-9);
+    }
+  });
+
+  it("they lower it strictly somewhere", () => {
+    expect(seeds.some((seed) => value(seed, 4) < value(seed, 4, cardBlind) - 1e-9)).toBe(true);
+  });
+
+  it("an opponent with no cards poses no card threat", () => {
+    for (const seed of seeds) expect(value(seed, 0)).toBeCloseTo(value(seed, 0, cardBlind), 9);
+  });
+
+  it("the value never drops below the worst single deploy-time threat", () => {
+    for (const seed of seeds) {
+      const { state, viewer } = opponentToMove(seed, cards(6));
+      const observed = observe(state, viewer);
+      const mover = observed.activeSeat;
+      // The worst the opponent could do holding any ONE kind outright, one deployment deep.
+      let worst = Infinity;
+      for (const kind of new Set(deckFor(observed.rules.rulesetId))) {
+        const granted = grantCard(observed, mover, kind)!;
+        for (const cmd of deployCandidates(granted, mover)) {
+          if (!("card" in cmd) || cmd.card !== kind) continue;
+          const r = resolveCommand(granted, { seat: mover }, cmd);
+          if (r.status !== "accepted") continue;
+          const ctx = ctxFor(viewer, { followUps: false });
+          worst = Math.min(worst, searchValue(r.nextState, none, 0, -Infinity, Infinity, ctx));
+        }
+      }
+      const blind = value(seed, 6, cardBlind);
+      const withThreats = value(seed, 6, { followUps: false });
+      expect(withThreats).toBeGreaterThanOrEqual(Math.min(worst, blind) - 1e-9);
+    }
+  });
+
+  it("threats are weighed only at the immediate reply", () => {
+    const { state, viewer } = opponentToMove("t1", cards(4));
+    const observed = observe(state, viewer);
+    const deeper = { ...ctxFor(viewer), threatDepth: 5 };
+    const noDeployThreats = ctxFor(viewer, { opponentDeployThreats: false });
+    expect(searchValue(observed, none, 1, -Infinity, Infinity, deeper)).toBeCloseTo(
+      searchValue(observed, none, 1, -Infinity, Infinity, noDeployThreats),
+      9
+    );
+  });
+});

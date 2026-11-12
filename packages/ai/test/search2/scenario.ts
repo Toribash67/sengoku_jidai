@@ -15,6 +15,7 @@ import { DEFAULT_WEIGHTS } from "../../src/eval.js";
 import { DEFAULT_FEATURES, type Features } from "../../src/search2/features.js";
 import { observe } from "../../src/search2/hidden.js";
 import type { BattleCtx, Outcome } from "../../src/search2/battle.js";
+import type { SearchCtx } from "../../src/search2/search.js";
 
 export interface ScenarioCards {
   redHand?: OperationCard[];
@@ -156,16 +157,26 @@ export function captureProb(outs: Outcome[], area: string): number {
 
 export const noneAbsent: ReadonlySet<OperationCard> = new Set<OperationCard>();
 
-/** The raw state after `plies` greedy commands from the opening of `seed`. */
-export function stateAfterGreedyPlies(seed: string, plies: number, rules?: RulesConfig): GameState {
+/** Every state of a greedy-vs-greedy game from the opening of `seed`, up to `plies` commands,
+ *  stopping before the game ends (greedy games can end by HQ elimination within a round). */
+function greedyLine(seed: string, plies: number, rules?: RulesConfig): GameState[] {
   const greedy = new GreedyBot();
   let state = createInitialState({ gameId: seed, seed, ...(rules ? { rules } : {}) });
-  for (let i = 0; i < plies && state.status === "active"; i++) {
+  const line = [state];
+  for (let i = 0; i < plies; i++) {
     const seat = onTheClock(state);
     if (!seat) break;
     state = apply(state, seat, greedy.chooseCommand(state, seat));
+    if (state.status !== "active") break;
+    line.push(state);
   }
-  return state;
+  return line;
+}
+
+/** The raw state after `plies` greedy commands from the opening of `seed` — or the last state
+ *  before the game ended, if it ends sooner. Always an active game. */
+export function stateAfterGreedyPlies(seed: string, plies: number, rules?: RulesConfig): GameState {
+  return greedyLine(seed, plies, rules).at(-1)!;
 }
 
 /** Red holds Commandeer and embarks into two black-held seas at once, staging two battles.
@@ -197,4 +208,23 @@ export function commandeerTwoBattlesScenario(): { state: GameState; command: Com
     };
   }
   throw new Error("scenario: no two-battle Commandeer could be arranged");
+}
+
+/** A raw state on a clean deploy turn (nothing pending), reached by greedy play from `seed`.
+ *  `viewer` is the seat NOT on the clock; the mover's hand is replaced by `enemyHand`. */
+export function opponentToMove(
+  seed: string,
+  enemyHand: OperationCard[]
+): { state: GameState; viewer: SeatId } {
+  const clean = greedyLine(seed, 10).filter((st) => !st.pendingCombat && !st.pendingDecision);
+  const state = structuredClone(clean.at(-1)!) as GameState;
+  const mover = state.activeSeat;
+  state.players[mover].hand = [...enemyHand];
+  return { state, viewer: mover === "red" ? "black" : "red" };
+}
+
+/** A search context for calling searchValue directly at depth 1 on an opponent's deploy turn:
+ *  no deadline, and that step counts as the immediate reply. */
+export function ctxFor(viewer: SeatId, over: Partial<Features> = {}): SearchCtx {
+  return { ...ctx(over, viewer), deadline: 0, threatDepth: 1 };
 }
