@@ -228,3 +228,30 @@ export function opponentToMove(
 export function ctxFor(viewer: SeatId, over: Partial<Features> = {}): SearchCtx {
   return { ...ctx(over, viewer), deadline: 0, threatDepth: 1 };
 }
+
+/** `attackSetup`, arranged so that the Advance is red's only sensible attack: every other unit
+ *  that could move is pinned (a tile's last unit cannot leave), and any other tile the attacking
+ *  stack could reach is a black stronghold. What remains is attack, build up, plan or pass. */
+export function attackChoiceScenario(o: ScenarioCards & { attackers: number; defenders: number }): {
+  state: GameState;
+  attack: Command;
+} {
+  const { state, attack } = attackSetup(o);
+  if (attack.type !== "advance") throw new Error("scenario: expected an advance");
+  const from = attack.moves[0]!.from;
+  for (const move of legalCommandsForState(state, "red").moves) {
+    if (move.spaceId === attack.spaceId) continue;
+    const unit = move.type === "advance" ? "troop" : "ship";
+    for (const source of move.sources) {
+      if (source.areaId !== from) state.areas[source.areaId]!.units[unit] = 1;
+    }
+    if (move.sources.some((source) => source.areaId === from)) {
+      state.areas[move.targetAreaId] = {
+        ...state.areas[move.targetAreaId]!,
+        owner: "black",
+        units: { troop: 0, ship: 0, siege: 0, [unit]: unit === "troop" ? 5 : 3 }
+      };
+    }
+  }
+  return { state, attack };
+}
