@@ -67,33 +67,56 @@ export interface SeriesResult {
   blackSeatWins: number;
   aWins: number;
   bWins: number;
+  /** Games with no winner. Counted for neither bot. */
+  draws: number;
   games: number;
 }
 
-/** Play a series, alternating which bot is red to cancel first-move bias. */
+/** Play a series, alternating which bot is red to cancel first-move bias. With `seeds`, every
+ *  seed is played twice — once with each bot as red — and `games`/`seedPrefix` are ignored. */
 export function runMatches(
   botA: Bot,
   botB: Bot,
-  opts: { games: number; seedPrefix: string; maxCommands?: number }
-): SeriesResult {
-  let redSeatWins = 0;
-  let blackSeatWins = 0;
-  let aWins = 0;
-  let bWins = 0;
-  for (let i = 0; i < opts.games; i++) {
-    const aIsRed = i % 2 === 0;
-    const red = aIsRed ? botA : botB;
-    const black = aIsRed ? botB : botA;
-    const res = runMatch(red, black, {
-      seed: `${opts.seedPrefix}-${i}`,
-      gameId: `${opts.seedPrefix}-${i}`,
-      maxCommands: opts.maxCommands
-    });
-    if (res.winner === "red") redSeatWins++;
-    else if (res.winner === "black") blackSeatWins++;
-    const winnerIsA = (res.winner === "red" && aIsRed) || (res.winner === "black" && !aIsRed);
-    if (winnerIsA) aWins++;
-    else bWins++;
+  opts: {
+    games?: number;
+    seedPrefix?: string;
+    seeds?: string[];
+    maxCommands?: number;
+    rules?: RulesConfig;
   }
-  return { redSeatWins, blackSeatWins, aWins, bWins, games: opts.games };
+): SeriesResult {
+  const fixtures: { seed: string; aIsRed: boolean }[] = opts.seeds
+    ? opts.seeds.flatMap((seed) => [
+        { seed, aIsRed: true },
+        { seed, aIsRed: false }
+      ])
+    : Array.from({ length: opts.games ?? 0 }, (_, i) => ({
+        seed: `${opts.seedPrefix ?? "series"}-${i}`,
+        aIsRed: i % 2 === 0
+      }));
+  const result: SeriesResult = {
+    redSeatWins: 0,
+    blackSeatWins: 0,
+    aWins: 0,
+    bWins: 0,
+    draws: 0,
+    games: fixtures.length
+  };
+  for (const { seed, aIsRed } of fixtures) {
+    const res = runMatch(aIsRed ? botA : botB, aIsRed ? botB : botA, {
+      seed,
+      gameId: seed,
+      maxCommands: opts.maxCommands,
+      rules: opts.rules
+    });
+    if (res.winner === null) {
+      result.draws++;
+      continue;
+    }
+    if (res.winner === "red") result.redSeatWins++;
+    else result.blackSeatWins++;
+    if ((res.winner === "red") === aIsRed) result.aWins++;
+    else result.bWins++;
+  }
+  return result;
 }
