@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
-import type { LegalCommandSummary, LegalMove, LegalStrike } from "@sengoku-jidai/engine/client";
+import type {
+  LegalCommandSummary,
+  LegalMove,
+  LegalStrike,
+  PendingDecision
+} from "@sengoku-jidai/engine/client";
 import {
   armMove,
   armStrike,
   candidateTiles,
+  decisionTileChoices,
+  pickedDecisionChoice,
   resolveArmedTile,
   verbAvailability
 } from "./orders.js";
@@ -145,5 +152,36 @@ describe("resolveArmedTile", () => {
     expect(
       resolveArmedTile({ kind: "move", type: "advance", moves: [advance] }, "tile9")
     ).toBeNull();
+  });
+});
+
+describe("pending decision tile choices", () => {
+  const decision: PendingDecision = {
+    id: "ship-strike-sea1",
+    seat: "red",
+    prompt: "Ship Strike: take a second Shell from the same space?",
+    choices: [
+      { id: "sea1", label: "Shell sea1" },
+      { id: "sea2", label: "Shell sea2" },
+      { id: "decline", label: "Decline" }
+    ],
+    kind: "shipStrike",
+    spaceId: "shell-x"
+  };
+  const isArea = (id: string) => id.startsWith("sea");
+
+  it("keeps only the choices that name a map tile", () => {
+    expect(decisionTileChoices(decision, isArea).map((c) => c.id)).toEqual(["sea1", "sea2"]);
+  });
+
+  it("picks the selected tile only when it is a candidate", () => {
+    const tiles = decisionTileChoices(decision, isArea);
+    expect(pickedDecisionChoice(tiles, "sea2")?.id).toBe("sea2");
+    expect(pickedDecisionChoice(tiles, "tile9")).toBeNull();
+    expect(pickedDecisionChoice(tiles, null)).toBeNull();
+  });
+
+  it("picks a sole candidate without a selection", () => {
+    expect(pickedDecisionChoice([decision.choices[0]!], null)?.id).toBe("sea1");
   });
 });

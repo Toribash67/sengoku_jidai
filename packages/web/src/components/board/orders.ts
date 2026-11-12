@@ -2,7 +2,9 @@ import type {
   LegalCommandSummary,
   LegalMove,
   LegalStrike,
-  OperationCard
+  OperationCard,
+  PendingChoice,
+  PendingDecision
 } from "@sengoku-jidai/engine/client";
 
 /** A base order (or operation-card play) that has been "armed": the player picked a verb and
@@ -85,4 +87,23 @@ export function resolveArmedTile(armed: ArmedOrder, areaId: string): ResolvedOrd
   }
   const strike = armed.strikes.find((s) => s.linkedAreaId === areaId);
   return strike ? { kind: "strike", strike } : null;
+}
+
+/** The choices of a pending decision that name a map tile (a sea to shell, a battle to resolve).
+ *  These are picked on the map instead of by button; the rest (e.g. "decline") stay buttons. */
+export function decisionTileChoices(
+  decision: PendingDecision,
+  isArea: (id: string) => boolean
+): PendingChoice[] {
+  return decision.choices.filter((choice) => isArea(choice.id));
+}
+
+/** The tile choice currently picked: the selected tile when it is a candidate, else the sole
+ *  candidate (nothing to disambiguate), else null. */
+export function pickedDecisionChoice(
+  tileChoices: PendingChoice[],
+  selectedAreaId: string | null
+): PendingChoice | null {
+  const selected = tileChoices.find((choice) => choice.id === selectedAreaId);
+  return selected ?? (tileChoices.length === 1 ? tileChoices[0]! : null);
 }
