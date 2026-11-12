@@ -107,7 +107,9 @@ export function strikeScenarioRaw(
   const base = fresh(o);
   const map = getMap(base.mapId);
   const unit = o.type === "shell" ? "ship" : "troop";
-  for (const [id, area] of Object.entries(map.areas)) {
+  // Most valuable target first, so that holding it is worth more than a card.
+  const byValue = Object.entries(map.areas).sort((a, b) => b[1].valueStars - a[1].valueStars);
+  for (const [id, area] of byValue) {
     if (area.hq) continue;
     if ((area.kind === "sea") !== (unit === "ship")) continue;
     const s = structuredClone(base) as GameState;
