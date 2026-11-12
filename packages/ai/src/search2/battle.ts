@@ -11,12 +11,18 @@ import { rollTotalDistribution } from "../combatOdds.js";
 import { evaluate, type EvalWeights } from "../eval.js";
 import { cardToSpend } from "./cardRank.js";
 import type { Features } from "./features.js";
-import { HIDDEN } from "./hidden.js";
+import { holdProbability } from "./belief.js";
+import { HIDDEN, grantCard } from "./hidden.js";
 
 /**
  * The battle resolver. A battle is a small chance process with a few choices in it — dice are
- * thrown, the roller may discard a card to rethrow — and this module works it out exactly,
- * returning the short list of ways it can end with their probabilities.
+ * thrown, the defender may add Ambush dice, the roller may discard a card to rethrow, a sieged
+ * defender may Take Cover — and this module works it out exactly, returning the short list of
+ * ways it can end with their probabilities.
+ *
+ * The AI's own cards are known, so its choices are plain choices. The opponent's are not: where
+ * they could play a card, the outcomes split by the counted probability that they hold it, and a
+ * holder is assumed to play it whenever that is better for them.
  *
  * Dice are never thrown here: each possible total is forced onto the pending combat and applied
  * with the engine's own `combatResolve`, so captures, caps, HQ elimination and the turn tail stay
@@ -43,13 +49,98 @@ type Absent = ReadonlySet<OperationCard>;
 /** Every way the pending combat can end, from whatever phase it is in. */
 export function battleOutcomes(state: GameState, absent: Absent, ctx: BattleCtx): Outcome[] {
   const pc = state.pendingCombat!;
-  if (pc.phase === "awaiting-cover") return merge(state, coverStep(state, absent, ctx));
+  if (pc.phase === "awaiting-cover") return merge(state, coverStep(state, absent, ctx).outcomes);
   if (pc.phase === "rolled") {
     const nDice = pc.rolls?.length ?? 1;
     const outs = afterTotal(state, pc.total ?? 0, nDice, ctx.features.rerollCap, absent, ctx);
     return merge(state, outs);
   }
-  return merge(state, throwDice(state, baseDice(state), ctx.features.rerollCap, absent, ctx));
+  return merge(state, rollStep(state, absent, ctx).outcomes);
+}
+
+/** The command for the seat on the clock in a pending combat (which must be `ctx.viewer`):
+ *  roll with or without Ambush, rethrow or accept, take cover or not. Unlike the look-ahead, a
+ *  real reroll is not capped: this is asked again after every throw. */
+export function battleDecision(state: GameState, ctx: BattleCtx): Command {
+  const pc = state.pendingCombat!;
+  const none: Absent = new Set<OperationCard>();
+  if (pc.phase === "awaiting-roll") {
+    const ambush = rollStep(state, none, ctx).played;
+    return { type: "combatRoll", pendingId: pc.id, ...(ambush ? { card: "ambush" as const } : {}) };
+  }
+  if (pc.phase === "awaiting-cover") {
+    const cover = coverStep(state, none, ctx).played;
+    return {
+      type: "combatResolve",
+      pendingId: pc.id,
+      ...(cover ? { card: "take_cover" as const } : {})
+    };
+  }
+  const nDice = pc.rolls?.length ?? 1;
+  const live: BattleCtx = { ...ctx, features: { ...ctx.features, rerolls: true } };
+  const reroll = rerollOption(state, nDice, Math.max(1, ctx.features.rerollCap), none, live);
+  if (reroll) {
+    const keep = applyTotal(state, pc.total ?? 0, none, ctx);
+    if (reroll.value > expected(keep, pc.responsibleSeat, ctx)) {
+      return { type: "combatReroll", pendingId: pc.id, card: reroll.card };
+    }
+  }
+  return { type: "combatResolve", pendingId: pc.id };
+}
+
+interface Step {
+  outcomes: Outcome[];
+  /** True when `ctx.viewer` is the one choosing here and chooses to play the card. */
+  played: boolean;
+}
+
+/** The first throw, with the defender's Ambush option on an Advance. */
+function rollStep(state: GameState, absent: Absent, ctx: BattleCtx): Step {
+  const pc = state.pendingCombat!;
+  const cap = ctx.features.rerollCap;
+  const nDice = baseDice(state);
+  const without = throwDice(state, nDice, cap, absent, ctx);
+  if (pc.kind !== "advance") return { outcomes: without, played: false };
+  const defender = pc.responsibleSeat;
+  const model = ctx.features.opponentAmbush;
+  return cardStep(state, defender, "ambush", model, absent, ctx, without, (s) =>
+    throwDice(discard(s, defender, "ambush"), nDice + 2, cap, absent, ctx)
+  );
+}
+
+/** A point where `seat` may play `card`. `without` is what happens if they do not; `withCard`
+ *  works out what happens if they do, from a state in which they certainly hold it. */
+function cardStep(
+  state: GameState,
+  seat: SeatId,
+  card: OperationCard,
+  modelOpponent: boolean,
+  absent: Absent,
+  ctx: BattleCtx,
+  without: Outcome[],
+  withCard: (holding: GameState) => Outcome[]
+): Step {
+  const hand = state.players[seat].hand;
+  if (seat === ctx.viewer) {
+    if (!hand.includes(card)) return { outcomes: without, played: false };
+    const played = withCard(state);
+    return expected(played, seat, ctx) > expected(without, seat, ctx)
+      ? { outcomes: played, played: true }
+      : { outcomes: without, played: false };
+  }
+  if (!modelOpponent) return { outcomes: without, played: false };
+  const p = holdProbability(state, seat, card, absent);
+  const holding = p <= 0 ? null : hand.includes(card) ? state : grantCard(state, seat, card);
+  if (!holding) return { outcomes: without, played: false };
+  const played = withCard(holding);
+  // A holder plays only when it is strictly better for them; otherwise holding or not looks the
+  // same from here, so nothing is learned about their hand.
+  if (expected(played, seat, ctx) <= expected(without, seat, ctx)) {
+    return { outcomes: without, played: false };
+  }
+  if (p >= 1) return { outcomes: played, played: false };
+  const notHeld = without.map((o) => ({ ...o, absent: new Set([...o.absent, card]) }));
+  return { outcomes: [...scale(played, p), ...scale(notHeld, 1 - p)], played: false };
 }
 
 /** Dice the responsible seat throws before any card: one defence die (plus the fort's) for an
@@ -156,15 +247,26 @@ function applyTotal(state: GameState, total: number, absent: Absent, ctx: Battle
   };
   const next = send(rolled, { type: "combatResolve", pendingId: pc.id });
   if (next.pendingCombat?.id === pc.id && next.pendingCombat.phase === "awaiting-cover") {
-    return coverStep(next, absent, ctx);
+    return coverStep(next, absent, ctx).outcomes;
   }
   return [{ prob: 1, state: next, absent }];
 }
 
-/** A siege waiting on the defender's Take Cover answer: the defender takes the damage. */
-function coverStep(state: GameState, absent: Absent, _ctx: BattleCtx): Outcome[] {
+/** A siege waiting on the defender's Take Cover answer. */
+function coverStep(state: GameState, absent: Absent, ctx: BattleCtx): Step {
   const pc = state.pendingCombat!;
-  return [{ prob: 1, state: send(state, { type: "combatResolve", pendingId: pc.id }), absent }];
+  const defender = pc.responsibleSeat;
+  const accept: Outcome[] = [
+    { prob: 1, state: send(state, { type: "combatResolve", pendingId: pc.id }), absent }
+  ];
+  if (!ctx.features.takeCover) return { outcomes: accept, played: false };
+  return cardStep(state, defender, "take_cover", true, absent, ctx, accept, (s) => [
+    {
+      prob: 1,
+      state: send(s, { type: "combatResolve", pendingId: pc.id, card: "take_cover" }),
+      absent
+    }
+  ]);
 }
 
 /** Issue `cmd` as the combat's responsible seat; a rejection is a resolver bug. */
