@@ -29,6 +29,10 @@ export interface SearchCtx extends BattleCtx {
   /** The `depth` value at which an opponent deploy step counts as "the immediate reply" for
    *  opponent card threats. The root sets it to d − 1 while searching depth d; −1 disables it. */
   threatDepth: number;
+  /** Battles still to be expanded outcome-by-outcome on this line; later ones are folded. */
+  fullBattles: number;
+  /** Deploy-threat penalties already worked out for a position (see threatPenalty). */
+  threatMemo?: WeakMap<GameState, number>;
 }
 
 type Absent = ReadonlySet<OperationCard>;
@@ -50,13 +54,7 @@ export function searchValue(
   if (ctx.deadline > 0 && Date.now() >= ctx.deadline) throw new SearchTimeout();
   if (state.status !== "active") return evaluate(state, ctx.viewer, ctx.weights);
 
-  if (state.pendingCombat) {
-    let value = 0;
-    for (const o of battleOutcomes(state, absent, ctx)) {
-      value += o.prob * searchValue(o.state, o.absent, depth, -Infinity, Infinity, ctx);
-    }
-    return value;
-  }
+  if (state.pendingCombat) return chanceValue(state, absent, depth, alpha, beta, ctx);
 
   if (state.pendingDecision) {
     const seat = state.pendingDecision.seat;
@@ -86,29 +84,21 @@ export function searchValue(
   }
 
   // The opponent's step. Their hand is placeholders, so `kids` are their card-free options; the
-  // cards they might hold are weighed in by probability (follow-ups per option, deploy-time cards
-  // as threats against the whole step).
-  const threats =
+  // cards they might hold are weighed in by probability: follow-ups per option, deploy-time cards
+  // as a penalty on the whole step. The penalty is a constant, so pruning carries on around it.
+  const penalty =
     ctx.features.opponentDeployThreats && depth === ctx.threatDepth
-      ? deployThreats(state, mover, absent, depth, ctx)
-      : [];
-  // The threat formula needs this step's exact value, so it searches a full window.
-  let b = threats.length > 0 ? Infinity : beta;
-  const floor = threats.length > 0 ? -Infinity : alpha;
+      ? threatPenalty(state, mover, kids, absent, ctx)
+      : 0;
+  const floor = alpha + penalty;
+  let b = beta + penalty;
   let value = Infinity;
   for (const k of kids) {
     value = Math.min(value, opponentChildValue(state, mover, k, absent, depth - 1, floor, b, ctx));
     b = Math.min(b, value);
     if (b <= floor) break; // prune
   }
-  if (threats.length === 0) return value;
-  let weighed = value;
-  let worst = value;
-  for (const t of threats) {
-    weighed -= t.prob * Math.max(0, value - t.value);
-    worst = Math.min(worst, t.value);
-  }
-  return Math.max(worst, weighed);
+  return value - penalty;
 }
 
 /** Cards the opponent plays as a commander deploys. */
@@ -122,44 +112,48 @@ const DEPLOY_CARDS: readonly OperationCard[] = [
   "volley"
 ];
 
-/** Strikes whose resolution offers the attacker a follow-up, and the card that offers it. */
-const FOLLOW_UP_CARD: Partial<Record<Command["type"], OperationCard>> = {
-  shell: "ship_strike",
-  siege: "siege_assault"
-};
-
-interface Threat {
-  /** Probability the opponent holds the card. */
-  prob: number;
-  /** The step's value if they do: their best option that plays it. */
-  value: number;
-}
-
-/** For each deploy-time card the opponent might hold: how likely, and how bad their best play
- *  of it would be. Kinds they cannot hold, or could not use here, are left out. */
-function deployThreats(
+/**
+ * How much worse this opponent step is for the viewer because of the deploy-time cards the
+ * opponent might hold. For each kind: the probability they hold it, times how much their best
+ * play of it beats their best card-free option — both judged by static value one deployment
+ * deep, so the cost does not grow with search depth. Never more than the worst single threat.
+ * Memoised per position: the root's children are revisited at every iteration depth.
+ */
+function threatPenalty(
   state: GameState,
   mover: SeatId,
+  kids: Child[],
   absent: Absent,
-  depth: number,
   ctx: SearchCtx
-): Threat[] {
-  const threats: Threat[] = [];
+): number {
+  const memo = absent.size === 0 ? ctx.threatMemo : undefined;
+  const known = memo?.get(state);
+  if (known !== undefined) return known;
+  const plain = kids[0]!.shallow; // best-first for the opponent: their best card-free option
+  let weighed = 0;
+  let worst = 0;
   for (const card of DEPLOY_CARDS) {
-    if (state.players[mover].hand.includes(card)) continue; // already real: in the card-free kids
+    if (state.players[mover].hand.includes(card)) continue; // a real card: already in `kids`
     const prob = holdProbability(state, mover, card, absent);
     if (prob <= 0) continue;
     const holding = grantCard(state, mover, card);
     if (!holding) continue;
     const plays = deployCandidates(holding, mover).filter((c) => "card" in c && c.card === card);
-    let value = Infinity;
-    for (const k of children(holding, mover, plays, ctx)) {
-      value = Math.min(value, childValue(k, absent, depth - 1, -Infinity, Infinity, ctx));
-    }
-    if (Number.isFinite(value)) threats.push({ prob, value });
+    let gap = 0;
+    for (const k of children(holding, mover, plays, ctx)) gap = Math.max(gap, plain - k.shallow);
+    weighed += prob * gap;
+    worst = Math.max(worst, gap);
   }
-  return threats;
+  const penalty = Math.min(weighed, worst);
+  memo?.set(state, penalty);
+  return penalty;
 }
+
+/** Strikes whose resolution offers the attacker a follow-up, and the card that offers it. */
+const FOLLOW_UP_CARD: Partial<Record<Command["type"], OperationCard>> = {
+  shell: "ship_strike",
+  siege: "siege_assault"
+};
 
 /** Value of one opponent option. A Shell or Siege may be followed by a Ship Strike or Siege
  *  Assault if they hold that card: mix the plain result with the result of the same command
@@ -183,6 +177,46 @@ function opponentChildValue(
   const plain = childValue(k, absent, depth, -Infinity, Infinity, ctx);
   const withCard = childValue(granted, absent, depth, -Infinity, Infinity, ctx);
   return (1 - prob) * plain + prob * Math.min(plain, withCard);
+}
+
+/**
+ * A battle. The first `fullBattles` on a line are expanded: every outcome is searched and the
+ * values averaged. That multiplies the tree below by the number of outcomes, so deeper battles
+ * are folded instead: only the most likely outcome is searched, and the others are accounted for
+ * by how much the exact expected static value differs from that outcome's static value. The
+ * dice and the cards are priced either way; only the continuation is approximated.
+ */
+function chanceValue(
+  state: GameState,
+  absent: Absent,
+  depth: number,
+  alpha: number,
+  beta: number,
+  ctx: SearchCtx
+): number {
+  const outs = battleOutcomes(state, absent, ctx);
+  if (ctx.fullBattles > 0) {
+    const below: SearchCtx = { ...ctx, fullBattles: ctx.fullBattles - 1 };
+    let value = 0;
+    for (const o of outs) {
+      value += o.prob * searchValue(o.state, o.absent, depth, -Infinity, Infinity, below);
+    }
+    return value;
+  }
+  let expected = 0;
+  let likely: (typeof outs)[number] | null = null;
+  let likelyStatic = 0;
+  for (const o of outs) {
+    const v = evaluate(o.state, ctx.viewer, ctx.weights);
+    expected += o.prob * v;
+    if (o.state.status === "active" && (likely === null || o.prob > likely.prob)) {
+      likely = o;
+      likelyStatic = v;
+    }
+  }
+  if (!likely) return expected; // every outcome ends the game
+  const shift = expected - likelyStatic;
+  return searchValue(likely.state, likely.absent, depth, alpha - shift, beta - shift, ctx) + shift;
 }
 
 interface Child {
@@ -255,7 +289,9 @@ export function chooseCommand(
     weights: opts.weights ?? DEFAULT_WEIGHTS,
     features: { ...DEFAULT_FEATURES, ...opts.features },
     deadline: 0,
-    threatDepth: -1
+    threatDepth: -1,
+    fullBattles: 0,
+    threatMemo: new WeakMap()
   };
   const none: Absent = new Set<OperationCard>();
   if (observed.status !== "active") return { type: "pass" };
@@ -284,7 +320,12 @@ export function chooseCommand(
   if (kids.length === 1) return kids[0]!.cmd;
 
   const searchTo = (depth: number, deadline: number): Command => {
-    const ctx: SearchCtx = { ...base, deadline, threatDepth: depth - 1 };
+    const ctx: SearchCtx = {
+      ...base,
+      deadline,
+      threatDepth: depth - 1,
+      fullBattles: base.features.fullBattles
+    };
     let bestCmd = kids[0]!.cmd;
     let bestValue = -Infinity;
     let a = -Infinity;

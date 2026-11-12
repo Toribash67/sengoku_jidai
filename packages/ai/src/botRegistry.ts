@@ -10,7 +10,7 @@ import { DEFAULT_FEATURES, type Features } from "./search2/features.js";
 /**
  * Bots by name, for the duel script. Grammar: `name[:key=value[,key=value…]]`.
  *
- *   expecti    ms, depth, rerollCap, off (features to switch off, joined with `+`)
+ *   expecti    ms, depth, rerollCap, fullBattles, off (features to switch off, joined with `+`)
  *   alphabeta  ms, depth
  *   trapper    ms, depth
  *   greedy     —
@@ -42,6 +42,8 @@ export function parseBotSpec(spec: string): { name: string; make: () => Bot } {
       const features: Partial<Features> = {};
       const rerollCap = num("rerollCap");
       if (rerollCap !== undefined) features.rerollCap = rerollCap;
+      const fullBattles = num("fullBattles");
+      if (fullBattles !== undefined) features.fullBattles = fullBattles;
       for (const flag of (args.get("off") ?? "").split("+").filter(Boolean)) {
         if (
           !(flag in DEFAULT_FEATURES) ||
@@ -67,7 +69,7 @@ export function parseBotSpec(spec: string): { name: string; make: () => Bot } {
 }
 
 const ALLOWED_KEYS: Record<string, readonly string[]> = {
-  expecti: ["ms", "depth", "rerollCap", "off"],
+  expecti: ["ms", "depth", "rerollCap", "fullBattles", "off"],
   alphabeta: ["ms", "depth"],
   trapper: ["ms", "depth"],
   greedy: [],

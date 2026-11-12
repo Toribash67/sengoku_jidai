@@ -226,7 +226,7 @@ export function opponentToMove(
 /** A search context for calling searchValue directly at depth 1 on an opponent's deploy turn:
  *  no deadline, and that step counts as the immediate reply. */
 export function ctxFor(viewer: SeatId, over: Partial<Features> = {}): SearchCtx {
-  return { ...ctx(over, viewer), deadline: 0, threatDepth: 1 };
+  return { ...ctx(over, viewer), deadline: 0, threatDepth: 1, fullBattles: 1 };
 }
 
 /** `attackSetup`, arranged so that the Advance is red's only sensible attack: every other unit

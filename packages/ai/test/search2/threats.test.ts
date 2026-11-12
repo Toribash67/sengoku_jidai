@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { deckFor, resolveCommand, type OperationCard } from "@sengoku-jidai/engine";
+import { deckFor, resolveCommand, type Command, type OperationCard } from "@sengoku-jidai/engine";
+import { evaluate } from "../../src/eval.js";
 import { deployCandidates } from "../../src/candidates.js";
 import type { Features } from "../../src/search2/features.js";
 import { grantCard, observe } from "../../src/search2/hidden.js";
@@ -32,26 +33,27 @@ describe("opponent card threats", () => {
     for (const seed of seeds) expect(value(seed, 0)).toBeCloseTo(value(seed, 0, cardBlind), 9);
   });
 
-  it("the value never drops below the worst single deploy-time threat", () => {
+  it("the penalty never exceeds the worst single deploy-time threat", () => {
     for (const seed of seeds) {
       const { state, viewer } = opponentToMove(seed, cards(6));
       const observed = observe(state, viewer);
       const mover = observed.activeSeat;
-      // The worst the opponent could do holding any ONE kind outright, one deployment deep.
-      let worst = Infinity;
+      const after = (from: typeof observed, cmd: Command) => {
+        const r = resolveCommand(from, { seat: mover }, cmd);
+        return r.status === "accepted" ? evaluate(r.nextState, viewer) : Infinity;
+      };
+      // Their best card-free option, and the best they could do holding any ONE kind outright,
+      // both judged one deployment deep by static value.
+      const plain = Math.min(...deployCandidates(observed, mover).map((c) => after(observed, c)));
+      let worst = plain;
       for (const kind of new Set(deckFor(observed.rules.rulesetId))) {
         const granted = grantCard(observed, mover, kind)!;
         for (const cmd of deployCandidates(granted, mover)) {
-          if (!("card" in cmd) || cmd.card !== kind) continue;
-          const r = resolveCommand(granted, { seat: mover }, cmd);
-          if (r.status !== "accepted") continue;
-          const ctx = ctxFor(viewer, { followUps: false });
-          worst = Math.min(worst, searchValue(r.nextState, none, 0, -Infinity, Infinity, ctx));
+          if ("card" in cmd && cmd.card === kind) worst = Math.min(worst, after(granted, cmd));
         }
       }
-      const blind = value(seed, 6, cardBlind);
-      const withThreats = value(seed, 6, { followUps: false });
-      expect(withThreats).toBeGreaterThanOrEqual(Math.min(worst, blind) - 1e-9);
+      const penalty = value(seed, 6, { followUps: false }) - value(seed, 6, cardBlind);
+      expect(penalty).toBeGreaterThanOrEqual(worst - plain - 1e-9);
     }
   });
 

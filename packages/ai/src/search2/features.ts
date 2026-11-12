@@ -17,6 +17,11 @@ export interface Features {
   followUps: boolean;
   /** The opponent's possible deploy-time cards, as probability-weighted threats. */
   opponentDeployThreats: boolean;
+  /** How many battles along one line of look-ahead are expanded outcome by outcome; later ones
+   *  follow their most likely outcome, with the rest folded in by static value. Expanding
+   *  multiplies the tree by the number of outcomes: measured at equal depth it plays better, at
+   *  equal time clearly worse (it loses a ply or two), hence 0. */
+  fullBattles: number;
 }
 
 export const DEFAULT_FEATURES: Features = {
@@ -26,7 +31,8 @@ export const DEFAULT_FEATURES: Features = {
   rerollCap: 2,
   takeCover: true,
   followUps: true,
-  opponentDeployThreats: true
+  opponentDeployThreats: true,
+  fullBattles: 0
 };
 
 export interface ExpectiOptions {
