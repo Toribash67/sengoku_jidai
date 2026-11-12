@@ -24,3 +24,4 @@ export { observe, HIDDEN } from "./search2/hidden.js";
 export { DEFAULT_FEATURES, type ExpectiOptions, type Features } from "./search2/features.js";
 export { TrapperBot } from "./bots/trapper.js";
 export { parseBotSpec } from "./botRegistry.js";
+export { runExpectiInWorker } from "./expectiWorkerRunner.js";
