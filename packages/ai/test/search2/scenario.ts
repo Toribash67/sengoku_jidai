@@ -9,6 +9,8 @@ import {
   type RulesConfig
 } from "@sengoku-jidai/engine";
 import type { SeatId } from "../../src/types.js";
+import { GreedyBot } from "../../src/bots/greedy.js";
+import { onTheClock } from "../../src/onclock.js";
 import { DEFAULT_WEIGHTS } from "../../src/eval.js";
 import { DEFAULT_FEATURES, type Features } from "../../src/search2/features.js";
 import { observe } from "../../src/search2/hidden.js";
@@ -153,3 +155,46 @@ export function captureProb(outs: Outcome[], area: string): number {
 }
 
 export const noneAbsent: ReadonlySet<OperationCard> = new Set<OperationCard>();
+
+/** The raw state after `plies` greedy commands from the opening of `seed`. */
+export function stateAfterGreedyPlies(seed: string, plies: number, rules?: RulesConfig): GameState {
+  const greedy = new GreedyBot();
+  let state = createInitialState({ gameId: seed, seed, ...(rules ? { rules } : {}) });
+  for (let i = 0; i < plies && state.status === "active"; i++) {
+    const seat = onTheClock(state);
+    if (!seat) break;
+    state = apply(state, seat, greedy.chooseCommand(state, seat));
+  }
+  return state;
+}
+
+/** Red holds Commandeer and embarks into two black-held seas at once, staging two battles.
+ *  Returns the position and that command. */
+export function commandeerTwoBattlesScenario(): { state: GameState; command: Command } {
+  const s = fresh({ redHand: ["commandeer"] });
+  const map = getMap(s.mapId);
+  const spare = Object.entries(map.areas).find(
+    ([id, a]) => a.kind === "sea" && s.areas[id]?.owner == null
+  );
+  if (!spare) throw new Error("scenario: no free sea");
+  s.areas[spare[0]] = {
+    ...s.areas[spare[0]]!,
+    owner: "black",
+    units: { troop: 0, ship: 1, siege: 0 }
+  };
+  const play = legalCommandsForState(s, "red").cardPlays.find((p) => p.card === "commandeer");
+  for (const pl of play?.placements ?? []) {
+    const enemySeas = pl.targets.filter((id) => s.areas[id]?.owner === "black");
+    if (enemySeas.length < 2 || Math.min(pl.pool, pl.reserve) < 2) continue;
+    return {
+      state: s,
+      command: {
+        type: "embark",
+        spaceId: pl.spaceId,
+        placements: enemySeas.slice(0, 2).map((area) => ({ area, count: 1 })),
+        card: "commandeer"
+      }
+    };
+  }
+  throw new Error("scenario: no two-battle Commandeer could be arranged");
+}
