@@ -49,7 +49,8 @@ export function buildApp(config: ServerConfig, opts?: BuildAppOptions) {
     terrainStore,
     terrainService,
     config.adminPassword,
-    opts?.aiPickCommandFor
+    opts?.aiPickCommandFor,
+    config.aiMaxThinkMs
   );
 
   if (config.nodeEnv === "production") {

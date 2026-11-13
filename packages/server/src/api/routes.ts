@@ -1,4 +1,5 @@
 import {
+  AI_THINK_MS,
   chatPostSchema,
   chatQuerySchema,
   claimGameRequestSchema,
@@ -31,6 +32,14 @@ const MAP_ERROR_STATUS: Record<MapLibraryError["code"], number> = {
   mapInUse: 409
 };
 
+/** The AI's thinking time for a game: what was stored when it was created, else Normal (games
+ *  from before the setting, or a nonsensical value), never more than the server's maximum. */
+export function resolveThinkMs(stored: number | null, maxMs: number): number {
+  const wanted =
+    stored !== null && Number.isFinite(stored) && stored >= 100 ? stored : AI_THINK_MS.normal;
+  return Math.min(maxMs, wanted);
+}
+
 export function registerApiRoutes(
   app: FastifyInstance,
   repository: GameRepository,
@@ -38,15 +47,20 @@ export function registerApiRoutes(
   terrainStore: TerrainStore,
   terrainService: TerrainService,
   adminPassword?: string,
-  aiPickCommandFor: (gameId: string) => (seat: SeatId, state: GameState) => Promise<Command> = (
-      _gameId // alpha-beta is deterministic and needs no per-game seed
-    ) =>
-    (seat, state) =>
-      withRetry(() => runAlphaBetaInWorker(state, seat, { deadlineMs: 1500 }), {
+  aiPickCommandOverride?: (gameId: string) => (seat: SeatId, state: GameState) => Promise<Command>,
+  aiMaxThinkMs: number = AI_THINK_MS.long
+): void {
+  // The AI thinks for as long as its game was set up to allow (read per command, so it follows
+  // the stored value), capped by the server's maximum.
+  const aiPickCommandFor =
+    aiPickCommandOverride ??
+    ((gameId: string) => (seat: SeatId, state: GameState) => {
+      const deadlineMs = resolveThinkMs(repository.aiThinkMsOf(gameId), aiMaxThinkMs);
+      return withRetry(() => runAlphaBetaInWorker(state, seat, { deadlineMs }), {
         attempts: 3,
         delayMs: 50
-      })
-): void {
+      });
+    });
   const driveAiSoon = (gameId: string) =>
     setImmediate(() => {
       driveAiTurns(
@@ -307,7 +321,8 @@ export function registerApiRoutes(
       creatorName: parsed.data.name,
       creatorSide: parsed.data.side,
       mapId: parsed.data.mapId,
-      aiSeats
+      aiSeats,
+      aiThinkMs: parsed.data.aiThinkTime ? AI_THINK_MS[parsed.data.aiThinkTime] : undefined
     });
 
     if (Object.values(repository.controllersOf(game.gameId)).includes("ai")) {
