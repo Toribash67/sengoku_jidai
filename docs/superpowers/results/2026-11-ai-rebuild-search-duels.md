@@ -47,6 +47,22 @@ readings worth carrying forward are directional:
 - Switching off the dice distribution or the deploy-time threat penalty did not hurt and may
   help. Both are candidates for a larger test.
 
+## Follow-up: the two candidates at 200 games
+
+Option 2 below was chosen. Each candidate played the same 100 Rivers seeds as the acceptance
+series (prefix `acc-r`, 200 games) against `alphabeta` at 1.5 s.
+
+| New bot configuration                 | W–L     | Win rate | 95% interval  | VP margin |
+| ------------------------------------- | ------- | -------- | ------------- | --------- |
+| Everything on (acceptance series)     | 97–103  | 48.5%    | 41.7% – 55.4% | −0.78     |
+| Dice distribution off                 | 95–105  | 47.5%    | 40.7% – 54.4% | +0.07     |
+| Opponent deploy-time card threats off | 104–96  | 52.0%    | 45.1% – 58.8% | −0.46     |
+| Both off                              | 100–100 | 50.0%    | 43.1% – 56.9% | +0.23     |
+
+Neither candidate clears the bar, and neither is distinguishable from the full configuration:
+all four sit within a few games of 50%. The 40-game hints were noise. No setting of the
+existing switches makes the new bot stronger than the old one at equal thinking time.
+
 ## What the rebuild does deliver
 
 - Fair play: the bot is given only what a player at that seat could see.
