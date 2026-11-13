@@ -279,3 +279,25 @@ thinking time, or bring part 3 (speed) forward.
 - File and type names.
 - Where per-game thinking time is persisted, within the constraint in §5.
 - Whether the resolver's internal decisions use the scoring function alone or a shallow search.
+
+## 11. Implementation notes (2026-11-13)
+
+Where the build departed from the plain reading above, and why. Each is behind a switch.
+
+- **Battles are folded by default, not fully expanded (§6.4 "chance").** Searching every outcome
+  of every battle multiplies the tree by the number of outcomes. At equal depth that played
+  better; at equal time it reached one or two plies less and lost about two games in three to
+  the old bot. By default the search now follows a battle's most likely outcome and adds the
+  exact expected static value of all outcomes minus that outcome's own. Dice and cards are still
+  priced exactly at every battle; only what happens _after_ a deep battle is approximated.
+  `fullBattles=N` expands the first N battles on a line fully.
+- **Opponent deploy-time cards are a static penalty (§6.4).** For each kind they might hold:
+  probability of holding it × how much their best play of it beats their best card-free option,
+  both judged one deployment deep, capped at the worst single threat. Searching every such play
+  to full depth cost nine times everything else combined.
+- **Hidden cards are placeholders inside an ordinary game state (§6.1).** `observe()` replaces
+  every card the seat cannot see with a `"hidden"` value that exists only in the AI package. The
+  engine's own rules then enforce fairness: a placeholder hand offers no card plays.
+- **The Trapper bot turned out to be a weak sparring partner (§8).** Spending early commanders on
+  Plans costs it more than its Ambush habit gains; the old bot beats it about as often as the
+  new one does. It does not tell the two apart. The trap _positions_ (§9.2) do.
