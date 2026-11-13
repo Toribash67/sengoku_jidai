@@ -63,6 +63,20 @@ Neither candidate clears the bar, and neither is distinguishable from the full c
 all four sit within a few games of 50%. The 40-game hints were noise. No setting of the
 existing switches makes the new bot stronger than the old one at equal thinking time.
 
+## Follow-up: ten times the thinking time
+
+To check how much search depth decides games, one side got 15 s a move against the old bot at
+1.5 s (first 50 `acc-r` Rivers seeds, 100 games each).
+
+| 15 s side   | 1.5 s side  | W–L   | Win rate | 95% interval  | VP margin |
+| ----------- | ----------- | ----- | -------- | ------------- | --------- |
+| `expecti`   | `alphabeta` | 57–43 | 57.0%    | 47.2% – 66.3% | −0.09     |
+| `alphabeta` | `alphabeta` | 64–36 | 64.0%    | 54.2% – 72.7% | +1.25     |
+
+Ten times the time is worth roughly 14 points to the old bot and roughly 8 to the new one. The
+two are not statistically distinguishable at 100 games, but the new bot shows no sign of using
+extra time better than the old one, and time alone is a slow route to strength for both.
+
 ## What the rebuild does deliver
 
 - Fair play: the bot is given only what a player at that seat could see.
