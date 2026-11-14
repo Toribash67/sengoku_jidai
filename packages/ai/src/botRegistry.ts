@@ -4,7 +4,7 @@ import { ExpectiBot } from "./bots/expecti.js";
 import { GreedyBot } from "./bots/greedy.js";
 import { RandomBot } from "./bots/random.js";
 import { TrapperBot } from "./bots/trapper.js";
-import { TUNED_WEIGHTS, TUNED_WEIGHTS_V1, type EvalWeights } from "./eval.js";
+import { TUNED_WEIGHTS, TUNED_WEIGHTS_V1, TUNED_WEIGHTS_V2, type EvalWeights } from "./eval.js";
 import { createAiRng } from "./rng.js";
 import { DEFAULT_FEATURES, type Features } from "./search2/features.js";
 
@@ -17,7 +17,7 @@ import { DEFAULT_FEATURES, type Features } from "./search2/features.js";
  *   trapper    ms, depth, weights
  *
  * `weights` is `default` (the hand-set scoring weights), `tuned` (the latest weights fitted to
- * game outcomes) or `tuned1` (the first fitted round).
+ * game outcomes), or `tuned1` / `tuned2` (earlier fitted rounds).
  *   greedy     —
  *   random     seed
  */
@@ -82,7 +82,8 @@ export function parseBotSpec(spec: string): { name: string; make: () => Bot } {
 const WEIGHT_SETS: Record<string, EvalWeights | undefined> = {
   default: undefined,
   tuned: TUNED_WEIGHTS,
-  tuned1: TUNED_WEIGHTS_V1
+  tuned1: TUNED_WEIGHTS_V1,
+  tuned2: TUNED_WEIGHTS_V2
 };
 
 const ALLOWED_KEYS: Record<string, readonly string[]> = {

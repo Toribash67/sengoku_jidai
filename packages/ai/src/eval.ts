@@ -137,8 +137,9 @@ export const TUNED_WEIGHTS_V1: EvalWeights = {
 };
 
 /** Second round: the same fit over 4,000 games — the first 2,000 plus 2,000 played by the bots
- *  using TUNED_WEIGHTS_V1. Same clamping. */
-export const TUNED_WEIGHTS: EvalWeights = {
+ *  using TUNED_WEIGHTS_V1. Same clamping. Kept as a
+ *  sparring version. */
+export const TUNED_WEIGHTS_V2: EvalWeights = {
   ...DEFAULT_WEIGHTS,
   byRound: [
     {
@@ -208,6 +209,82 @@ export const TUNED_WEIGHTS: EvalWeights = {
       initiative: 1.35,
       hqPressure: 3.18,
       commander: 17.57
+    }
+  ]
+};
+
+/** Third round: the same fit over 6,000 games — the 4,000 above plus 2,000 played by the bots
+ *  using TUNED_WEIGHTS_V2. Same clamping. */
+export const TUNED_WEIGHTS: EvalWeights = {
+  ...DEFAULT_WEIGHTS,
+  byRound: [
+    {
+      star: 3.06,
+      starUnsupplied: 4.89,
+      bonus: {
+        barracks: 7.62,
+        warRoom: 8.96,
+        pirateHaven: 6.13,
+        shipyard: 10.56,
+        hiddenBase: 6.93,
+        armoury: 8.04
+      },
+      proximity: 15.26,
+      card: 7.37,
+      initiative: 0,
+      hqPressure: 0,
+      commander: 11.67
+    },
+    {
+      star: 1.21,
+      starUnsupplied: 5.55,
+      bonus: {
+        barracks: 4.65,
+        warRoom: 6.8,
+        pirateHaven: 5.1,
+        shipyard: 8.76,
+        hiddenBase: 6.4,
+        armoury: 6.34
+      },
+      proximity: 12.91,
+      card: 7.76,
+      initiative: 0,
+      hqPressure: 3.5,
+      commander: 10.02
+    },
+    {
+      star: 2.41,
+      starUnsupplied: 6.95,
+      bonus: {
+        barracks: 0,
+        warRoom: 4.63,
+        pirateHaven: 2.88,
+        shipyard: 6.21,
+        hiddenBase: 3.39,
+        armoury: 3.42
+      },
+      proximity: 14.17,
+      card: 8.13,
+      initiative: 0.23,
+      hqPressure: 3.08,
+      commander: 11.73
+    },
+    {
+      star: 7.73,
+      starUnsupplied: 8.55,
+      bonus: {
+        barracks: 0,
+        warRoom: 2.27,
+        pirateHaven: 0,
+        shipyard: 5.17,
+        hiddenBase: 1.09,
+        armoury: 1.71
+      },
+      proximity: 13.3,
+      card: 5.35,
+      initiative: 2.02,
+      hqPressure: 2.35,
+      commander: 18.07
     }
   ]
 };

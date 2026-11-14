@@ -13,6 +13,7 @@ export {
   DEFAULT_WEIGHTS,
   TUNED_WEIGHTS,
   TUNED_WEIGHTS_V1,
+  TUNED_WEIGHTS_V2,
   type EvalWeights,
   type RoundWeights
 } from "./eval.js";
