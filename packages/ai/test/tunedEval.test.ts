@@ -59,6 +59,7 @@ describe("bot specs with weights", () => {
     expect(parseBotSpec("expecti:depth=1,weights=tuned").name).toBe("expecti");
     expect(parseBotSpec("alphabeta:depth=1,weights=tuned").name).toBe("alphabeta");
     expect(parseBotSpec("alphabeta:depth=1,weights=default").name).toBe("alphabeta");
+    expect(parseBotSpec("alphabeta:depth=1,weights=tuned1").name).toBe("alphabeta");
   });
 
   it("rejects an unknown weight set", () => {

@@ -58,8 +58,47 @@ function seatFeatures(state: GameState, map: MapDefinition, seat: SeatId) {
     near2: 0,
     reserve: p.reserve.troop + p.reserve.ship,
     cmdLeft: p.commanders.total - occupied - p.commanders.standby - p.commanders.counterattacks,
-    passed: p.passed ? 1 : 0
+    passed: p.passed ? 1 : 0,
+    /** Tiles held by a single unit; those of them touching an enemy tile. */
+    singles: 0,
+    singlesFront: 0,
+    /** Worst supply cut: the most stars / units that go out of supply if one tile held by a
+     *  single unit (cut1) or by at most two (cut2) falls — the tile's own stars included. */
+    cut1Stars: 0,
+    cut1Units: 0,
+    cut2Stars: 0,
+    cut2Units: 0
   };
+  const enemy = other(seat);
+  const board = gameBoard(state);
+  for (const [id, rt] of Object.entries(state.areas)) {
+    if (rt.owner !== seat) continue;
+    const units = rt.units.troop + rt.units.ship;
+    if (units <= 0 || units > 2 || myHq.get(id) === 0) continue;
+    if (units === 1) {
+      f.singles += 1;
+      if (map.areas[id]!.adjacent.some((n) => state.areas[n]?.owner === enemy)) f.singlesFront += 1;
+    }
+    if (!supplied.has(id)) continue;
+    const without = suppliedAreas(
+      map,
+      { ownerOf: (a) => (a === id ? null : board.ownerOf(a)) },
+      seat
+    );
+    let stars = 0;
+    let lost = 0;
+    for (const a of supplied) {
+      if (without.has(a)) continue;
+      stars += map.areas[a]!.valueStars;
+      if (a !== id) lost += state.areas[a]!.units.troop + state.areas[a]!.units.ship;
+    }
+    if (units === 1) {
+      f.cut1Stars = Math.max(f.cut1Stars, stars);
+      f.cut1Units = Math.max(f.cut1Units, lost);
+    }
+    f.cut2Stars = Math.max(f.cut2Stars, stars);
+    f.cut2Units = Math.max(f.cut2Units, lost);
+  }
   for (const [id, rt] of Object.entries(state.areas)) {
     if (rt.owner !== seat) continue;
     const units = rt.units.troop + rt.units.ship;

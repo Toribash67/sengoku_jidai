@@ -58,10 +58,11 @@ export const DEFAULT_WEIGHTS: EvalWeights = {
   terminal: 1000
 };
 
-/** Weights fitted by logistic regression to who won 2,000 Rivers games between the search bots
- *  (2026-11-14; see docs/superpowers/results). Negative fits are clamped to 0; the Armoury never
+/** First round of fitted weights: logistic regression on who won 2,000 Rivers games between the
+ *  search bots playing with the hand-set weights (2026-11-14; see docs/superpowers/results). Kept
+ *  as a sparring version. Negative fits are clamped to 0; the Armoury never
  *  appears in Rivers, so it takes the mean of the other bonuses. */
-export const TUNED_WEIGHTS: EvalWeights = {
+export const TUNED_WEIGHTS_V1: EvalWeights = {
   ...DEFAULT_WEIGHTS,
   byRound: [
     {
@@ -131,6 +132,82 @@ export const TUNED_WEIGHTS: EvalWeights = {
       initiative: 1.28,
       hqPressure: 3.26,
       commander: 17.27
+    }
+  ]
+};
+
+/** Second round: the same fit over 4,000 games — the first 2,000 plus 2,000 played by the bots
+ *  using TUNED_WEIGHTS_V1. Same clamping. */
+export const TUNED_WEIGHTS: EvalWeights = {
+  ...DEFAULT_WEIGHTS,
+  byRound: [
+    {
+      star: 2.47,
+      starUnsupplied: 4.62,
+      bonus: {
+        barracks: 8.69,
+        warRoom: 9.4,
+        pirateHaven: 6.94,
+        shipyard: 11.96,
+        hiddenBase: 7.32,
+        armoury: 8.86
+      },
+      proximity: 16.32,
+      card: 5.47,
+      initiative: 0,
+      hqPressure: 0,
+      commander: 10.86
+    },
+    {
+      star: 1.18,
+      starUnsupplied: 5.92,
+      bonus: {
+        barracks: 4.43,
+        warRoom: 6.45,
+        pirateHaven: 5.51,
+        shipyard: 9.71,
+        hiddenBase: 7.02,
+        armoury: 6.62
+      },
+      proximity: 13.19,
+      card: 7.93,
+      initiative: 0,
+      hqPressure: 4.51,
+      commander: 10.33
+    },
+    {
+      star: 2.72,
+      starUnsupplied: 7.04,
+      bonus: {
+        barracks: 0,
+        warRoom: 3.24,
+        pirateHaven: 2.89,
+        shipyard: 6.08,
+        hiddenBase: 3.49,
+        armoury: 3.14
+      },
+      proximity: 13.95,
+      card: 8.38,
+      initiative: 0,
+      hqPressure: 4.1,
+      commander: 11.64
+    },
+    {
+      star: 7.98,
+      starUnsupplied: 8.43,
+      bonus: {
+        barracks: 0,
+        warRoom: 1.05,
+        pirateHaven: 0,
+        shipyard: 5.29,
+        hiddenBase: 0.83,
+        armoury: 1.43
+      },
+      proximity: 12.46,
+      card: 6.0,
+      initiative: 1.35,
+      hqPressure: 3.18,
+      commander: 17.57
     }
   ]
 };

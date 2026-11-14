@@ -4,7 +4,7 @@ import { ExpectiBot } from "./bots/expecti.js";
 import { GreedyBot } from "./bots/greedy.js";
 import { RandomBot } from "./bots/random.js";
 import { TrapperBot } from "./bots/trapper.js";
-import { TUNED_WEIGHTS } from "./eval.js";
+import { TUNED_WEIGHTS, TUNED_WEIGHTS_V1, type EvalWeights } from "./eval.js";
 import { createAiRng } from "./rng.js";
 import { DEFAULT_FEATURES, type Features } from "./search2/features.js";
 
@@ -16,7 +16,8 @@ import { DEFAULT_FEATURES, type Features } from "./search2/features.js";
  *   alphabeta  ms, depth, weights
  *   trapper    ms, depth, weights
  *
- * `weights` is `default` (the hand-set scoring weights) or `tuned` (fitted to game outcomes).
+ * `weights` is `default` (the hand-set scoring weights), `tuned` (the latest weights fitted to
+ * game outcomes) or `tuned1` (the first fitted round).
  *   greedy     —
  *   random     seed
  */
@@ -40,10 +41,10 @@ export function parseBotSpec(spec: string): { name: string; make: () => Bot } {
     return n;
   };
   const weightSet = args.get("weights") ?? "default";
-  if (weightSet !== "default" && weightSet !== "tuned") {
-    throw new Error(`Unknown weights "${weightSet}" (known: default, tuned)`);
+  if (!(weightSet in WEIGHT_SETS)) {
+    throw new Error(`Unknown weights "${weightSet}" (known: ${Object.keys(WEIGHT_SETS)})`);
   }
-  const weights = weightSet === "tuned" ? TUNED_WEIGHTS : undefined;
+  const weights = WEIGHT_SETS[weightSet];
   const budget = { depth: num("depth"), deadlineMs: num("ms"), ...(weights ? { weights } : {}) };
 
   switch (name) {
@@ -76,6 +77,13 @@ export function parseBotSpec(spec: string): { name: string; make: () => Bot } {
     }
   }
 }
+
+/** Named scoring weights. Earlier fitted rounds stay available as sparring versions. */
+const WEIGHT_SETS: Record<string, EvalWeights | undefined> = {
+  default: undefined,
+  tuned: TUNED_WEIGHTS,
+  tuned1: TUNED_WEIGHTS_V1
+};
 
 const ALLOWED_KEYS: Record<string, readonly string[]> = {
   expecti: ["ms", "depth", "weights", "rerollCap", "fullBattles", "off"],
