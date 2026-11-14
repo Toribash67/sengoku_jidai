@@ -95,3 +95,54 @@ extra time better than the old one, and time alone is a slow route to strength f
    function, so a better one lifts both, and the new bot's extra modelling has more to work with.
 4. Bring the speed work forward. Depth is decisive in this game (old bot at depth 3 beats itself
    at depth 2 by 35–13), and the new bot spends its time on chance and card branches.
+
+## Follow-up: scoring weights fitted to outcomes (2026-11-14)
+
+2,000 Rivers games between the two search bots (all four pairings, depth 3) were recorded
+position by position with `packages/ai/scripts/evalstudy.ts`. Findings on the hand-set scoring
+function:
+
+- 69% of games ended on points, 31% by HQ elimination. Against each other the new bot won 235
+  games by HQ and 259 on points; the old bot 103 by HQ and 403 on points.
+- The side the function favoured went on to win 60% of the time in round 1, 65% in round 3 and
+  73% in round 4. The round-1 initiative holder alone won about 60%.
+- A per-round logistic regression on simple counts predicted better at every stage (AUC 0.690 →
+  0.731, cross-validated by game). It valued cards, commanders still to deploy, and closeness to
+  the enemy HQ far more than the hand-set weights, and stars far less early than late.
+
+Those fitted weights are `TUNED_WEIGHTS` in `packages/ai/src/eval.ts` (bot option
+`weights=tuned`). The hand-set weights remain the default.
+
+### Fixed depth 3, Rivers, 200 games each
+
+| A                | B                  | W–L    | A win rate |
+| ---------------- | ------------------ | ------ | ---------- |
+| `alphabeta` tuned | `alphabeta`        | 135–65 | 67.5%      |
+| `expecti` tuned  | `expecti`          | 127–73 | 63.5%      |
+| `expecti` tuned  | `alphabeta` tuned  | 115–85 | 57.5%      |
+| `expecti` tuned  | `alphabeta`        | 146–54 | 73.0%      |
+| `alphabeta` tuned | `expecti`          | 142–58 | 71.0%      |
+| `expecti`        | `alphabeta`        | 96–104 | 48.0%      |
+
+Against the sparring bots (no cycle: tuned does at least as well as untuned against each):
+
+| A                 | vs `trapper` depth 3 | vs `greedy` |
+| ----------------- | -------------------- | ----------- |
+| `alphabeta`       | 156–44               | 176–24      |
+| `alphabeta` tuned | 170–30               | 190–10      |
+| `expecti`         | 156–44               | 178–22      |
+| `expecti` tuned   | 157–43               | 190–10      |
+
+### Equal thinking time, 1.5 s
+
+| A               | B                 | Ruleset  | Games | W–L    | A win rate | 95% interval  |
+| --------------- | ----------------- | -------- | ----- | ------ | ---------- | ------------- |
+| `expecti` tuned | `alphabeta`       | Rivers   | 200   | 141–59 | 70.5%      | 63.8% – 76.4% |
+| `expecti` tuned | `alphabeta`       | Fortress | 100   | 77–23  | 77.0%      | 67.8% – 84.2% |
+| `expecti` tuned | `alphabeta` tuned | Rivers   | 200   | 90–110 | 45.0%      | 38.3% – 51.9% |
+
+The tuned new bot clears the spec's bars against the deployed bot on both rulesets. The gain
+comes from the weights: the old search with the same weights is level with the new one at equal
+time. Only the new search reacts to the opponent's hand size in the trap positions (4v1, 4v2 and
+5v3 attacks are declined as the defender's hand grows; the old search attacks regardless), a
+weakness no bot in the pool exploits.
