@@ -15,7 +15,6 @@ import {
 import type { SeatId } from "@sengoku-jidai/shared";
 import { z } from "zod";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { runAlphaBetaInWorker } from "@sengoku-jidai/ai";
 import type { Command, GameState } from "@sengoku-jidai/engine";
 import { bearerToken, hashToken } from "../sessions/tokens.js";
 import { SpectatorPresence } from "../sessions/spectatorPresence.js";
@@ -24,6 +23,7 @@ import type { MapLibrary, MapLibraryError } from "../maps/library.js";
 import type { TerrainStore } from "../maps/terrainStore.js";
 import type { TerrainService } from "../maps/terrainService.js";
 import { driveAiTurns } from "../ai/aiDriver.js";
+import { aiCommandPicker, DEFAULT_AI_ENGINE, type AiEngine } from "../ai/aiEngine.js";
 import { withRetry } from "../ai/withRetry.js";
 
 const MAP_ERROR_STATUS: Record<MapLibraryError["code"], number> = {
@@ -48,15 +48,17 @@ export function registerApiRoutes(
   terrainService: TerrainService,
   adminPassword?: string,
   aiPickCommandOverride?: (gameId: string) => (seat: SeatId, state: GameState) => Promise<Command>,
-  aiMaxThinkMs: number = AI_THINK_MS.long
+  aiMaxThinkMs: number = AI_THINK_MS.long,
+  aiEngine: AiEngine = DEFAULT_AI_ENGINE
 ): void {
+  const pickAiCommand = aiCommandPicker(aiEngine);
   // The AI thinks for as long as its game was set up to allow (read per command, so it follows
   // the stored value), capped by the server's maximum.
   const aiPickCommandFor =
     aiPickCommandOverride ??
     ((gameId: string) => (seat: SeatId, state: GameState) => {
       const deadlineMs = resolveThinkMs(repository.aiThinkMsOf(gameId), aiMaxThinkMs);
-      return withRetry(() => runAlphaBetaInWorker(state, seat, { deadlineMs }), {
+      return withRetry(() => pickAiCommand(state, seat, deadlineMs), {
         attempts: 3,
         delayMs: 50
       });

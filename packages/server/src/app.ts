@@ -50,7 +50,8 @@ export function buildApp(config: ServerConfig, opts?: BuildAppOptions) {
     terrainService,
     config.adminPassword,
     opts?.aiPickCommandFor,
-    config.aiMaxThinkMs
+    config.aiMaxThinkMs,
+    { bot: config.aiBot ?? "alphabeta", weights: config.aiWeights ?? "default" }
   );
 
   if (config.nodeEnv === "production") {
