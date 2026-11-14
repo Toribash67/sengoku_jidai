@@ -4,15 +4,19 @@ import { ExpectiBot } from "./bots/expecti.js";
 import { GreedyBot } from "./bots/greedy.js";
 import { RandomBot } from "./bots/random.js";
 import { TrapperBot } from "./bots/trapper.js";
+import { TUNED_WEIGHTS } from "./eval.js";
 import { createAiRng } from "./rng.js";
 import { DEFAULT_FEATURES, type Features } from "./search2/features.js";
 
 /**
  * Bots by name, for the duel script. Grammar: `name[:key=value[,key=value…]]`.
  *
- *   expecti    ms, depth, rerollCap, fullBattles, off (features to switch off, joined with `+`)
- *   alphabeta  ms, depth
- *   trapper    ms, depth
+ *   expecti    ms, depth, weights, rerollCap, fullBattles, off (features to switch off, joined
+ *              with `+`)
+ *   alphabeta  ms, depth, weights
+ *   trapper    ms, depth, weights
+ *
+ * `weights` is `default` (the hand-set scoring weights) or `tuned` (fitted to game outcomes).
  *   greedy     —
  *   random     seed
  */
@@ -35,7 +39,12 @@ export function parseBotSpec(spec: string): { name: string; make: () => Bot } {
     if (raw === "" || !Number.isFinite(n)) throw new Error(`Bad ${key}="${raw}" for "${name}"`);
     return n;
   };
-  const budget = { depth: num("depth"), deadlineMs: num("ms") };
+  const weightSet = args.get("weights") ?? "default";
+  if (weightSet !== "default" && weightSet !== "tuned") {
+    throw new Error(`Unknown weights "${weightSet}" (known: default, tuned)`);
+  }
+  const weights = weightSet === "tuned" ? TUNED_WEIGHTS : undefined;
+  const budget = { depth: num("depth"), deadlineMs: num("ms"), ...(weights ? { weights } : {}) };
 
   switch (name) {
     case "expecti": {
@@ -69,9 +78,9 @@ export function parseBotSpec(spec: string): { name: string; make: () => Bot } {
 }
 
 const ALLOWED_KEYS: Record<string, readonly string[]> = {
-  expecti: ["ms", "depth", "rerollCap", "fullBattles", "off"],
-  alphabeta: ["ms", "depth"],
-  trapper: ["ms", "depth"],
+  expecti: ["ms", "depth", "weights", "rerollCap", "fullBattles", "off"],
+  alphabeta: ["ms", "depth", "weights"],
+  trapper: ["ms", "depth", "weights"],
   greedy: [],
   random: ["seed"]
 };

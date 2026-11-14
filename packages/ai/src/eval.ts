@@ -9,7 +9,7 @@ import {
   type SeatId
 } from "@sengoku-jidai/engine";
 import { rollTotalDistribution } from "./combatOdds.js";
-import { tileBaseValue, type TileValueWeights } from "./geometry.js";
+import { hqDistances, tileBaseValue, type TileValueWeights } from "./geometry.js";
 
 export interface EvalWeights {
   vp: number;
@@ -24,6 +24,27 @@ export interface EvalWeights {
   initiative: number;
   /** Magnitude of a terminal win/loss. */
   terminal: number;
+  /** Weights fitted to game outcomes, one set per round (index round − 1; later rounds use the
+   *  last). When present they replace every term above except `unsuppliedFactor`, `catapult`
+   *  and `terminal`. */
+  byRound?: readonly RoundWeights[];
+}
+
+/** One round's fitted weights. The score is in units of 1/20 of the log-odds of winning. */
+export interface RoundWeights {
+  /** Per star on a supplied / an unsupplied tile. */
+  star: number;
+  starUnsupplied: number;
+  bonus: Record<BonusType, number>;
+  /** Per tile: presence × closeness to the enemy HQ (the old military term's proximity part). */
+  proximity: number;
+  /** Times √(cards in hand). */
+  card: number;
+  initiative: number;
+  /** Per unit standing next to the enemy HQ. */
+  hqPressure: number;
+  /** Per commander still to deploy this round. */
+  commander: number;
 }
 
 export const DEFAULT_WEIGHTS: EvalWeights = {
@@ -35,6 +56,83 @@ export const DEFAULT_WEIGHTS: EvalWeights = {
   card: 1.5,
   initiative: 1,
   terminal: 1000
+};
+
+/** Weights fitted by logistic regression to who won 2,000 Rivers games between the search bots
+ *  (2026-11-14; see docs/superpowers/results). Negative fits are clamped to 0; the Armoury never
+ *  appears in Rivers, so it takes the mean of the other bonuses. */
+export const TUNED_WEIGHTS: EvalWeights = {
+  ...DEFAULT_WEIGHTS,
+  byRound: [
+    {
+      star: 1.54,
+      starUnsupplied: 0,
+      bonus: {
+        barracks: 0.7,
+        warRoom: 1.4,
+        pirateHaven: 0,
+        shipyard: 4.71,
+        hiddenBase: 0,
+        armoury: 1.36
+      },
+      proximity: 7.49,
+      card: 2.32,
+      initiative: 7.3,
+      hqPressure: 0,
+      commander: 4.35
+    },
+    {
+      star: 1.55,
+      starUnsupplied: 3.84,
+      bonus: {
+        barracks: 1.43,
+        warRoom: 2.74,
+        pirateHaven: 2.21,
+        shipyard: 5.59,
+        hiddenBase: 3.58,
+        armoury: 3.11
+      },
+      proximity: 12.3,
+      card: 7.39,
+      initiative: 1.54,
+      hqPressure: 4.85,
+      commander: 8.38
+    },
+    {
+      star: 3.42,
+      starUnsupplied: 7.11,
+      bonus: {
+        barracks: 0,
+        warRoom: 0,
+        pirateHaven: 0,
+        shipyard: 0.64,
+        hiddenBase: 0.07,
+        armoury: 0.14
+      },
+      proximity: 15.51,
+      card: 7.88,
+      initiative: 0.78,
+      hqPressure: 5.02,
+      commander: 11.54
+    },
+    {
+      star: 8.64,
+      starUnsupplied: 9.5,
+      bonus: {
+        barracks: 0,
+        warRoom: 0,
+        pirateHaven: 0,
+        shipyard: 0.66,
+        hiddenBase: 0,
+        armoury: 0.13
+      },
+      proximity: 13.84,
+      card: 8.07,
+      initiative: 1.28,
+      hqPressure: 3.26,
+      commander: 17.27
+    }
+  ]
 };
 
 /** Concave presence curve: rewards having a unit at all, with diminishing returns per
@@ -50,6 +148,7 @@ function cardValue(hand: number): number {
 
 /** Per-seat raw score. Positive is good for `seat`. */
 function rawScore(state: GameState, map: MapDefinition, seat: SeatId, w: EvalWeights): number {
+  if (w.byRound) return fittedScore(state, map, seat, w, w.byRound);
   const board = gameBoard(state);
   const supplied = suppliedAreas(map, board, seat);
   let score = 0;
@@ -69,6 +168,45 @@ function rawScore(state: GameState, map: MapDefinition, seat: SeatId, w: EvalWei
 
   score += w.card * cardValue(state.players[seat].hand.length);
   if (state.initiative === seat) score += w.initiative;
+  return score;
+}
+
+/** Per-seat raw score under the fitted per-round weights. */
+function fittedScore(
+  state: GameState,
+  map: MapDefinition,
+  seat: SeatId,
+  w: EvalWeights,
+  byRound: readonly RoundWeights[]
+): number {
+  const r = byRound[Math.min(Math.max(state.round, 1), byRound.length) - 1]!;
+  const supplied = suppliedAreas(map, gameBoard(state), seat);
+  const enemyHq = hqDistances(map, seat === "red" ? "black" : "red");
+  let score = 0;
+
+  for (const [id, rt] of Object.entries(state.areas)) {
+    if (rt.owner !== seat) continue;
+    const units = rt.units.troop + rt.units.ship;
+    if (units <= 0) continue;
+    const sup = supplied.has(id);
+    const sf = sup ? 1 : w.unsuppliedFactor;
+    score += w.catapult * Math.min(rt.units.siege, rt.units.troop) * sf; // 0 in Rivers
+    score += (sup ? r.star : r.starUnsupplied) * map.areas[id]!.valueStars;
+    const bonusType = state.bonuses[id];
+    if (bonusType && sup) score += r.bonus[bonusType];
+    const d = enemyHq.get(id);
+    if (d !== undefined) score += (r.proximity * presence(units) * sf) / (d + 1);
+    if (d === 1) score += r.hqPressure * units;
+  }
+
+  const p = state.players[seat];
+  let occupied = 0;
+  for (const owner of Object.values(state.actionSpaces)) if (owner === seat) occupied++;
+  score +=
+    r.commander *
+    (p.commanders.total - occupied - p.commanders.standby - p.commanders.counterattacks);
+  score += r.card * cardValue(p.hand.length);
+  if (state.initiative === seat) score += r.initiative;
   return score;
 }
 
