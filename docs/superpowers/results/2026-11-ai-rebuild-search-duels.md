@@ -146,3 +146,72 @@ comes from the weights: the old search with the same weights is level with the n
 time. Only the new search reacts to the opponent's hand size in the trap positions (4v1, 4v2 and
 5v3 attacks are declined as the defender's hand grows; the old search attacks regardless), a
 weakness no bot in the pool exploits.
+
+## Follow-up: playtests by agents without source access (2026-11-14)
+
+Two fresh agents, given only the play skill and the rulebook summary, each played a best of
+three (red, black, red; Normal 5 s) against one blind-labelled opponent. Weights were the first
+fitted round.
+
+| Opponent                        | Bot's result | Agent's rating |
+| ------------------------------- | ------------ | -------------- |
+| Deployed bot (`alphabeta`)      | Won 3–0      | 7 / 10         |
+| `expecti` with first-round weights | Won 2–1   | 6.5 / 10       |
+
+Both bots were ambushed (old: a 4v3 attack into one held card; new: 6v4 into one card and 7v5
+into two), and neither agent saw signs of play around a hand of one or two cards. The battle
+model puts a margin-2 attack at 83% / 71% / 61% / 38% to capture against 0 / 1 / 2 / 4 hidden
+cards, so the 7v5 attack was a known 60/40 gamble, not a miscount. Weaknesses both agents
+reported: stripping the own HQ to one troop, supply links and garrisons held by one unit, all-in
+attacks, low-value card use. Strengths: HQ kills over a sea bridge, supply cuts, immediate
+refills, bombard timing.
+
+## Follow-up: more scoring ingredients, and two more fitting rounds (2026-11-15)
+
+Counts for the reported weaknesses (tiles held by one unit, stars and units lost to the worst
+single supply cut, HQ garrison and enemy units next to it) were logged by `evalstudy.ts` and
+added to the regression. They added nothing: winner prediction stayed at 67.6% (67.6–67.8% with
+them). Bots do not punish these weaknesses beyond their look-ahead, so bot games cannot teach
+their price. They were left out of the scoring function.
+
+The weights were refitted twice on fresh games played by the previous round's bots (2,000 games
+each, the last fit on all 6,000). Each round against the one before, fixed depth 3, 200 games:
+
+| Round            | `alphabeta` | `expecti` |
+| ---------------- | ----------- | --------- |
+| Second vs first  | 130–70      | 118–82    |
+| Third vs second  | 122–78      | 107–93    |
+
+The third round is `weights=tuned`; the earlier ones stay as `tuned1` and `tuned2`.
+
+### Third-round weights against the pool, fixed depth 3, Rivers, 200 games each
+
+| A                 | B                  | W–L     | A win rate |
+| ----------------- | ------------------ | ------- | ---------- |
+| `alphabeta` tuned | `alphabeta`        | 164–36  | 82.0%      |
+| `alphabeta` tuned | `alphabeta` tuned1 | 122–78  | 61.0%      |
+| `expecti` tuned   | `expecti`          | 166–34  | 83.0%      |
+| `expecti` tuned   | `expecti` tuned1   | 124–76  | 62.0%      |
+| `expecti` tuned   | `alphabeta` tuned  | 88–112  | 44.0%      |
+| `alphabeta` tuned | `trapper` depth 3  | 180–20  | 90.0%      |
+| `alphabeta` tuned | `greedy`           | 194–6   | 97.0%      |
+| `expecti` tuned   | `trapper` depth 3  | 182–18  | 91.0%      |
+| `expecti` tuned   | `greedy`           | 194–6   | 97.0%      |
+
+No cycle: the third round beats the hand-set weights by more than the first round did (82–83%
+against 64–68%), beats the first round directly, and does better against both sparring bots
+(first round: 157–170 of 200 against Trapper, 190 against Greedy).
+
+### Equal thinking time, 1.5 s, third-round weights
+
+| A                 | B                 | Ruleset  | Games | W–L     | A win rate | 95% interval  |
+| ----------------- | ----------------- | -------- | ----- | ------- | ---------- | ------------- |
+| `expecti` tuned   | `alphabeta`       | Rivers   | 200   | 165–35  | 82.5%      | 76.6% – 87.1% |
+| `alphabeta` tuned | `alphabeta`       | Rivers   | 200   | 158–42  | 79.0%      | 72.8% – 84.1% |
+| `expecti` tuned   | `alphabeta` tuned | Rivers   | 200   | 99–101  | 49.5%      | 42.6% – 56.4% |
+| `expecti` tuned   | `alphabeta`       | Fortress | 100   | 78–22   | 78.0%      | 68.9% – 85.0% |
+| `alphabeta` tuned | `alphabeta`       | Fortress | 100   | 83–17   | 83.0%      | 74.5% – 89.1% |
+
+Against the deployed bot the tuned new bot now wins about four games in five on both rulesets.
+All of that comes from the weights: with the same weights the two searches are level at equal
+time, and at a fixed depth of 3 the old search is slightly ahead.
