@@ -46,8 +46,31 @@ function cloneJson<T>(value: T): T {
   return out as T;
 }
 
+/** Deep copy of a game state. The two big tables are copied by their known shape, which is
+ *  several times faster than walking them key by key; everything else goes through
+ *  `cloneJson`. `test/cloneState.test.ts` fails if a table's shape outgrows this. */
 function clone(state: GameState): GameState {
-  return cloneJson(state);
+  const out: Record<string, unknown> = {};
+  for (const key in state) {
+    const v = (state as unknown as Record<string, unknown>)[key];
+    if (v === undefined) continue;
+    if (key === "areas") {
+      const areas: GameState["areas"] = {};
+      const from = state.areas;
+      for (const id in from) {
+        const a = from[id]!;
+        const u = a.units;
+        areas[id] = { owner: a.owner, units: { troop: u.troop, ship: u.ship, siege: u.siege } };
+      }
+      out[key] = areas;
+    } else if (key === "actionSpaces") {
+      const spaces: GameState["actionSpaces"] = {};
+      const from = state.actionSpaces;
+      for (const id in from) spaces[id] = from[id]!;
+      out[key] = spaces;
+    } else out[key] = cloneJson(v);
+  }
+  return out as unknown as GameState;
 }
 
 /** Options for a single resolution. `expectedCombat` makes a `combatRoll` land on the dice

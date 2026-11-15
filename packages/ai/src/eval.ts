@@ -302,7 +302,6 @@ function cardValue(hand: number): number {
 
 /** Per-seat raw score. Positive is good for `seat`. */
 function rawScore(state: GameState, map: MapDefinition, seat: SeatId, w: EvalWeights): number {
-  if (w.byRound) return fittedScore(state, map, seat, w, w.byRound);
   const board = gameBoard(state);
   const supplied = suppliedAreas(map, board, seat);
   let score = 0;
@@ -325,44 +324,135 @@ function rawScore(state: GameState, map: MapDefinition, seat: SeatId, w: EvalWei
   return score;
 }
 
-/** Per-seat raw score under the fitted per-round weights. */
-function fittedScore(
+/** A map's fixed facts as arrays over its areas, so the fitted score — the search's hottest
+ *  code — walks numbers instead of building sets of area names. */
+interface MapArrays {
+  ids: string[];
+  adjacent: number[][];
+  stars: number[];
+  hq: Record<SeatId, number>;
+  /** Steps to each seat's HQ; −1 if unreachable. */
+  hqDistance: Record<SeatId, number[]>;
+  /** Scratch space for the supply walk. */
+  owner: Uint8Array;
+  supplied: Uint8Array;
+  queue: Int32Array;
+}
+
+const mapArrays = new WeakMap<MapDefinition, MapArrays>();
+
+function arraysOf(map: MapDefinition): MapArrays {
+  let a = mapArrays.get(map);
+  if (a) return a;
+  const ids = Object.keys(map.areas);
+  const index = new Map(ids.map((id, i) => [id, i]));
+  const distances = (seat: SeatId) => {
+    const d = hqDistances(map, seat);
+    return ids.map((id) => d.get(id) ?? -1);
+  };
+  a = {
+    ids,
+    adjacent: ids.map((id) => map.areas[id]!.adjacent.map((n) => index.get(n)!)),
+    stars: ids.map((id) => map.areas[id]!.valueStars),
+    hq: {
+      red: ids.findIndex((id) => map.areas[id]!.hq === "red"),
+      black: ids.findIndex((id) => map.areas[id]!.hq === "black")
+    },
+    hqDistance: { red: distances("red"), black: distances("black") },
+    owner: new Uint8Array(ids.length),
+    supplied: new Uint8Array(ids.length),
+    queue: new Int32Array(ids.length)
+  };
+  mapArrays.set(map, a);
+  return a;
+}
+
+/** Red's fitted score minus black's. Each seat's terms are summed in area order, so the result
+ *  is the same number as scoring the seats one at a time. */
+function fittedDifference(
   state: GameState,
   map: MapDefinition,
-  seat: SeatId,
   w: EvalWeights,
   byRound: readonly RoundWeights[]
 ): number {
   const r = byRound[Math.min(Math.max(state.round, 1), byRound.length) - 1]!;
-  const supplied = suppliedAreas(map, gameBoard(state), seat);
-  const enemyHq = hqDistances(map, seat === "red" ? "black" : "red");
-  let score = 0;
-
-  for (const [id, rt] of Object.entries(state.areas)) {
-    if (rt.owner !== seat) continue;
-    const units = rt.units.troop + rt.units.ship;
-    if (units <= 0) continue;
-    const sup = supplied.has(id);
-    const sf = sup ? 1 : w.unsuppliedFactor;
-    score += w.catapult * Math.min(rt.units.siege, rt.units.troop) * sf; // 0 in Rivers
-    score += (sup ? r.star : r.starUnsupplied) * map.areas[id]!.valueStars;
-    const bonusType = state.bonuses[id];
-    if (bonusType && sup) score += r.bonus[bonusType];
-    const d = enemyHq.get(id);
-    if (d !== undefined) score += (r.proximity * presence(units) * sf) / (d + 1);
-    if (d === 1) score += r.hqPressure * units;
+  const { ids, adjacent, stars, hq, hqDistance, owner, supplied, queue } = arraysOf(map);
+  const n = ids.length;
+  const areas = state.areas;
+  for (let i = 0; i < n; i++) {
+    const o = areas[ids[i]!]?.owner;
+    owner[i] = o === "red" ? RED : o === "black" ? BLACK : 0;
   }
 
-  const p = state.players[seat];
-  let occupied = 0;
-  for (const owner of Object.values(state.actionSpaces)) if (owner === seat) occupied++;
-  score +=
-    r.commander *
-    (p.commanders.total - occupied - p.commanders.standby - p.commanders.counterattacks);
-  score += r.card * cardValue(p.hand.length);
-  if (state.initiative === seat) score += r.initiative;
-  return score;
+  // In supply: the areas a seat holds that connect to its HQ through areas it holds.
+  supplied.fill(0);
+  for (const side of SIDES) {
+    const home = hq[side.seat];
+    if (home < 0 || owner[home] !== side.code) continue;
+    supplied[home] = 1;
+    queue[0] = home;
+    for (let head = 0, tail = 1; head < tail; head++) {
+      for (const next of adjacent[queue[head]!]!) {
+        if (supplied[next] === 0 && owner[next] === side.code) {
+          supplied[next] = 1;
+          queue[tail++] = next;
+        }
+      }
+    }
+  }
+
+  let red = 0;
+  let black = 0;
+  const bonuses = state.bonuses;
+  for (let i = 0; i < n; i++) {
+    const code = owner[i]!;
+    if (code === 0) continue;
+    const id = ids[i]!;
+    const rt = areas[id]!;
+    const units = rt.units.troop + rt.units.ship;
+    if (units <= 0) continue;
+    const sup = supplied[i] === 1;
+    const sf = sup ? 1 : w.unsuppliedFactor;
+    // The terms are added one by one, in the order a per-seat sum would add them.
+    let score = code === RED ? red : black;
+    score += w.catapult * Math.min(rt.units.siege, rt.units.troop) * sf; // 0 in Rivers
+    score += (sup ? r.star : r.starUnsupplied) * stars[i]!;
+    const bonusType = bonuses[id];
+    if (bonusType && sup) score += r.bonus[bonusType];
+    const d = (code === RED ? hqDistance.black : hqDistance.red)[i]!;
+    if (d >= 0) score += (r.proximity * presence(units) * sf) / (d + 1);
+    if (d === 1) score += r.hqPressure * units;
+    if (code === RED) red = score;
+    else black = score;
+  }
+
+  let redSpaces = 0;
+  let blackSpaces = 0;
+  const spaces = state.actionSpaces;
+  for (const space in spaces) {
+    const o = spaces[space];
+    if (o === "red") redSpaces++;
+    else if (o === "black") blackSpaces++;
+  }
+  // A per-seat sum adds these three after the areas, one at a time.
+  const tail = (sum: number, seat: SeatId, occupied: number): number => {
+    const p = state.players[seat];
+    sum +=
+      r.commander *
+      (p.commanders.total - occupied - p.commanders.standby - p.commanders.counterattacks);
+    sum += r.card * cardValue(p.hand.length);
+    if (state.initiative === seat) sum += r.initiative;
+    return sum;
+  };
+  return tail(red, "red", redSpaces) - tail(black, "black", blackSpaces);
 }
+
+const RED = 1;
+const BLACK = 2;
+const SIDES = [
+  { seat: "red", code: RED },
+  { seat: "black", code: BLACK }
+] as const;
 
 /** Antisymmetric position value for `seat` (seat − opponent). Terminal states short-circuit. */
 export function evaluate(
@@ -378,6 +468,10 @@ export function evaluate(
   }
   if (state.pendingCombat) return expectedCombatValue(state, seat, weights);
   const map = getMap(state.mapId);
+  if (weights.byRound) {
+    const red = fittedDifference(state, map, weights, weights.byRound);
+    return seat === "red" ? red : -red;
+  }
   return rawScore(state, map, seat, weights) - rawScore(state, map, enemy, weights);
 }
 
