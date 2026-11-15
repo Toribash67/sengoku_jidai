@@ -22,6 +22,12 @@ export interface Features {
    *  multiplies the tree by the number of outcomes: measured at equal depth it plays better, at
    *  equal time clearly worse (it loses a ply or two), hence 0. */
   fullBattles: number;
+  /** Try remembered options first, so the others often need not be played out (search.ts,
+   *  OrderMemo). Changes speed only, never the choice. */
+  orderMemory: boolean;
+  /** Search options that come late in the order one step shallower, and again in full only if
+   *  they then look better than the earlier ones. Trades a little accuracy for depth. */
+  reductions: boolean;
 }
 
 export const DEFAULT_FEATURES: Features = {
@@ -32,7 +38,9 @@ export const DEFAULT_FEATURES: Features = {
   takeCover: true,
   followUps: true,
   opponentDeployThreats: true,
-  fullBattles: 0
+  fullBattles: 0,
+  orderMemory: true,
+  reductions: true
 };
 
 export interface ExpectiOptions {
