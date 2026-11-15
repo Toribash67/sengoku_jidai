@@ -215,3 +215,24 @@ against 64–68%), beats the first round directly, and does better against both 
 Against the deployed bot the tuned new bot now wins about four games in five on both rulesets.
 All of that comes from the weights: with the same weights the two searches are level at equal
 time, and at a fixed depth of 3 the old search is slightly ahead.
+
+### Second playtest by agents without source access (2026-11-15)
+
+Same setup as the first, with fresh agents and the third-round weights on the new bot.
+
+| Opponent                           | First playtest       | Second playtest      |
+| ---------------------------------- | -------------------- | -------------------- |
+| Deployed bot (`alphabeta`)         | Bot won 3–0, 7 / 10  | Bot lost 1–2, 5 / 10 |
+| `expecti` with fitted weights      | Bot won 2–1, 6.5 / 10 | Bot won 2–1, 7 / 10 |
+
+The deployed bot did not change between the two, so three games per opponent is a noisy
+measure; the agent that beat it reported well above average dice in both wins. All three bot
+losses in this playtest were HQ kills by bombardment from the sea while the bot was level or
+ahead on points. Both agents named the same main flaw: the HQ is left at one to three troops and
+defended only against a kill available on the very next action. The new bot parried more of
+these threats (shelling or cutting off the threatening fleet) but still lost one game to it.
+
+Card play: the deployed bot attacked 7v5 into two held cards and 4v3 at sea into one. The new
+bot attacked 4v2 into a hand of five cards and 5v5 into two (the latter a forced HQ parry); its
+7v3 attack into three cards survived an Ambush. The new bot never took initiative with a Plan
+order in three games, which matches the fitted initiative weight of about zero.
