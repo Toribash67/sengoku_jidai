@@ -32,7 +32,8 @@ export function runMigrations(db: SqliteDatabase): void {
     "006_terrain_candidates.sql",
     "007_ai_controllers.sql",
     "008_chat_messages.sql",
-    "009_spectator_links.sql"
+    "009_spectator_links.sql",
+    "010_ai_think_ms.sql"
   ];
   const migrationDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../migrations");
 

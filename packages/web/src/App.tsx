@@ -24,7 +24,7 @@ import {
 } from "./components/board/orders.js";
 import { getMap } from "@sengoku-jidai/engine/client";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import type { ChatMessage } from "@sengoku-jidai/shared";
+import type { AiThinkTime, ChatMessage } from "@sengoku-jidai/shared";
 import { ActionBar } from "./components/board/ActionBar.js";
 import { AreaDetails } from "./components/board/AreaDetails.js";
 import { CardPreview } from "./components/board/CardPreview.js";
@@ -531,11 +531,17 @@ export function App() {
   const cardPlays = useMemo(() => game?.view.legal.cardPlays ?? [], [game?.view.legal.cardPlays]);
   const playableCards = useMemo(() => new Set(cardPlays.map((p) => p.card)), [cardPlays]);
 
-  async function handleCreate(name: string, side: SeatId, mapId: string, opponent: "human" | "ai") {
+  async function handleCreate(
+    name: string,
+    side: SeatId,
+    mapId: string,
+    opponent: "human" | "ai",
+    aiThinkTime: AiThinkTime
+  ) {
     setBusy(true);
     setError(null);
     try {
-      const created = await createGame({ name, side, mapId, opponent });
+      const created = await createGame({ name, side, mapId, opponent, aiThinkTime });
       await ensureMapLoaded(created.view.mapId);
       rememberSeatTokens(created.gameId, created.seats);
       const myToken = created.seats.find((s) => s.seat === created.seat)!.token;

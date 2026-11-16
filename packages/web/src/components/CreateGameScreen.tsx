@@ -1,15 +1,22 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { SeatId } from "@sengoku-jidai/engine/client";
 import { riversMapId } from "@sengoku-jidai/engine/client";
-import type { MapSummary } from "@sengoku-jidai/shared";
+import { DEFAULT_AI_THINK_TIME, type AiThinkTime, type MapSummary } from "@sengoku-jidai/shared";
 import { listMaps } from "../client/api.js";
 import { mapsUrl, navigateTo } from "../state/route.js";
+import { THINK_TIME_OPTIONS } from "./thinkTime.js";
 
 interface CreateGameScreenProps {
   busy: boolean;
   error: string | null;
   preselectMapId: string | null;
-  onCreate: (name: string, side: SeatId, mapId: string, opponent: "human" | "ai") => void;
+  onCreate: (
+    name: string,
+    side: SeatId,
+    mapId: string,
+    opponent: "human" | "ai",
+    aiThinkTime: AiThinkTime
+  ) => void;
 }
 
 const SIDES: { id: SeatId; label: string }[] = [
@@ -21,6 +28,7 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
   const [name, setName] = useState("");
   const [side, setSide] = useState<SeatId>("red");
   const [opponent, setOpponent] = useState<"human" | "ai">("human");
+  const [aiThinkTime, setAiThinkTime] = useState<AiThinkTime>(DEFAULT_AI_THINK_TIME);
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
   const [mapsFailed, setMapsFailed] = useState(false);
   const [mapId, setMapId] = useState<string>(riversMapId);
@@ -58,7 +66,7 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
     if (trimmed.length === 0 || busy) {
       return;
     }
-    onCreate(trimmed, side, mapId, opponent);
+    onCreate(trimmed, side, mapId, opponent, aiThinkTime);
   }
 
   return (
@@ -150,6 +158,24 @@ export function CreateGameScreen({ busy, error, preselectMapId, onCreate }: Crea
               Computer (AI)
             </button>
           </fieldset>
+
+          {opponent === "ai" ? (
+            <fieldset className="side-toggle">
+              <legend>AI thinking time</legend>
+              {THINK_TIME_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  data-side={opponentSide}
+                  aria-pressed={aiThinkTime === option.value}
+                  className={aiThinkTime === option.value ? "is-active" : ""}
+                  onClick={() => setAiThinkTime(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </fieldset>
+          ) : null}
 
           <button type="submit" className="primary-action" disabled={busy || trimmed.length === 0}>
             {busy ? "Creating…" : "Create game"}

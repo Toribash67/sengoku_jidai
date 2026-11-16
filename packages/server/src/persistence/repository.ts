@@ -117,6 +117,15 @@ export class GameRepository {
     }));
   }
 
+  /** The AI thinking time (ms per command) chosen for a game, or null when none was stored —
+   *  games without an AI seat, and games created before the setting existed. */
+  aiThinkMsOf(gameId: string): number | null {
+    const row = this.db.prepare("SELECT ai_think_ms FROM games WHERE id = ?").get(gameId) as
+      | { ai_think_ms: number | null }
+      | undefined;
+    return row?.ai_think_ms ?? null;
+  }
+
   /** Per-seat controller ('human' | 'ai') for a game. */
   controllersOf(gameId: string): Record<SeatId, "human" | "ai"> {
     const rows = this.db
@@ -125,6 +134,18 @@ export class GameRepository {
     const out: Record<SeatId, "human" | "ai"> = { red: "human", black: "human" };
     for (const r of rows) out[r.seat] = r.controller;
     return out;
+  }
+
+  /** Games still in play that have an AI seat. */
+  activeAiGameIds(): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT DISTINCT g.id AS id
+         FROM games g JOIN game_seats s ON s.game_id = g.id
+         WHERE g.status = 'active' AND s.controller = 'ai'`
+      )
+      .all() as { id: string }[];
+    return rows.map((r) => r.id);
   }
 
   listGamesForAdmin(): AdminGameSummary[] {
@@ -175,6 +196,8 @@ export class GameRepository {
       creatorSide?: SeatId;
       mapId?: string;
       aiSeats?: SeatId[];
+      /** AI thinking time per command (ms); kept only when the game has an AI seat. */
+      aiThinkMs?: number;
     } = {}
   ): CreatedGame {
     const gameId = randomUUID();
@@ -193,8 +216,8 @@ export class GameRepository {
       this.db
         .prepare(
           `INSERT INTO games
-            (id, map_id, mode, ruleset_id, ruleset_version, ruleset_hash, status, current_revision, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            (id, map_id, mode, ruleset_id, ruleset_version, ruleset_hash, status, current_revision, created_at, updated_at, ai_think_ms)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
           gameId,
@@ -206,7 +229,8 @@ export class GameRepository {
           state.status,
           state.revision,
           now,
-          now
+          now,
+          (opts.aiSeats ?? []).length > 0 ? (opts.aiThinkMs ?? null) : null
         );
 
       for (const seat of ["red", "black"] as const) {

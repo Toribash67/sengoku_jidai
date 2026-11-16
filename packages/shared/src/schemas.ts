@@ -159,13 +159,20 @@ export const mapParamsSchema = z.object({
   mapId: z.string().min(1)
 });
 
+/** How long the AI may think per command, chosen when creating a game against it. */
+export const AI_THINK_TIMES = ["quick", "normal", "long"] as const;
+export type AiThinkTime = (typeof AI_THINK_TIMES)[number];
+export const AI_THINK_MS: Record<AiThinkTime, number> = { quick: 1500, normal: 5000, long: 10000 };
+export const DEFAULT_AI_THINK_TIME: AiThinkTime = "normal";
+
 export const createGameRequestSchema = z.object({
   mode: gameModeSchema.default("hotseat"),
   seed: z.string().optional(),
   name: z.string().trim().min(1).max(80).optional(),
   side: seatIdSchema.optional(),
   mapId: z.string().min(1).optional(),
-  opponent: z.enum(["human", "ai"]).optional()
+  opponent: z.enum(["human", "ai"]).optional(),
+  aiThinkTime: z.enum(AI_THINK_TIMES).optional()
 });
 
 export const claimGameRequestSchema = z.object({

@@ -9,7 +9,7 @@ import {
   type SeatId
 } from "@sengoku-jidai/engine";
 import { rollTotalDistribution } from "./combatOdds.js";
-import { tileBaseValue, type TileValueWeights } from "./geometry.js";
+import { hqDistances, tileBaseValue, type TileValueWeights } from "./geometry.js";
 
 export interface EvalWeights {
   vp: number;
@@ -24,6 +24,27 @@ export interface EvalWeights {
   initiative: number;
   /** Magnitude of a terminal win/loss. */
   terminal: number;
+  /** Weights fitted to game outcomes, one set per round (index round − 1; later rounds use the
+   *  last). When present they replace every term above except `unsuppliedFactor`, `catapult`
+   *  and `terminal`. */
+  byRound?: readonly RoundWeights[];
+}
+
+/** One round's fitted weights. The score is in units of 1/20 of the log-odds of winning. */
+export interface RoundWeights {
+  /** Per star on a supplied / an unsupplied tile. */
+  star: number;
+  starUnsupplied: number;
+  bonus: Record<BonusType, number>;
+  /** Per tile: presence × closeness to the enemy HQ (the old military term's proximity part). */
+  proximity: number;
+  /** Times √(cards in hand). */
+  card: number;
+  initiative: number;
+  /** Per unit standing next to the enemy HQ. */
+  hqPressure: number;
+  /** Per commander still to deploy this round. */
+  commander: number;
 }
 
 export const DEFAULT_WEIGHTS: EvalWeights = {
@@ -35,6 +56,237 @@ export const DEFAULT_WEIGHTS: EvalWeights = {
   card: 1.5,
   initiative: 1,
   terminal: 1000
+};
+
+/** First round of fitted weights: logistic regression on who won 2,000 Rivers games between the
+ *  search bots playing with the hand-set weights (2026-11-14; see docs/superpowers/results). Kept
+ *  as a sparring version. Negative fits are clamped to 0; the Armoury never
+ *  appears in Rivers, so it takes the mean of the other bonuses. */
+export const TUNED_WEIGHTS_V1: EvalWeights = {
+  ...DEFAULT_WEIGHTS,
+  byRound: [
+    {
+      star: 1.54,
+      starUnsupplied: 0,
+      bonus: {
+        barracks: 0.7,
+        warRoom: 1.4,
+        pirateHaven: 0,
+        shipyard: 4.71,
+        hiddenBase: 0,
+        armoury: 1.36
+      },
+      proximity: 7.49,
+      card: 2.32,
+      initiative: 7.3,
+      hqPressure: 0,
+      commander: 4.35
+    },
+    {
+      star: 1.55,
+      starUnsupplied: 3.84,
+      bonus: {
+        barracks: 1.43,
+        warRoom: 2.74,
+        pirateHaven: 2.21,
+        shipyard: 5.59,
+        hiddenBase: 3.58,
+        armoury: 3.11
+      },
+      proximity: 12.3,
+      card: 7.39,
+      initiative: 1.54,
+      hqPressure: 4.85,
+      commander: 8.38
+    },
+    {
+      star: 3.42,
+      starUnsupplied: 7.11,
+      bonus: {
+        barracks: 0,
+        warRoom: 0,
+        pirateHaven: 0,
+        shipyard: 0.64,
+        hiddenBase: 0.07,
+        armoury: 0.14
+      },
+      proximity: 15.51,
+      card: 7.88,
+      initiative: 0.78,
+      hqPressure: 5.02,
+      commander: 11.54
+    },
+    {
+      star: 8.64,
+      starUnsupplied: 9.5,
+      bonus: {
+        barracks: 0,
+        warRoom: 0,
+        pirateHaven: 0,
+        shipyard: 0.66,
+        hiddenBase: 0,
+        armoury: 0.13
+      },
+      proximity: 13.84,
+      card: 8.07,
+      initiative: 1.28,
+      hqPressure: 3.26,
+      commander: 17.27
+    }
+  ]
+};
+
+/** Second round: the same fit over 4,000 games — the first 2,000 plus 2,000 played by the bots
+ *  using TUNED_WEIGHTS_V1. Same clamping. Kept as a
+ *  sparring version. */
+export const TUNED_WEIGHTS_V2: EvalWeights = {
+  ...DEFAULT_WEIGHTS,
+  byRound: [
+    {
+      star: 2.47,
+      starUnsupplied: 4.62,
+      bonus: {
+        barracks: 8.69,
+        warRoom: 9.4,
+        pirateHaven: 6.94,
+        shipyard: 11.96,
+        hiddenBase: 7.32,
+        armoury: 8.86
+      },
+      proximity: 16.32,
+      card: 5.47,
+      initiative: 0,
+      hqPressure: 0,
+      commander: 10.86
+    },
+    {
+      star: 1.18,
+      starUnsupplied: 5.92,
+      bonus: {
+        barracks: 4.43,
+        warRoom: 6.45,
+        pirateHaven: 5.51,
+        shipyard: 9.71,
+        hiddenBase: 7.02,
+        armoury: 6.62
+      },
+      proximity: 13.19,
+      card: 7.93,
+      initiative: 0,
+      hqPressure: 4.51,
+      commander: 10.33
+    },
+    {
+      star: 2.72,
+      starUnsupplied: 7.04,
+      bonus: {
+        barracks: 0,
+        warRoom: 3.24,
+        pirateHaven: 2.89,
+        shipyard: 6.08,
+        hiddenBase: 3.49,
+        armoury: 3.14
+      },
+      proximity: 13.95,
+      card: 8.38,
+      initiative: 0,
+      hqPressure: 4.1,
+      commander: 11.64
+    },
+    {
+      star: 7.98,
+      starUnsupplied: 8.43,
+      bonus: {
+        barracks: 0,
+        warRoom: 1.05,
+        pirateHaven: 0,
+        shipyard: 5.29,
+        hiddenBase: 0.83,
+        armoury: 1.43
+      },
+      proximity: 12.46,
+      card: 6.0,
+      initiative: 1.35,
+      hqPressure: 3.18,
+      commander: 17.57
+    }
+  ]
+};
+
+/** Third round: the same fit over 6,000 games — the 4,000 above plus 2,000 played by the bots
+ *  using TUNED_WEIGHTS_V2. Same clamping. */
+export const TUNED_WEIGHTS: EvalWeights = {
+  ...DEFAULT_WEIGHTS,
+  byRound: [
+    {
+      star: 3.06,
+      starUnsupplied: 4.89,
+      bonus: {
+        barracks: 7.62,
+        warRoom: 8.96,
+        pirateHaven: 6.13,
+        shipyard: 10.56,
+        hiddenBase: 6.93,
+        armoury: 8.04
+      },
+      proximity: 15.26,
+      card: 7.37,
+      initiative: 0,
+      hqPressure: 0,
+      commander: 11.67
+    },
+    {
+      star: 1.21,
+      starUnsupplied: 5.55,
+      bonus: {
+        barracks: 4.65,
+        warRoom: 6.8,
+        pirateHaven: 5.1,
+        shipyard: 8.76,
+        hiddenBase: 6.4,
+        armoury: 6.34
+      },
+      proximity: 12.91,
+      card: 7.76,
+      initiative: 0,
+      hqPressure: 3.5,
+      commander: 10.02
+    },
+    {
+      star: 2.41,
+      starUnsupplied: 6.95,
+      bonus: {
+        barracks: 0,
+        warRoom: 4.63,
+        pirateHaven: 2.88,
+        shipyard: 6.21,
+        hiddenBase: 3.39,
+        armoury: 3.42
+      },
+      proximity: 14.17,
+      card: 8.13,
+      initiative: 0.23,
+      hqPressure: 3.08,
+      commander: 11.73
+    },
+    {
+      star: 7.73,
+      starUnsupplied: 8.55,
+      bonus: {
+        barracks: 0,
+        warRoom: 2.27,
+        pirateHaven: 0,
+        shipyard: 5.17,
+        hiddenBase: 1.09,
+        armoury: 1.71
+      },
+      proximity: 13.3,
+      card: 5.35,
+      initiative: 2.02,
+      hqPressure: 2.35,
+      commander: 18.07
+    }
+  ]
 };
 
 /** Concave presence curve: rewards having a unit at all, with diminishing returns per
@@ -72,6 +324,136 @@ function rawScore(state: GameState, map: MapDefinition, seat: SeatId, w: EvalWei
   return score;
 }
 
+/** A map's fixed facts as arrays over its areas, so the fitted score — the search's hottest
+ *  code — walks numbers instead of building sets of area names. */
+interface MapArrays {
+  ids: string[];
+  adjacent: number[][];
+  stars: number[];
+  hq: Record<SeatId, number>;
+  /** Steps to each seat's HQ; −1 if unreachable. */
+  hqDistance: Record<SeatId, number[]>;
+  /** Scratch space for the supply walk. */
+  owner: Uint8Array;
+  supplied: Uint8Array;
+  queue: Int32Array;
+}
+
+const mapArrays = new WeakMap<MapDefinition, MapArrays>();
+
+function arraysOf(map: MapDefinition): MapArrays {
+  let a = mapArrays.get(map);
+  if (a) return a;
+  const ids = Object.keys(map.areas);
+  const index = new Map(ids.map((id, i) => [id, i]));
+  const distances = (seat: SeatId) => {
+    const d = hqDistances(map, seat);
+    return ids.map((id) => d.get(id) ?? -1);
+  };
+  a = {
+    ids,
+    adjacent: ids.map((id) => map.areas[id]!.adjacent.map((n) => index.get(n)!)),
+    stars: ids.map((id) => map.areas[id]!.valueStars),
+    hq: {
+      red: ids.findIndex((id) => map.areas[id]!.hq === "red"),
+      black: ids.findIndex((id) => map.areas[id]!.hq === "black")
+    },
+    hqDistance: { red: distances("red"), black: distances("black") },
+    owner: new Uint8Array(ids.length),
+    supplied: new Uint8Array(ids.length),
+    queue: new Int32Array(ids.length)
+  };
+  mapArrays.set(map, a);
+  return a;
+}
+
+/** Red's fitted score minus black's. Each seat's terms are summed in area order, so the result
+ *  is the same number as scoring the seats one at a time. */
+function fittedDifference(
+  state: GameState,
+  map: MapDefinition,
+  w: EvalWeights,
+  byRound: readonly RoundWeights[]
+): number {
+  const r = byRound[Math.min(Math.max(state.round, 1), byRound.length) - 1]!;
+  const { ids, adjacent, stars, hq, hqDistance, owner, supplied, queue } = arraysOf(map);
+  const n = ids.length;
+  const areas = state.areas;
+  for (let i = 0; i < n; i++) {
+    const o = areas[ids[i]!]?.owner;
+    owner[i] = o === "red" ? RED : o === "black" ? BLACK : 0;
+  }
+
+  // In supply: the areas a seat holds that connect to its HQ through areas it holds.
+  supplied.fill(0);
+  for (const side of SIDES) {
+    const home = hq[side.seat];
+    if (home < 0 || owner[home] !== side.code) continue;
+    supplied[home] = 1;
+    queue[0] = home;
+    for (let head = 0, tail = 1; head < tail; head++) {
+      for (const next of adjacent[queue[head]!]!) {
+        if (supplied[next] === 0 && owner[next] === side.code) {
+          supplied[next] = 1;
+          queue[tail++] = next;
+        }
+      }
+    }
+  }
+
+  let red = 0;
+  let black = 0;
+  const bonuses = state.bonuses;
+  for (let i = 0; i < n; i++) {
+    const code = owner[i]!;
+    if (code === 0) continue;
+    const id = ids[i]!;
+    const rt = areas[id]!;
+    const units = rt.units.troop + rt.units.ship;
+    if (units <= 0) continue;
+    const sup = supplied[i] === 1;
+    const sf = sup ? 1 : w.unsuppliedFactor;
+    // The terms are added one by one, in the order a per-seat sum would add them.
+    let score = code === RED ? red : black;
+    score += w.catapult * Math.min(rt.units.siege, rt.units.troop) * sf; // 0 in Rivers
+    score += (sup ? r.star : r.starUnsupplied) * stars[i]!;
+    const bonusType = bonuses[id];
+    if (bonusType && sup) score += r.bonus[bonusType];
+    const d = (code === RED ? hqDistance.black : hqDistance.red)[i]!;
+    if (d >= 0) score += (r.proximity * presence(units) * sf) / (d + 1);
+    if (d === 1) score += r.hqPressure * units;
+    if (code === RED) red = score;
+    else black = score;
+  }
+
+  let redSpaces = 0;
+  let blackSpaces = 0;
+  const spaces = state.actionSpaces;
+  for (const space in spaces) {
+    const o = spaces[space];
+    if (o === "red") redSpaces++;
+    else if (o === "black") blackSpaces++;
+  }
+  // A per-seat sum adds these three after the areas, one at a time.
+  const tail = (sum: number, seat: SeatId, occupied: number): number => {
+    const p = state.players[seat];
+    sum +=
+      r.commander *
+      (p.commanders.total - occupied - p.commanders.standby - p.commanders.counterattacks);
+    sum += r.card * cardValue(p.hand.length);
+    if (state.initiative === seat) sum += r.initiative;
+    return sum;
+  };
+  return tail(red, "red", redSpaces) - tail(black, "black", blackSpaces);
+}
+
+const RED = 1;
+const BLACK = 2;
+const SIDES = [
+  { seat: "red", code: RED },
+  { seat: "black", code: BLACK }
+] as const;
+
 /** Antisymmetric position value for `seat` (seat − opponent). Terminal states short-circuit. */
 export function evaluate(
   state: GameState,
@@ -86,6 +468,10 @@ export function evaluate(
   }
   if (state.pendingCombat) return expectedCombatValue(state, seat, weights);
   const map = getMap(state.mapId);
+  if (weights.byRound) {
+    const red = fittedDifference(state, map, weights, weights.byRound);
+    return seat === "red" ? red : -red;
+  }
   return rawScore(state, map, seat, weights) - rawScore(state, map, enemy, weights);
 }
 

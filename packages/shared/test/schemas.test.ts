@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  AI_THINK_MS,
+  AI_THINK_TIMES,
+  DEFAULT_AI_THINK_TIME,
   claimGameRequestSchema,
   createGameRequestSchema,
   hexMapSourceSchema,
@@ -95,5 +98,22 @@ describe("mapParamsSchema", () => {
   it("requires a non-empty mapId param", () => {
     expect(mapParamsSchema.parse({ mapId: "m1" }).mapId).toBe("m1");
     expect(mapParamsSchema.safeParse({ mapId: "" }).success).toBe(false);
+  });
+});
+
+describe("createGameRequestSchema aiThinkTime", () => {
+  it("accepts the three thinking times and rejects others", () => {
+    for (const t of ["quick", "normal", "long"]) {
+      const parsed = createGameRequestSchema.safeParse({ opponent: "ai", aiThinkTime: t });
+      expect(parsed.success).toBe(true);
+    }
+    expect(createGameRequestSchema.safeParse({ aiThinkTime: "forever" }).success).toBe(false);
+    expect(createGameRequestSchema.parse({}).aiThinkTime).toBeUndefined();
+  });
+
+  it("maps the presets to 1.5 s, 5 s and 10 s, defaulting to Normal", () => {
+    expect(AI_THINK_MS).toEqual({ quick: 1500, normal: 5000, long: 10000 });
+    expect(AI_THINK_TIMES).toEqual(["quick", "normal", "long"]);
+    expect(DEFAULT_AI_THINK_TIME).toBe("normal");
   });
 });

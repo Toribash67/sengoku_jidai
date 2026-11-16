@@ -10,6 +10,16 @@ import {
   type SeatId
 } from "@sengoku-jidai/engine";
 
+/** How many free-capacity reinforce/embark targets (best by tile value) to offer per source. */
+const PLACEMENT_TARGETS = 3;
+
+/** A candidate command with its structural signature (its JSON), which identifies the same
+ *  command across positions. */
+export interface KeyedCommand {
+  cmd: Command;
+  key: string;
+}
+
 /** Concrete, engine-legal deploy commands for `seat` right now (empty if not its clean
  *  deploy turn). Canonical archetypes only — see the spec §6.
  *
@@ -17,11 +27,12 @@ import {
  *
  *  How many candidate archetypes we keep per move space. Widening this trades speed for
  *  coverage — a deliberate cap, not an accident. */
-
-/** How many free-capacity reinforce/embark targets (best by tile value) to offer per source. */
-const PLACEMENT_TARGETS = 3;
-
 export function deployCandidates(state: GameState, seat: SeatId): Command[] {
+  return keyedDeployCandidates(state, seat).map((c) => c.cmd);
+}
+
+/** `deployCandidates` with each command's signature. */
+export function keyedDeployCandidates(state: GameState, seat: SeatId): KeyedCommand[] {
   const legal = legalCommandsForState(state, seat);
   if (legal.activeSeat !== seat || !legal.canPass) {
     // canPass is the shared deployability gate; if it is false the seat cannot deploy now.
@@ -80,12 +91,14 @@ export function deployCandidates(state: GameState, seat: SeatId): Command[] {
 
   // De-duplicate by structural signature (archetypes can coincide).
   const seen = new Set<string>();
-  return out.filter((c) => {
-    const k = JSON.stringify(c);
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+  const keyed: KeyedCommand[] = [];
+  for (const cmd of out) {
+    const key = JSON.stringify(cmd);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    keyed.push({ cmd, key });
+  }
+  return keyed;
 }
 
 /** Reinforce/Embark candidates for one placement: the best few free-capacity targets by tile

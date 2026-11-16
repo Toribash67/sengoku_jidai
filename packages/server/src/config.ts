@@ -10,7 +10,14 @@ const configSchema = z
     sessionSecret: z.string().min(12),
     logLevel: z.string().min(1),
     falKey: z.string().optional(),
-    adminPassword: z.string().optional()
+    adminPassword: z.string().optional(),
+    /** Ceiling on the AI's thinking time per command, whatever a game asked for. Always set by
+     *  loadConfig; optional so hand-built configs fall back to the routes' default. */
+    aiMaxThinkMs: z.number().int().min(100).optional(),
+    /** Which search plays the AI seats, and with which scoring weights. Optional for hand-built
+     *  configs; loadConfig always sets both. */
+    aiBot: z.enum(["alphabeta", "expecti"]).optional(),
+    aiWeights: z.enum(["default", "tuned"]).optional()
   })
   .superRefine((config, ctx) => {
     if (config.nodeEnv === "production" && /change-me/i.test(config.sessionSecret)) {
@@ -38,6 +45,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     sessionSecret: env.SESSION_SECRET ?? "development-only-change-me",
     logLevel: env.LOG_LEVEL ?? "info",
     falKey: env.FAL_KEY,
-    adminPassword: env.ADMIN_PASSWORD
+    adminPassword: env.ADMIN_PASSWORD,
+    aiMaxThinkMs: Number(env.AI_MAX_THINK_MS ?? 10000),
+    aiBot: env.AI_BOT ?? "expecti",
+    aiWeights: env.AI_WEIGHTS ?? "tuned"
   });
 }

@@ -8,7 +8,15 @@ export { RandomBot } from "./bots/random.js";
 export { GreedyBot, greedyCommand } from "./bots/greedy.js";
 export { AlphaBetaBot, alphaBetaCommand, type AlphaBetaOptions } from "./bots/alphabeta.js";
 export { runMatch, runMatches, type MatchResult, type SeriesResult } from "./match.js";
-export { evaluate, DEFAULT_WEIGHTS, type EvalWeights } from "./eval.js";
+export {
+  evaluate,
+  DEFAULT_WEIGHTS,
+  TUNED_WEIGHTS,
+  TUNED_WEIGHTS_V1,
+  TUNED_WEIGHTS_V2,
+  type EvalWeights,
+  type RoundWeights
+} from "./eval.js";
 export {
   chooseCommandIsmcts,
   IsmctsBot,
@@ -18,3 +26,10 @@ export {
 export { determinize } from "./determinize.js";
 export { runIsmctsInWorker } from "./ismctsWorkerRunner.js";
 export { runAlphaBetaInWorker } from "./alphabetaWorkerRunner.js";
+export { ExpectiBot } from "./bots/expecti.js";
+export { chooseCommand as expectiCommand } from "./search2/search.js";
+export { observe, HIDDEN } from "./search2/hidden.js";
+export { DEFAULT_FEATURES, type ExpectiOptions, type Features } from "./search2/features.js";
+export { TrapperBot } from "./bots/trapper.js";
+export { parseBotSpec } from "./botRegistry.js";
+export { runExpectiInWorker } from "./expectiWorkerRunner.js";

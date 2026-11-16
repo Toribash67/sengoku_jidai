@@ -1,4 +1,5 @@
 import type {
+  AiThinkTime,
   ApiErrorBody,
   ChatMessage,
   ChatResponse,
@@ -20,22 +21,31 @@ import type {
   SeatId
 } from "@sengoku-jidai/engine/client";
 
-export async function createGame(input: {
+export interface CreateGameInput {
   name: string;
   side: SeatId;
   mapId?: string;
   opponent?: "human" | "ai";
-}): Promise<CreateGameResponse<PlayerGameView>> {
-  return request("/api/games", {
-    method: "POST",
-    body: JSON.stringify({
-      mode: "private_multiplayer",
-      name: input.name,
-      side: input.side,
-      mapId: input.mapId,
-      opponent: input.opponent
-    })
-  });
+  /** How long the computer opponent may think per command; ignored for a human opponent. */
+  aiThinkTime?: AiThinkTime;
+}
+
+/** The request body for creating a game. Thinking time only travels with a computer opponent. */
+export function createGameBody(input: CreateGameInput) {
+  return {
+    mode: "private_multiplayer" as const,
+    name: input.name,
+    side: input.side,
+    mapId: input.mapId,
+    opponent: input.opponent,
+    aiThinkTime: input.opponent === "ai" ? input.aiThinkTime : undefined
+  };
+}
+
+export async function createGame(
+  input: CreateGameInput
+): Promise<CreateGameResponse<PlayerGameView>> {
+  return request("/api/games", { method: "POST", body: JSON.stringify(createGameBody(input)) });
 }
 
 export async function claimSeat(
