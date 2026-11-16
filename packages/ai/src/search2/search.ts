@@ -65,12 +65,6 @@ export function newOrderMemo(): OrderMemo {
   return { best: new Map(), killers: [], ids: new Map() };
 }
 
-/** An option is searched one step shallower when it comes this late in the order and leads to
- *  no battle, at nodes with at least this much depth left; if it then looks better than what
- *  the earlier options achieved, it is searched again in full. */
-const LATE = 3;
-const REDUCE_FROM = 3;
-
 /** Identity of the position reached from `path` by the option with signature `key`. */
 function step(path: number, key: string, memo: OrderMemo): number {
   let id = memo.ids.get(key);
@@ -126,7 +120,7 @@ export function searchValue(
   // as a penalty on the whole step. The penalty is a constant, so pruning carries on around it.
   const threats = !maximizing && ctx.features.opponentDeployThreats && depth === ctx.threatDepth;
   const memo = ctx.features.orderMemory ? ctx.order : undefined;
-  const reduce = ctx.features.reductions && depth >= REDUCE_FROM;
+  const reduce = ctx.features.reductions && depth >= ctx.features.reduceFrom;
 
   let lo = alpha;
   let hi = beta;
@@ -142,7 +136,7 @@ export function searchValue(
         ? childValue(k, absent, d, lo, hi, ctx, at)
         : opponentChildValue(state, mover, k, absent, d, lo, hi, ctx, at);
     let v: number;
-    if (reduce && seen++ >= LATE && isQuiet(k.state)) {
+    if (reduce && seen++ >= ctx.features.reduceAfter && isQuiet(k.state)) {
       v = below(depth - 2);
       if (maximizing ? v > lo : v < hi) v = below(depth - 1);
     } else v = below(depth - 1);
@@ -450,7 +444,7 @@ export function chooseCommand(
       fullBattles: base.features.fullBattles
     };
     ctx.order!.killers = [];
-    const reduce = ctx.features.reductions && depth >= REDUCE_FROM;
+    const reduce = ctx.features.reductions && depth >= ctx.features.reduceFrom;
     let bestCmd = kids[0]!.cmd;
     let bestValue = -Infinity;
     let a = -Infinity;
@@ -458,7 +452,7 @@ export function chooseCommand(
     for (const k of kids) {
       const at = step(0, k.key, ctx.order!);
       let v: number;
-      if (reduce && seen++ >= LATE && isQuiet(k.state)) {
+      if (reduce && seen++ >= ctx.features.reduceAfter && isQuiet(k.state)) {
         v = childValue(k, none, depth - 2, a, Infinity, ctx, at);
         if (v > a) v = childValue(k, none, depth - 1, a, Infinity, ctx, at);
       } else v = childValue(k, none, depth - 1, a, Infinity, ctx, at);

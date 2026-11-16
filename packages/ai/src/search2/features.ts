@@ -25,9 +25,14 @@ export interface Features {
   /** Try remembered options first, so the others often need not be played out (search.ts,
    *  OrderMemo). Changes speed only, never the choice. */
   orderMemory: boolean;
-  /** Search options that come late in the order one step shallower, and again in full only if
-   *  they then look better than the earlier ones. Trades a little accuracy for depth. */
+  /** Search an option one step shallower when it comes late in the order and starts no battle,
+   *  and again in full only if it then looks better than the earlier ones. Trades a little
+   *  accuracy for depth. */
   reductions: boolean;
+  /** How many options are searched in full before the reductions start. */
+  reduceAfter: number;
+  /** Reductions apply at nodes with at least this much depth left. */
+  reduceFrom: number;
 }
 
 export const DEFAULT_FEATURES: Features = {
@@ -40,7 +45,9 @@ export const DEFAULT_FEATURES: Features = {
   opponentDeployThreats: true,
   fullBattles: 0,
   orderMemory: true,
-  reductions: true
+  reductions: true,
+  reduceAfter: 3,
+  reduceFrom: 3
 };
 
 export interface ExpectiOptions {

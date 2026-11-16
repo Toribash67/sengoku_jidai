@@ -31,6 +31,8 @@ export function runMatch(
     maxCommands?: number;
     /** Ruleset override (default: the map's, i.e. Rivers). */
     rules?: RulesConfig;
+    /** A registered map to play on (default: Rivers). */
+    mapId?: string;
     /** Observe every accepted command's events (diagnostics/tests). */
     onEvents?: (events: GameEvent[]) => void;
   }
@@ -38,7 +40,8 @@ export function runMatch(
   let state = createInitialState({
     gameId: opts.gameId ?? "match",
     seed: opts.seed,
-    ...(opts.rules ? { rules: opts.rules } : {})
+    ...(opts.rules ? { rules: opts.rules } : {}),
+    ...(opts.mapId ? { mapId: opts.mapId } : {})
   });
   const max = opts.maxCommands ?? 100_000;
   let commands = 0;

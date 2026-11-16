@@ -11,8 +11,8 @@ import { DEFAULT_FEATURES, type Features } from "./search2/features.js";
 /**
  * Bots by name, for the duel script. Grammar: `name[:key=value[,key=value…]]`.
  *
- *   expecti    ms, depth, weights, rerollCap, fullBattles, off (features to switch off, joined
- *              with `+`)
+ *   expecti    ms, depth, weights, rerollCap, fullBattles, reduceAfter, reduceFrom, off (features
+ *              to switch off, joined with `+`)
  *   alphabeta  ms, depth, weights
  *   trapper    ms, depth, weights
  *
@@ -52,8 +52,10 @@ export function parseBotSpec(spec: string): { name: string; make: () => Bot } {
       const features: Partial<Features> = {};
       const rerollCap = num("rerollCap");
       if (rerollCap !== undefined) features.rerollCap = rerollCap;
-      const fullBattles = num("fullBattles");
-      if (fullBattles !== undefined) features.fullBattles = fullBattles;
+      for (const key of ["fullBattles", "reduceAfter", "reduceFrom"] as const) {
+        const n = num(key);
+        if (n !== undefined) features[key] = n;
+      }
       for (const flag of (args.get("off") ?? "").split("+").filter(Boolean)) {
         if (
           !(flag in DEFAULT_FEATURES) ||
@@ -87,7 +89,16 @@ const WEIGHT_SETS: Record<string, EvalWeights | undefined> = {
 };
 
 const ALLOWED_KEYS: Record<string, readonly string[]> = {
-  expecti: ["ms", "depth", "weights", "rerollCap", "fullBattles", "off"],
+  expecti: [
+    "ms",
+    "depth",
+    "weights",
+    "rerollCap",
+    "fullBattles",
+    "reduceAfter",
+    "reduceFrom",
+    "off"
+  ],
   alphabeta: ["ms", "depth", "weights"],
   trapper: ["ms", "depth", "weights"],
   greedy: [],

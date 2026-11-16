@@ -7,6 +7,7 @@
  *   --seeds N       number of starting setups; each is played twice with sides swapped
  *   --seed-prefix   names the setups (default "duel"), so a series can be repeated exactly
  *   --ruleset       rivers (default) | fortress
+ *   --map           rivers (default) | river-disc (a synthetic second map, see testMap.ts)
  *   --jobs N        split the setups across N processes
  *   --json PATH     also write the full result as JSON
  *
@@ -19,6 +20,7 @@ import { writeFileSync } from "node:fs";
 import { fortressRuleset, type RulesConfig } from "@sengoku-jidai/engine";
 import { parseBotSpec, runMatch } from "../src/index.js";
 import type { Bot, Command, GameState, SeatId } from "../src/index.js";
+import { registerTestMap } from "./testMap.js";
 
 interface Timing {
   commands: number;
@@ -56,7 +58,13 @@ function timed(bot: Bot, timing: Timing): Bot {
   };
 }
 
-function playSeed(specA: string, specB: string, seed: string, rules?: RulesConfig): GameRecord[] {
+function playSeed(
+  specA: string,
+  specB: string,
+  seed: string,
+  rules?: RulesConfig,
+  mapId?: string
+): GameRecord[] {
   return [true, false].map((aIsRed) => {
     const timing = {
       a: { commands: 0, totalMs: 0, worstMs: 0 },
@@ -64,7 +72,7 @@ function playSeed(specA: string, specB: string, seed: string, rules?: RulesConfi
     };
     const a = timed(parseBotSpec(specA).make(), timing.a);
     const b = timed(parseBotSpec(specB).make(), timing.b);
-    const res = runMatch(aIsRed ? a : b, aIsRed ? b : a, { seed, gameId: seed, rules });
+    const res = runMatch(aIsRed ? a : b, aIsRed ? b : a, { seed, gameId: seed, rules, mapId });
     const aSeat: SeatId = aIsRed ? "red" : "black";
     const bSeat: SeatId = aIsRed ? "black" : "red";
     return {
@@ -144,11 +152,14 @@ async function main(): Promise<void> {
   const ruleset = flag("--ruleset") ?? "rivers";
   if (ruleset !== "rivers" && ruleset !== "fortress") throw new Error(`Unknown ruleset ${ruleset}`);
   const rules = ruleset === "fortress" ? fortressRuleset : undefined;
+  const mapName = flag("--map") ?? "rivers";
+  if (mapName !== "rivers" && mapName !== "river-disc") throw new Error(`Unknown map ${mapName}`);
+  const mapId = mapName === "river-disc" ? registerTestMap() : undefined;
 
   // A shard: play exactly the seeds it was handed and print the records for the parent.
   const only = flag("--only-seeds");
   if (only !== undefined) {
-    const records = only.split(",").flatMap((seed) => playSeed(specA, specB, seed, rules));
+    const records = only.split(",").flatMap((seed) => playSeed(specA, specB, seed, rules, mapId));
     process.stdout.write(JSON.stringify(records));
     return;
   }
@@ -160,9 +171,9 @@ async function main(): Promise<void> {
 
   let games: GameRecord[];
   if (jobs === 1) {
-    games = seeds.flatMap((seed) => playSeed(specA, specB, seed, rules));
+    games = seeds.flatMap((seed) => playSeed(specA, specB, seed, rules, mapId));
   } else {
-    const passThrough = ["--a", specA, "--b", specB, "--ruleset", ruleset];
+    const passThrough = ["--a", specA, "--b", specB, "--ruleset", ruleset, "--map", mapName];
     const slices = Array.from({ length: jobs }, (_, j) => seeds.filter((_s, i) => i % jobs === j));
     const shards = await Promise.all(slices.map((slice) => runShard(passThrough, slice)));
     const bySeed = new Map(shards.flat().map((g) => [`${g.seed}/${g.aIsRed}`, g]));
@@ -171,7 +182,9 @@ async function main(): Promise<void> {
 
   const summary = summarise(specA, specB, ruleset, games);
   const pct = (x: number) => `${(100 * x).toFixed(1)}%`;
-  console.log(`A  ${summary.a}\nB  ${summary.b}\nruleset ${ruleset}, ${summary.games} games`);
+  console.log(
+    `A  ${summary.a}\nB  ${summary.b}\nruleset ${ruleset}, map ${mapName}, ${summary.games} games`
+  );
   console.log(`A wins ${summary.aWins}  draws ${summary.draws}  B wins ${summary.bWins}`);
   console.log(
     `A win rate ${pct(summary.aWinRate)} of decisive games ` +
