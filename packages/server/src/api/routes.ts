@@ -51,7 +51,9 @@ export function registerApiRoutes(
   aiMaxThinkMs: number = AI_THINK_MS.long,
   aiEngine: AiEngine = DEFAULT_AI_ENGINE
 ): void {
-  const pickAiCommand = aiCommandPicker(aiEngine);
+  const pickAiCommand = aiCommandPicker(aiEngine, {
+    onFallback: (err) => app.log.warn({ err }, "AI search failed; the previous bot answered")
+  });
   // The AI thinks for as long as its game was set up to allow (read per command, so it follows
   // the stored value), capped by the server's maximum.
   const aiPickCommandFor =
@@ -63,8 +65,13 @@ export function registerApiRoutes(
         delayMs: 50
       });
     });
+  // One driver per game at a time: a second request while one is running would have two
+  // searches race to apply a command for the same turn.
+  const driving = new Set<string>();
   const driveAiSoon = (gameId: string) =>
     setImmediate(() => {
+      if (driving.has(gameId)) return;
+      driving.add(gameId);
       driveAiTurns(
         {
           controllersOf: (id) => repository.controllersOf(id),
@@ -73,8 +80,13 @@ export function registerApiRoutes(
         },
         gameId,
         aiPickCommandFor(gameId)
-      ).catch((err) => app.log.error({ err, gameId }, "AI driver failed"));
+      )
+        .catch((err) => app.log.error({ err, gameId }, "AI driver failed"))
+        .finally(() => driving.delete(gameId));
     });
+  // A restart (every deploy is one) can interrupt the AI mid-thought, and nothing the player
+  // can do would wake it: they are not on the clock. Pick those games up again.
+  for (const gameId of repository.activeAiGameIds()) driveAiSoon(gameId);
 
   const presence = new SpectatorPresence();
 

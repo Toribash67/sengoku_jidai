@@ -136,6 +136,18 @@ export class GameRepository {
     return out;
   }
 
+  /** Games still in play that have an AI seat. */
+  activeAiGameIds(): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT DISTINCT g.id AS id
+         FROM games g JOIN game_seats s ON s.game_id = g.id
+         WHERE g.status = 'active' AND s.controller = 'ai'`
+      )
+      .all() as { id: string }[];
+    return rows.map((r) => r.id);
+  }
+
   listGamesForAdmin(): AdminGameSummary[] {
     const games = this.db
       .prepare(
