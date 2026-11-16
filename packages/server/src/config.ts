@@ -47,7 +47,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     falKey: env.FAL_KEY,
     adminPassword: env.ADMIN_PASSWORD,
     aiMaxThinkMs: Number(env.AI_MAX_THINK_MS ?? 10000),
-    aiBot: env.AI_BOT ?? "alphabeta",
-    aiWeights: env.AI_WEIGHTS ?? "default"
+    aiBot: env.AI_BOT ?? "expecti",
+    aiWeights: env.AI_WEIGHTS ?? "tuned"
   });
 }

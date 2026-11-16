@@ -11,7 +11,7 @@ export interface AiEngine {
   weights: "default" | "tuned";
 }
 
-export const DEFAULT_AI_ENGINE: AiEngine = { bot: "alphabeta", weights: "default" };
+export const DEFAULT_AI_ENGINE: AiEngine = { bot: "expecti", weights: "tuned" };
 
 /** One AI decision on a worker thread, by the configured search and scoring weights. The new
  *  search is handed only the seat's observation, so the opponent's cards never reach it. */

@@ -236,3 +236,65 @@ Card play: the deployed bot attacked 7v5 into two held cards and 4v3 at sea into
 bot attacked 4v2 into a hand of five cards and 5v5 into two (the latter a forced HQ parry); its
 7v3 attack into three cards survived an Ambush. The new bot never took initiative with a Plan
 order in three games, which matches the fitted initiative weight of about zero.
+
+## Follow-up: search speed-ups, a second map, and the server switch (2026-11-16)
+
+Three changes to the new search and the engine under it:
+
+- **Order memory.** Replies that refuted a sibling line, and the best reply from the previous
+  deepening pass, are tried first. Exact: the choice is unchanged, only the time.
+- **Uneven depth.** In nodes with three or more plies left, options after the third that start no
+  battle are searched one ply shallower first and re-searched at full depth only if they beat
+  the bound. Not exact; measured below.
+- **Cheaper copying and scoring.** The engine copies `areas` and `actionSpaces` by their known
+  shape instead of through JSON, and the fitted scoring walks the map once for both seats.
+
+Total search time over 16 benchmark positions (`scripts/bench2.ts`):
+
+| Version                         | Depth 4  | Depth 5 | Depth 6  |
+| ------------------------------- | -------- | ------- | -------- |
+| Before                          | 8113 ms  |         |          |
+| Exact (order memory, fast copy) | 2567 ms  |         |          |
+| With uneven depth               | 1464 ms  | 5820 ms | 27723 ms |
+
+### 1.5 s per move, Rivers, 200 games each
+
+| A               | B                              | W–L     | A win rate | 95% interval  |
+| --------------- | ------------------------------ | ------- | ---------- | ------------- |
+| `expecti` tuned | same, both additions off       | 116–84  | 58.0%      | 51.1% – 64.6% |
+| `expecti` tuned | same, uneven depth off         | 110–90  | 55.0%      | 48.1% – 61.7% |
+| `reduceAfter=2` | `expecti` tuned (default 3)    | 89–111  | 44.5%      | 37.8% – 51.4% |
+| `reduceFrom=2`  | `expecti` tuned (default 3)    | 103–97  | 51.5%      | 44.6% – 58.3% |
+| `expecti` tuned | `alphabeta` tuned              | 102–98  | 51.0%      | 44.1% – 57.8% |
+| `expecti` tuned | `alphabeta` (deployed)         | 156–44  | 78.0%      | 71.8% – 83.2% |
+
+The engine speed-up helps the old search as much as the new one, so with the same weights the
+two searches are still level. Neither more aggressive uneven-depth setting helped; the defaults
+stay at 3 and 3.
+
+### Does it hold on a map the weights were not fitted on?
+
+The scoring function is feature-based (stars held, bonuses by type, graph distance to the enemy
+HQ, units next to it, cards, commanders left, initiative, with weights per round); nothing in it
+names a Rivers tile. The weights, however, were fitted on Rivers games only. To check that they
+carry over, `scripts/testMap.ts` builds "River Disc": 37 single-hex tiles, a river of five sea
+tiles across the middle, an HQ at each end, mirrored through the centre.
+
+| A               | B                      | Map / ruleset      | Time  | Games | W–L    | A win rate | 95% interval  |
+| --------------- | ---------------------- | ------------------ | ----- | ----- | ------ | ---------- | ------------- |
+| `expecti` tuned | `alphabeta` (deployed) | River Disc         | 1.5 s | 200   | 114–86 | 57.0%      | 50.1% – 63.7% |
+| `expecti` tuned | `expecti` hand-set     | River Disc         | 1.5 s | 200   | 128–72 | 64.0%      | 57.1% – 70.3% |
+| `expecti` tuned | `alphabeta` (deployed) | Rivers / Fortress  | 1.5 s | 100   | 81–19  | 81.0%      | 72.2% – 87.5% |
+| `expecti` tuned | `alphabeta` (deployed) | Rivers             | 5 s   | 60    | 46–14  | 76.7%      | 64.6% – 85.6% |
+
+The fitted weights beat the hand-set ones on the unseen map too, so they are used on every map.
+The margin over the deployed bot is much smaller there than on Rivers (57% against 78%), and it
+is one synthetic map: custom maps with very different shapes are untested.
+
+### Server default
+
+The server now uses the new search with the fitted weights unless told otherwise. To go back
+without a deploy of new code, set `AI_BOT=alphabeta` and `AI_WEIGHTS=default`.
+
+Known weaknesses carried over, from the playtests: the HQ is defended only against a kill on the
+very next action, and the bot rarely takes initiative with a Plan order.

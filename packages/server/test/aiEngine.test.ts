@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState, resolveCommand } from "@sengoku-jidai/engine";
 import { loadConfig } from "../src/config.js";
-import { aiCommandPicker } from "../src/ai/aiEngine.js";
+import { aiCommandPicker, DEFAULT_AI_ENGINE } from "../src/ai/aiEngine.js";
 
 describe("choosing the AI engine", () => {
-  it("defaults to the deployed bot with the hand-set weights", () => {
+  it("defaults to the fair search with the fitted weights", () => {
     const config = loadConfig({});
+    expect(config.aiBot).toBe("expecti");
+    expect(config.aiWeights).toBe("tuned");
+    expect(DEFAULT_AI_ENGINE).toEqual({ bot: "expecti", weights: "tuned" });
+  });
+
+  it("can be switched back to the previous bot", () => {
+    const config = loadConfig({ AI_BOT: "alphabeta", AI_WEIGHTS: "default" });
     expect(config.aiBot).toBe("alphabeta");
     expect(config.aiWeights).toBe("default");
   });

@@ -51,7 +51,7 @@ export function buildApp(config: ServerConfig, opts?: BuildAppOptions) {
     config.adminPassword,
     opts?.aiPickCommandFor,
     config.aiMaxThinkMs,
-    { bot: config.aiBot ?? "alphabeta", weights: config.aiWeights ?? "default" }
+    { bot: config.aiBot ?? "expecti", weights: config.aiWeights ?? "tuned" }
   );
 
   if (config.nodeEnv === "production") {
