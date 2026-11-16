@@ -22,6 +22,10 @@ export interface Features {
    *  multiplies the tree by the number of outcomes: measured at equal depth it plays better, at
    *  equal time clearly worse (it loses a ply or two), hence 0. */
   fullBattles: number;
+  /** In a folded battle, what the search finds beyond the likeliest outcome counts only for the
+   *  share of outcomes that leave a game to play. Off, it counted in full, so a line through a
+   *  probable HQ loss could be credited with what happens after surviving it. */
+  foldByShare: boolean;
   /** Try remembered options first, so the others often need not be played out (search.ts,
    *  OrderMemo). Changes speed only, never the choice. */
   orderMemory: boolean;
@@ -43,6 +47,7 @@ export const DEFAULT_FEATURES: Features = {
   takeCover: true,
   followUps: true,
   opponentDeployThreats: true,
+  foldByShare: true,
   fullBattles: 0,
   orderMemory: true,
   reductions: true,

@@ -275,8 +275,8 @@ function opponentChildValue(
 /**
  * A battle. The first `fullBattles` on a line are expanded: every outcome is searched and the
  * values averaged. That multiplies the tree below by the number of outcomes, so deeper battles
- * are folded instead: only the most likely outcome is searched, and the others are accounted for
- * by how much the exact expected static value differs from that outcome's static value. The
+ * are folded instead: only the most likely outcome that leaves a game to play is searched, and
+ * the others are accounted for by their exact expected static value. The
  * dice and the cards are priced either way; only the continuation is approximated.
  */
 function chanceValue(
@@ -300,21 +300,28 @@ function chanceValue(
     return value;
   }
   let expected = 0;
+  /** Probability that the game goes on after this battle. */
+  let active = 0;
   let likely: (typeof outs)[number] | null = null;
   let likelyStatic = 0;
   for (const o of outs) {
     const v = evaluate(o.state, ctx.viewer, ctx.weights);
     expected += o.prob * v;
-    if (o.state.status === "active" && (likely === null || o.prob > likely.prob)) {
+    if (o.state.status !== "active") continue;
+    active += o.prob;
+    if (likely === null || o.prob > likely.prob) {
       likely = o;
       likelyStatic = v;
     }
   }
   if (!likely) return expected; // every outcome ends the game
-  const shift = expected - likelyStatic;
-  return (
-    searchValue(likely.state, likely.absent, depth, alpha - shift, beta - shift, ctx, path) + shift
-  );
+  // What the search finds beyond the likeliest outcome's static value counts only for the share
+  // of outcomes with a game left to play: an outcome that ends the game has no continuation.
+  if (!ctx.features.foldByShare) active = 1;
+  const a = (alpha - expected) / active + likelyStatic;
+  const b = (beta - expected) / active + likelyStatic;
+  const found = searchValue(likely.state, likely.absent, depth, a, b, ctx, path);
+  return expected + active * (found - likelyStatic);
 }
 
 type KeyedChild = Child;
